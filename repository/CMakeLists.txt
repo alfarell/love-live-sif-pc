@@ -1,0 +1,99 @@
+cmake_minimum_required(VERSION 3.28)
+project(sif_port LANGUAGES C CXX)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+
+include(FetchContent)
+set(FETCHCONTENT_QUIET ON)
+# same pin as pt-pc (cmake/Dependencies.cmake:12); static so the port is one executable
+set(SDL_SHARED OFF CACHE BOOL "" FORCE)
+set(SDL_STATIC ON CACHE BOOL "" FORCE)
+set(SDL_TEST_LIBRARY OFF CACHE BOOL "" FORCE)
+set(SDL_EXAMPLES OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(sdl3 GIT_REPOSITORY https://github.com/libsdl-org/SDL.git GIT_TAG release-3.4.16 GIT_SHALLOW TRUE)
+# same pin and options as pt-pc (cmake/Dependencies.cmake:14-18); cmp\0zlib archives
+set(ZLIB_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(ZLIB_BUILD_TESTING OFF CACHE BOOL "" FORCE)
+set(ZLIB_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+set(ZLIB_INSTALL OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(zlib GIT_REPOSITORY https://github.com/madler/zlib.git GIT_TAG v1.3.2 GIT_SHALLOW TRUE)
+FetchContent_MakeAvailable(sdl3 zlib)
+
+# LZMA SDK decoder (public domain, see THIRD_PARTY.md); cmp\0lzma archives
+add_library(lzmadec STATIC third_party/lzma/LzmaDec.c)
+target_include_directories(lzmadec PUBLIC third_party/lzma)
+
+# GLSL -> SPIR-V as C word lists (glslc -mfmt=c), included by the renderer
+find_program(GLSLC glslc HINTS "$ENV{VULKAN_SDK}/Bin" "C:/VulkanSDK/1.4.363.0/Bin" REQUIRED)
+set(SHADER_OUT ${CMAKE_BINARY_DIR}/shaders)
+set(SHADER_INCS)
+foreach(shader blit.vert blit.frag)
+  add_custom_command(OUTPUT ${SHADER_OUT}/${shader}.inc
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${SHADER_OUT}
+    COMMAND ${GLSLC} -mfmt=c -O -o ${SHADER_OUT}/${shader}.inc ${CMAKE_SOURCE_DIR}/shaders/${shader}
+    DEPENDS ${CMAKE_SOURCE_DIR}/shaders/${shader} VERBATIM)
+  list(APPEND SHADER_INCS ${SHADER_OUT}/${shader}.inc)
+endforeach()
+
+# vgmstream clHCA (ISC, see THIRD_PARTY.md); built as-is, so upstream warnings are not ours to fix
+add_library(clhca STATIC third_party/clhca/clhca.c)
+target_include_directories(clhca PUBLIC third_party/clhca)
+if(MSVC)
+  target_compile_options(clhca PRIVATE /W0)
+endif()
+
+add_library(sif_engine STATIC
+  src/engine/audio/audio_output.cpp
+  src/engine/audio/cri_utf.cpp
+  src/engine/audio/cue_sheet.cpp
+  src/engine/audio/decode.cpp
+  src/engine/audio/sound_bank.cpp
+  src/engine/core/log.cpp
+  src/engine/core/crash_report.cpp
+  src/engine/core/parallel_for.cpp
+  src/engine/formats/btx.cpp
+  src/engine/fs/pac.cpp
+  src/engine/fs/vfs.cpp
+  src/engine/platform/os.cpp
+  src/engine/platform/settings.cpp
+  src/engine/render/renderer.cpp
+  ${SHADER_INCS})
+target_include_directories(sif_engine PUBLIC src PRIVATE ${SHADER_OUT})
+target_link_libraries(sif_engine PUBLIC SDL3::SDL3-static zlibstatic lzmadec clhca)
+target_compile_definitions(sif_engine PUBLIC NOMINMAX WIN32_LEAN_AND_MEAN _CRT_SECURE_NO_WARNINGS)
+if(WIN32)
+  target_link_libraries(sif_engine PUBLIC dbghelp)
+endif()
+if(MSVC)
+  target_compile_options(sif_engine PRIVATE /W3 /utf-8 /EHsc)
+endif()
+
+add_executable(sif WIN32 src/app/main.cpp)
+target_link_libraries(sif PRIVATE sif_engine)
+if(MSVC)
+  target_compile_options(sif PRIVATE /utf-8 /EHsc)
+endif()
+
+add_executable(sif_log_test tests/unit/log_test.cpp)
+target_link_libraries(sif_log_test PRIVATE sif_engine)
+
+add_executable(sif_vfs_test tests/unit/vfs_test.cpp)
+target_link_libraries(sif_vfs_test PRIVATE sif_engine)
+if(MSVC)
+  target_compile_options(sif_vfs_test PRIVATE /utf-8 /EHsc)
+endif()
+
+add_executable(sif_audio_test tests/unit/audio_test.cpp)
+target_link_libraries(sif_audio_test PRIVATE sif_engine)
+if(MSVC)
+  target_compile_options(sif_audio_test PRIVATE /utf-8 /EHsc)
+endif()
+
+add_executable(sif_hca2wav src/tools/hca2wav.cpp)
+target_link_libraries(sif_hca2wav PRIVATE clhca)
+if(MSVC)
+  target_compile_options(sif_hca2wav PRIVATE /W3 /utf-8 /EHsc)
+endif()
