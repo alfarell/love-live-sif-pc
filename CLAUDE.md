@@ -32,6 +32,12 @@ Subfolders here:
 6. Ask before bulk extraction, writes outside this folder, or installing heavy toolchains.
 7. Don't put game assets, `eboot.bin`, keys, or other proprietary material into the repository or shared output. Only the user's own dumps; no help with piracy or online-service circumvention.
 
+## Git commits
+
+1. Commit only when the user asks. Run `py -3.14 -I repository/tools/no_assets_check.py .` before every commit.
+2. Make one commit per topic or section (e.g. one analysis part, one tool set, one engine module), not one commit for everything.
+3. The commit message is a single line: no description body and no co-author or other trailer lines (no `Co-Authored-By: Claude`).
+
 ## Rules for `analysis/` and `plan/`
 
 1. Every new analysis or plan topic gets its own folder.

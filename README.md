@@ -48,6 +48,7 @@ Related folders outside this project (read-only inputs):
 
 - The assets folder, pt-pc, the P.T. game folder, and shadPS4 are read-only; nothing in them is modified.
 - No game assets, `eboot.bin`, or keys are stored in this repository. The port is meant to load from the user's own legally obtained dump.
+- Commits: one commit per topic or section; the message is a single line, with no description body and no co-author lines. Run `repository/tools/no_assets_check.py` before committing.
 
 ## More
 
