@@ -17,10 +17,12 @@ The reference is **pt-pc**, an existing project that does this for the PS4 game 
 | `E:\Projects\Software Reverse Engineering\Love Live SIF (PS4)` | **Main project folder.** Holds project description, these instructions, analysis results, plans, notes, and our own code/tools. | Read/write |
 | `D:\Games\PS4\Love Live School Idol Festival` | **Game assets.** Contains the PKG (`Love.Live.School.Idol.Festival-CUSA24620.v1.02.pkg`), the DLC folder, a dump of the game (same content as the PKG, extracted) containing `eboot.bin` under `CUSA24620`, and extracted DLC under `Extracted`. | **Read-only** |
 | `D:\Games\PS4\pt-pc` | **Reference repository.** The "PT" PS4-to-PC port. Used to learn the approach. | **Read-only** |
+| `D:\Games\PS4\shadPS4` | **Emulator reference.** shadPS4 source checkout (GPL-2.0). Used as the reference for PS4 system-library behaviour and for NID names (`src/core/aerolib/aerolib.inl`). Do not copy its code into the repository unless the GPL decision (plan Part 8) allows it. | **Read-only** |
+| `D:\Games\PS4\pt-pc-game` | **P.T. game copy.** The user's own copy of the game pt-pc ports: PKG (`PS4_P.T._Playable_Teaser_Silent_Hills_Demo_CUSA01127.pkg`) and dump `CUSA01127` with `eboot.bin`. Used to compare against SIF and to check pt-pc's docs. | **Read-only** |
 
 Rules:
 
-- Never modify, move, or delete anything in the game assets folder or in pt-pc. Treat both as read-only.
+- Never modify, move, or delete anything in the game assets folder, in pt-pc, in the P.T. game folder, or in shadPS4. Treat all four as read-only.
 - All notes, analysis, scripts, and code we produce go in the main project folder.
 - Large derived files (decrypted/decompressed binaries, extracted assets) go in a clearly named subfolder such as `work/` or `extracted/` inside the main project folder, not beside the originals.
 

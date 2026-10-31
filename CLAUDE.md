@@ -13,6 +13,8 @@ PC port of the PS4 game **Love Live! School Idol Festival (CUSA24620)**, modeled
 | `E:\Projects\Software Reverse Engineering\Love Live SIF (PS4)` (this folder) | Main project: docs, notes, plans, our code | Read/write |
 | `D:\Games\PS4\Love Live School Idol Festival` | Game assets: PKG (`Love.Live.School.Idol.Festival-CUSA24620.v1.02.pkg`), DLC folder, game dump with `eboot.bin` under `CUSA24620`, extracted DLC under `Extracted` | **Read-only** |
 | `D:\Games\PS4\pt-pc` | Reference repository (PT port) | **Read-only** |
+| `D:\Games\PS4\shadPS4` | shadPS4 emulator source (GPL-2.0): emulation reference and NID names (`src/core/aerolib/aerolib.inl`) | **Read-only** |
+| `D:\Games\PS4\pt-pc-game` | User's own P.T. copy (pt-pc's input): PKG `PS4_P.T._Playable_Teaser_Silent_Hills_Demo_CUSA01127.pkg` and dump `CUSA01127` with `eboot.bin` | **Read-only** |
 
 Subfolders here:
 
@@ -22,7 +24,7 @@ Subfolders here:
 
 ## Rules
 
-1. Never modify, move, or delete files in the assets folder or pt-pc.
+1. Never modify, move, or delete files in the assets folder, pt-pc, the P.T. game folder, or shadPS4.
 2. Read the actual files before drawing conclusions. Cite file paths (and function/line where useful). Label guesses as guesses.
 3. Work on files in place on the user's computer; don't copy large binaries into the cloud workspace unless a step truly needs it.
 4. Put findings in `analysis/`, plans and decisions in `plan/`, code in `repository/`. Keep derived or extracted big files out of `repository/` source (use a `work/` subfolder that is not committed).
