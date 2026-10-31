@@ -1,0 +1,930 @@
+{
+ "root": "D:\\Games\\PS4\\Love Live School Idol Festival\\DLC",
+ "files": 180,
+ "bytes": 720437248,
+ "by_folder": {
+  ".": {
+   "files": 180,
+   "bytes": 720437248
+  }
+ },
+ "by_extension": {
+  ".pkg": {
+   "files": 180,
+   "bytes": 720437248
+  }
+ },
+ "by_magic4": {
+  "7f434e54": {
+   "ascii": "\u007fCNT",
+   "files": 180,
+   "bytes": 720437248,
+   "exts": {
+    ".pkg": 180
+   },
+   "example": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0001.pkg"
+  }
+ },
+ "file_list": [
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0001.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0002.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0003.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0004.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0005.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0006.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0007.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0008.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0009.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0010.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0011.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0012.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0013.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0014.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0015.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0016.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0017.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0018.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0019.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0020.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0021.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0022.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0023.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0024.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0025.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0026.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0027.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0028.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0029.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0030.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0031.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0032.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0033.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0034.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0035.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0036.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0037.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0038.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS0039.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS1001.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS1002.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS1003.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS1004.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS1005.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS1006.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS1007.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS1008.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS1009.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS1010.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS1011.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS1012.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS1013.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS1014.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS1015.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS1016.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS1017.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS1018.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS1019.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS1020.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS1021.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS1022.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS1023.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMCOS1024.pkg",
+   "size": 1048576,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0001.pkg",
+   "size": 6815744,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0002.pkg",
+   "size": 4849664,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0003.pkg",
+   "size": 6684672,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0004.pkg",
+   "size": 6815744,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0005.pkg",
+   "size": 6815744,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0006.pkg",
+   "size": 6619136,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0007.pkg",
+   "size": 6815744,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0008.pkg",
+   "size": 6029312,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0009.pkg",
+   "size": 4849664,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0010.pkg",
+   "size": 6815744,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0011.pkg",
+   "size": 6815744,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0012.pkg",
+   "size": 4915200,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0013.pkg",
+   "size": 6422528,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0014.pkg",
+   "size": 4915200,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0015.pkg",
+   "size": 6815744,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0016.pkg",
+   "size": 6619136,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0017.pkg",
+   "size": 6291456,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0018.pkg",
+   "size": 6815744,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0019.pkg",
+   "size": 5898240,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0020.pkg",
+   "size": 6684672,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0021.pkg",
+   "size": 4259840,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0022.pkg",
+   "size": 4653056,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0023.pkg",
+   "size": 4456448,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0024.pkg",
+   "size": 4915200,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0025.pkg",
+   "size": 6815744,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0026.pkg",
+   "size": 5963776,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0027.pkg",
+   "size": 6029312,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0028.pkg",
+   "size": 4653056,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0029.pkg",
+   "size": 4915200,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0030.pkg",
+   "size": 4915200,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0031.pkg",
+   "size": 6946816,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0032.pkg",
+   "size": 5570560,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0033.pkg",
+   "size": 6881280,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0034.pkg",
+   "size": 5111808,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0035.pkg",
+   "size": 6815744,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0036.pkg",
+   "size": 5505024,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0037.pkg",
+   "size": 6291456,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0038.pkg",
+   "size": 4849664,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0039.pkg",
+   "size": 6684672,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0040.pkg",
+   "size": 4915200,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0041.pkg",
+   "size": 4653056,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0042.pkg",
+   "size": 6684672,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0043.pkg",
+   "size": 4980736,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0044.pkg",
+   "size": 4915200,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0045.pkg",
+   "size": 4915200,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0046.pkg",
+   "size": 6815744,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0047.pkg",
+   "size": 4915200,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0048.pkg",
+   "size": 3997696,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0049.pkg",
+   "size": 4915200,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0050.pkg",
+   "size": 6422528,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0051.pkg",
+   "size": 5963776,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0052.pkg",
+   "size": 4980736,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0053.pkg",
+   "size": 4915200,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0054.pkg",
+   "size": 4784128,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0055.pkg",
+   "size": 6750208,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0056.pkg",
+   "size": 6684672,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0057.pkg",
+   "size": 5898240,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0058.pkg",
+   "size": 5767168,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0059.pkg",
+   "size": 5636096,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0060.pkg",
+   "size": 4587520,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0061.pkg",
+   "size": 4128768,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0062.pkg",
+   "size": 4325376,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0063.pkg",
+   "size": 4128768,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0064.pkg",
+   "size": 4063232,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0065.pkg",
+   "size": 4915200,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0066.pkg",
+   "size": 4915200,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0067.pkg",
+   "size": 4849664,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0068.pkg",
+   "size": 4456448,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1001.pkg",
+   "size": 6750208,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1002.pkg",
+   "size": 6619136,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1003.pkg",
+   "size": 6815744,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1004.pkg",
+   "size": 6815744,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1005.pkg",
+   "size": 6488064,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1006.pkg",
+   "size": 4259840,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1007.pkg",
+   "size": 4784128,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1008.pkg",
+   "size": 6815744,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1009.pkg",
+   "size": 4653056,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1010.pkg",
+   "size": 5439488,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1011.pkg",
+   "size": 6684672,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1012.pkg",
+   "size": 5898240,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1013.pkg",
+   "size": 6553600,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1014.pkg",
+   "size": 4718592,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1015.pkg",
+   "size": 6553600,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1016.pkg",
+   "size": 4194304,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1017.pkg",
+   "size": 4653056,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1018.pkg",
+   "size": 6619136,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1019.pkg",
+   "size": 5832704,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1020.pkg",
+   "size": 6094848,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1021.pkg",
+   "size": 4521984,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1022.pkg",
+   "size": 4587520,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1023.pkg",
+   "size": 4325376,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1024.pkg",
+   "size": 4784128,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1025.pkg",
+   "size": 6160384,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1026.pkg",
+   "size": 4849664,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1027.pkg",
+   "size": 6815744,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1028.pkg",
+   "size": 6881280,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1029.pkg",
+   "size": 6619136,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1030.pkg",
+   "size": 5832704,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1031.pkg",
+   "size": 6094848,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1032.pkg",
+   "size": 5570560,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1033.pkg",
+   "size": 6029312,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1034.pkg",
+   "size": 4587520,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1035.pkg",
+   "size": 3866624,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1036.pkg",
+   "size": 4784128,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1037.pkg",
+   "size": 6881280,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1038.pkg",
+   "size": 6750208,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1039.pkg",
+   "size": 6750208,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1040.pkg",
+   "size": 6029312,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1041.pkg",
+   "size": 4653056,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1042.pkg",
+   "size": 4784128,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1043.pkg",
+   "size": 4915200,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1044.pkg",
+   "size": 4915200,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1045.pkg",
+   "size": 4915200,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1046.pkg",
+   "size": 4521984,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1047.pkg",
+   "size": 4521984,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1048.pkg",
+   "size": 4849664,
+   "head": "7f434e5400000001000000000000000f"
+  },
+  {
+   "path": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1049.pkg",
+   "size": 4915200,
+   "head": "7f434e5400000001000000000000000f"
+  }
+ ]
+}

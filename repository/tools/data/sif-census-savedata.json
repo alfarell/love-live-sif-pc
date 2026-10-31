@@ -1,0 +1,205 @@
+{
+ "root": "D:\\Games\\PS4\\Love Live School Idol Festival\\savedata",
+ "files": 24,
+ "bytes": 62971344,
+ "by_folder": {
+  ".": {
+   "files": 24,
+   "bytes": 62971344
+  },
+  "CUSA24620": {
+   "files": 24,
+   "bytes": 62971344
+  },
+  "CUSA24620/sce_sdmemory": {
+   "files": 6,
+   "bytes": 1120116
+  },
+  "CUSA24620/sce_sdmemory1": {
+   "files": 6,
+   "bytes": 44111732
+  },
+  "CUSA24620/sce_sdmemory2": {
+   "files": 6,
+   "bytes": 890740
+  },
+  "CUSA24620/sce_sdmemory3": {
+   "files": 6,
+   "bytes": 16848756
+  }
+ },
+ "by_extension": {
+  ".dat": {
+   "files": 8,
+   "bytes": 62685184
+  },
+  ".png": {
+   "files": 8,
+   "bytes": 273392
+  },
+  ".sfo": {
+   "files": 8,
+   "bytes": 12768
+  }
+ },
+ "by_magic4": {
+  "00000000": {
+   "ascii": "....",
+   "files": 6,
+   "bytes": 61636608,
+   "exts": {
+    ".dat": 6
+   },
+   "example": "CUSA24620/sce_sdmemory1/memory.dat"
+  },
+  "00000100": {
+   "ascii": "....",
+   "files": 2,
+   "bytes": 1048576,
+   "exts": {
+    ".dat": 2
+   },
+   "example": "CUSA24620/sce_sdmemory/memory.dat"
+  },
+  "89504e47": {
+   "ascii": "\u0089PNG",
+   "files": 8,
+   "bytes": 273392,
+   "exts": {
+    ".png": 8
+   },
+   "example": "CUSA24620/sce_sdmemory/sce_backup/sce_sys/icon0.png"
+  },
+  "00505346": {
+   "ascii": ".PSF",
+   "files": 8,
+   "bytes": 12768,
+   "exts": {
+    ".sfo": 8
+   },
+   "example": "CUSA24620/sce_sdmemory/sce_backup/sce_sys/param.sfo"
+  }
+ },
+ "file_list": [
+  {
+   "path": "CUSA24620/sce_sdmemory/memory.dat",
+   "size": 524288,
+   "head": "00000100000000000000000000000000"
+  },
+  {
+   "path": "CUSA24620/sce_sdmemory/sce_backup/memory.dat",
+   "size": 524288,
+   "head": "00000100000000000000000000000000"
+  },
+  {
+   "path": "CUSA24620/sce_sdmemory/sce_backup/sce_sys/icon0.png",
+   "size": 34174,
+   "head": "89504e470d0a1a0a0000000d49484452"
+  },
+  {
+   "path": "CUSA24620/sce_sdmemory/sce_backup/sce_sys/param.sfo",
+   "size": 1596,
+   "head": "005053460101000094000000f9000000"
+  },
+  {
+   "path": "CUSA24620/sce_sdmemory/sce_sys/icon0.png",
+   "size": 34174,
+   "head": "89504e470d0a1a0a0000000d49484452"
+  },
+  {
+   "path": "CUSA24620/sce_sdmemory/sce_sys/param.sfo",
+   "size": 1596,
+   "head": "005053460101000094000000f9000000"
+  },
+  {
+   "path": "CUSA24620/sce_sdmemory1/memory.dat",
+   "size": 22020096,
+   "head": "00000000000000000000000000000000"
+  },
+  {
+   "path": "CUSA24620/sce_sdmemory1/sce_backup/memory.dat",
+   "size": 22020096,
+   "head": "00000000000000000000000000000000"
+  },
+  {
+   "path": "CUSA24620/sce_sdmemory1/sce_backup/sce_sys/icon0.png",
+   "size": 34174,
+   "head": "89504e470d0a1a0a0000000d49484452"
+  },
+  {
+   "path": "CUSA24620/sce_sdmemory1/sce_backup/sce_sys/param.sfo",
+   "size": 1596,
+   "head": "005053460101000094000000f9000000"
+  },
+  {
+   "path": "CUSA24620/sce_sdmemory1/sce_sys/icon0.png",
+   "size": 34174,
+   "head": "89504e470d0a1a0a0000000d49484452"
+  },
+  {
+   "path": "CUSA24620/sce_sdmemory1/sce_sys/param.sfo",
+   "size": 1596,
+   "head": "005053460101000094000000f9000000"
+  },
+  {
+   "path": "CUSA24620/sce_sdmemory2/memory.dat",
+   "size": 409600,
+   "head": "00000000000000000000000000000000"
+  },
+  {
+   "path": "CUSA24620/sce_sdmemory2/sce_backup/memory.dat",
+   "size": 409600,
+   "head": "00000000000000000000000000000000"
+  },
+  {
+   "path": "CUSA24620/sce_sdmemory2/sce_backup/sce_sys/icon0.png",
+   "size": 34174,
+   "head": "89504e470d0a1a0a0000000d49484452"
+  },
+  {
+   "path": "CUSA24620/sce_sdmemory2/sce_backup/sce_sys/param.sfo",
+   "size": 1596,
+   "head": "005053460101000094000000f9000000"
+  },
+  {
+   "path": "CUSA24620/sce_sdmemory2/sce_sys/icon0.png",
+   "size": 34174,
+   "head": "89504e470d0a1a0a0000000d49484452"
+  },
+  {
+   "path": "CUSA24620/sce_sdmemory2/sce_sys/param.sfo",
+   "size": 1596,
+   "head": "005053460101000094000000f9000000"
+  },
+  {
+   "path": "CUSA24620/sce_sdmemory3/memory.dat",
+   "size": 8388608,
+   "head": "00000000000000000000000000000000"
+  },
+  {
+   "path": "CUSA24620/sce_sdmemory3/sce_backup/memory.dat",
+   "size": 8388608,
+   "head": "00000000000000000000000000000000"
+  },
+  {
+   "path": "CUSA24620/sce_sdmemory3/sce_backup/sce_sys/icon0.png",
+   "size": 34174,
+   "head": "89504e470d0a1a0a0000000d49484452"
+  },
+  {
+   "path": "CUSA24620/sce_sdmemory3/sce_backup/sce_sys/param.sfo",
+   "size": 1596,
+   "head": "005053460101000094000000f9000000"
+  },
+  {
+   "path": "CUSA24620/sce_sdmemory3/sce_sys/icon0.png",
+   "size": 34174,
+   "head": "89504e470d0a1a0a0000000d49484452"
+  },
+  {
+   "path": "CUSA24620/sce_sdmemory3/sce_sys/param.sfo",
+   "size": 1596,
+   "head": "005053460101000094000000f9000000"
+  }
+ ]
+}

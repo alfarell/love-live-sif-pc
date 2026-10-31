@@ -1,0 +1,593 @@
+{
+ "a": "D:\\Games\\PS4\\Love Live School Idol Festival\\Extracted",
+ "b": "D:\\Games\\PS4\\Love Live School Idol Festival\\CUSA24620\\sound\\dlc",
+ "identical": [
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0001/MUSIC_0010.awb",
+   "b": "MUSIC_0010.awb",
+   "size": 6069376
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0003/MUSIC_0020.awb",
+   "b": "MUSIC_0020.awb",
+   "size": 5899392
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0005/MUSIC_0030.awb",
+   "b": "MUSIC_0030.awb",
+   "size": 6087808
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0007/MUSIC_0040.awb",
+   "b": "MUSIC_0040.awb",
+   "size": 6058112
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0008/MUSIC_0050.awb",
+   "b": "MUSIC_0050.awb",
+   "size": 5112960
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0010/MUSIC_0060.awb",
+   "b": "MUSIC_0060.awb",
+   "size": 6171776
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0016/MUSIC_0070.awb",
+   "b": "MUSIC_0070.awb",
+   "size": 5819520
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0017/MUSIC_0080.awb",
+   "b": "MUSIC_0080.awb",
+   "size": 5638272
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0035/MUSIC_0090.awb",
+   "b": "MUSIC_0090.awb",
+   "size": 6220928
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0031/MUSIC_0100.awb",
+   "b": "MUSIC_0100.awb",
+   "size": 6231168
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0033/MUSIC_0110.awb",
+   "b": "MUSIC_0110.awb",
+   "size": 6246528
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0011/MUSIC_0140.awb",
+   "b": "MUSIC_0140.awb",
+   "size": 6232192
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0004/MUSIC_0150.awb",
+   "b": "MUSIC_0150.awb",
+   "size": 6200448
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0006/MUSIC_0160.awb",
+   "b": "MUSIC_0160.awb",
+   "size": 5854336
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0018/MUSIC_0170.awb",
+   "b": "MUSIC_0170.awb",
+   "size": 6347904
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0037/MUSIC_0180.awb",
+   "b": "MUSIC_0180.awb",
+   "size": 5634176
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0051/MUSIC_0190.awb",
+   "b": "MUSIC_0190.awb",
+   "size": 5176448
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0046/MUSIC_0200.awb",
+   "b": "MUSIC_0200.awb",
+   "size": 6296704
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0042/MUSIC_0210.awb",
+   "b": "MUSIC_0210.awb",
+   "size": 5914752
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0056/MUSIC_0220.awb",
+   "b": "MUSIC_0220.awb",
+   "size": 5874816
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0057/MUSIC_0230.awb",
+   "b": "MUSIC_0230.awb",
+   "size": 5241984
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0058/MUSIC_0240.awb",
+   "b": "MUSIC_0240.awb",
+   "size": 5135488
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0059/MUSIC_0250.awb",
+   "b": "MUSIC_0250.awb",
+   "size": 4832384
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0025/MUSIC_0260.awb",
+   "b": "MUSIC_0260.awb",
+   "size": 5952640
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0027/MUSIC_0270.awb",
+   "b": "MUSIC_0270.awb",
+   "size": 5405824
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0026/MUSIC_0280.awb",
+   "b": "MUSIC_0280.awb",
+   "size": 5207168
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0045/MUSIC_0290.awb",
+   "b": "MUSIC_0290.awb",
+   "size": 4138504
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0050/MUSIC_0300.awb",
+   "b": "MUSIC_0300.awb",
+   "size": 5700736
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0055/MUSIC_0310.awb",
+   "b": "MUSIC_0310.awb",
+   "size": 5862528
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0020/MUSIC_0320.awb",
+   "b": "MUSIC_0320.awb",
+   "size": 5897344
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0019/MUSIC_0330.awb",
+   "b": "MUSIC_0330.awb",
+   "size": 5280896
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0039/MUSIC_0350.awb",
+   "b": "MUSIC_0350.awb",
+   "size": 5998720
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0013/MUSIC_0360.awb",
+   "b": "MUSIC_0360.awb",
+   "size": 5574784
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0015/MUSIC_0370.awb",
+   "b": "MUSIC_0370.awb",
+   "size": 6055040
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0032/MUSIC_0380.awb",
+   "b": "MUSIC_0380.awb",
+   "size": 4859008
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0034/MUSIC_0390.awb",
+   "b": "MUSIC_0390.awb",
+   "size": 4326528
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0036/MUSIC_0400.awb",
+   "b": "MUSIC_0400.awb",
+   "size": 4740224
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0041/MUSIC_0410.awb",
+   "b": "MUSIC_0410.awb",
+   "size": 3807734
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0047/MUSIC_0420.awb",
+   "b": "MUSIC_0420.awb",
+   "size": 4104404
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0052/MUSIC_0430.awb",
+   "b": "MUSIC_0430.awb",
+   "size": 4107814
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0009/MUSIC_0440.awb",
+   "b": "MUSIC_0440.awb",
+   "size": 4035522
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0024/MUSIC_0450.awb",
+   "b": "MUSIC_0450.awb",
+   "size": 4206704
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0022/MUSIC_0460.awb",
+   "b": "MUSIC_0460.awb",
+   "size": 3734760
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0012/MUSIC_0470.awb",
+   "b": "MUSIC_0470.awb",
+   "size": 3939360
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0067/MUSIC_0480.awb",
+   "b": "MUSIC_0480.awb",
+   "size": 3943452
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0038/MUSIC_0490.awb",
+   "b": "MUSIC_0490.awb",
+   "size": 3969368
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0063/MUSIC_0500.awb",
+   "b": "MUSIC_0500.awb",
+   "size": 3170746
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0064/MUSIC_0510.awb",
+   "b": "MUSIC_0510.awb",
+   "size": 3117550
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0014/MUSIC_0520.awb",
+   "b": "MUSIC_0520.awb",
+   "size": 3960502
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0066/MUSIC_0530.awb",
+   "b": "MUSIC_0530.awb",
+   "size": 3927084
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0068/MUSIC_0540.awb",
+   "b": "MUSIC_0540.awb",
+   "size": 3539708
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0060/MUSIC_0550.awb",
+   "b": "MUSIC_0550.awb",
+   "size": 3690430
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0062/MUSIC_0560.awb",
+   "b": "MUSIC_0560.awb",
+   "size": 3435362
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0061/MUSIC_0570.awb",
+   "b": "MUSIC_0570.awb",
+   "size": 3281230
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0065/MUSIC_0580.awb",
+   "b": "MUSIC_0580.awb",
+   "size": 3940724
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0023/MUSIC_0590.awb",
+   "b": "MUSIC_0590.awb",
+   "size": 3530160
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0030/MUSIC_0600.awb",
+   "b": "MUSIC_0600.awb",
+   "size": 3978916
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0040/MUSIC_0610.awb",
+   "b": "MUSIC_0610.awb",
+   "size": 4075078
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0044/MUSIC_0620.awb",
+   "b": "MUSIC_0620.awb",
+   "size": 4028702
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0054/MUSIC_0630.awb",
+   "b": "MUSIC_0630.awb",
+   "size": 3860930
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0049/MUSIC_0640.awb",
+   "b": "MUSIC_0640.awb",
+   "size": 4131684
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0021/MUSIC_0650.awb",
+   "b": "MUSIC_0650.awb",
+   "size": 3350112
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0028/MUSIC_0660.awb",
+   "b": "MUSIC_0660.awb",
+   "size": 3699296
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0043/MUSIC_0680.awb",
+   "b": "MUSIC_0680.awb",
+   "size": 4082580
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0048/MUSIC_0690.awb",
+   "b": "MUSIC_0690.awb",
+   "size": 3148240
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0053/MUSIC_0700.awb",
+   "b": "MUSIC_0700.awb",
+   "size": 4150098
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0029/MUSIC_0710.awb",
+   "b": "MUSIC_0710.awb",
+   "size": 3990510
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS0002/MUSIC_0720.awb",
+   "b": "MUSIC_0720.awb",
+   "size": 4055982
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1001/MUSIC_1010.awb",
+   "b": "MUSIC_1010.awb",
+   "size": 6084736
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1010/MUSIC_1020.awb",
+   "b": "MUSIC_1020.awb",
+   "size": 4723840
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1002/MUSIC_1030.awb",
+   "b": "MUSIC_1030.awb",
+   "size": 5883008
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1003/MUSIC_1040.awb",
+   "b": "MUSIC_1040.awb",
+   "size": 6064256
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1004/MUSIC_1050.awb",
+   "b": "MUSIC_1050.awb",
+   "size": 6218880
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1011/MUSIC_1060.awb",
+   "b": "MUSIC_1060.awb",
+   "size": 5845120
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1028/MUSIC_1070.awb",
+   "b": "MUSIC_1070.awb",
+   "size": 6206592
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1030/MUSIC_1080.awb",
+   "b": "MUSIC_1080.awb",
+   "size": 4896896
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1032/MUSIC_1090.awb",
+   "b": "MUSIC_1090.awb",
+   "size": 4867200
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1027/MUSIC_1100.awb",
+   "b": "MUSIC_1100.awb",
+   "size": 5856384
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1005/MUSIC_1110.awb",
+   "b": "MUSIC_1110.awb",
+   "size": 5624960
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1029/MUSIC_1150.awb",
+   "b": "MUSIC_1150.awb",
+   "size": 5848192
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1031/MUSIC_1160.awb",
+   "b": "MUSIC_1160.awb",
+   "size": 5311616
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1033/MUSIC_1170.awb",
+   "b": "MUSIC_1170.awb",
+   "size": 5168256
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1006/MUSIC_1180.awb",
+   "b": "MUSIC_1180.awb",
+   "size": 3302372
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1020/MUSIC_1190.awb",
+   "b": "MUSIC_1190.awb",
+   "size": 5163136
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1008/MUSIC_1200.awb",
+   "b": "MUSIC_1200.awb",
+   "size": 6101120
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1040/MUSIC_1210.awb",
+   "b": "MUSIC_1210.awb",
+   "size": 5192832
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1038/MUSIC_1220.awb",
+   "b": "MUSIC_1220.awb",
+   "size": 6030464
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1037/MUSIC_1230.awb",
+   "b": "MUSIC_1230.awb",
+   "size": 6030464
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1039/MUSIC_1240.awb",
+   "b": "MUSIC_1240.awb",
+   "size": 5889152
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1012/MUSIC_1250.awb",
+   "b": "MUSIC_1250.awb",
+   "size": 5000320
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1025/MUSIC_1260.awb",
+   "b": "MUSIC_1260.awb",
+   "size": 5191808
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1018/MUSIC_1270.awb",
+   "b": "MUSIC_1270.awb",
+   "size": 5761152
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1013/MUSIC_1280.awb",
+   "b": "MUSIC_1280.awb",
+   "size": 5688448
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1019/MUSIC_1290.awb",
+   "b": "MUSIC_1290.awb",
+   "size": 5118080
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1016/MUSIC_1300.awb",
+   "b": "MUSIC_1300.awb",
+   "size": 3300326
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1017/MUSIC_1310.awb",
+   "b": "MUSIC_1310.awb",
+   "size": 3817964
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1022/MUSIC_1330.awb",
+   "b": "MUSIC_1330.awb",
+   "size": 3639280
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1023/MUSIC_1340.awb",
+   "b": "MUSIC_1340.awb",
+   "size": 3431952
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1015/MUSIC_1350.awb",
+   "b": "MUSIC_1350.awb",
+   "size": 5829760
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1024/MUSIC_1360.awb",
+   "b": "MUSIC_1360.awb",
+   "size": 3815918
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1021/MUSIC_1380.awb",
+   "b": "MUSIC_1380.awb",
+   "size": 3685656
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1014/MUSIC_1430.awb",
+   "b": "MUSIC_1430.awb",
+   "size": 3928448
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1009/MUSIC_1440.awb",
+   "b": "MUSIC_1440.awb",
+   "size": 3657012
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1007/MUSIC_1450.awb",
+   "b": "MUSIC_1450.awb",
+   "size": 3775680
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1041/MUSIC_1470.awb",
+   "b": "MUSIC_1470.awb",
+   "size": 3834332
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1042/MUSIC_1480.awb",
+   "b": "MUSIC_1480.awb",
+   "size": 3917536
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1043/MUSIC_1490.awb",
+   "b": "MUSIC_1490.awb",
+   "size": 4036886
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1044/MUSIC_1500.awb",
+   "b": "MUSIC_1500.awb",
+   "size": 4006878
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1045/MUSIC_1510.awb",
+   "b": "MUSIC_1510.awb",
+   "size": 4000058
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1046/MUSIC_1520.awb",
+   "b": "MUSIC_1520.awb",
+   "size": 3657012
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1047/MUSIC_1530.awb",
+   "b": "MUSIC_1530.awb",
+   "size": 3650192
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1048/MUSIC_1540.awb",
+   "b": "MUSIC_1540.awb",
+   "size": 4028702
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1049/MUSIC_1550.awb",
+   "b": "MUSIC_1550.awb",
+   "size": 3990510
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1035/MUSIC_1900.awb",
+   "b": "MUSIC_1900.awb",
+   "size": 2996154
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1034/MUSIC_1910.awb",
+   "b": "MUSIC_1910.awb",
+   "size": 3762722
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1026/MUSIC_1930.awb",
+   "b": "MUSIC_1930.awb",
+   "size": 4001422
+  },
+  {
+   "a": "Love.Live.School.Idol.Festival-DLC-LLSIFACHMMUS1036/MUSIC_1940.awb",
+   "b": "MUSIC_1940.awb",
+   "size": 4151462
+  }
+ ],
+ "same_size_different_content": [],
+ "size_differs": []
+}

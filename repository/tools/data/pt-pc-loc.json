@@ -1,0 +1,936 @@
+{
+  "repo": "D:\\Games\\PS4\\pt-pc",
+  "note": "physical lines of tracked text files; binary files listed separately",
+  "by_language": {
+    "C++": {
+      "files": 307,
+      "lines": 126238
+    },
+    "C/C++ header": {
+      "files": 257,
+      "lines": 39350
+    },
+    "Python": {
+      "files": 49,
+      "lines": 18126
+    },
+    "GLSL": {
+      "files": 125,
+      "lines": 9564
+    },
+    "Text": {
+      "files": 172,
+      "lines": 5130
+    },
+    "Markdown": {
+      "files": 41,
+      "lines": 4402
+    },
+    "CMake": {
+      "files": 15,
+      "lines": 2048
+    },
+    "Objective-C++": {
+      "files": 1,
+      "lines": 841
+    },
+    "YAML": {
+      "files": 5,
+      "lines": 233
+    },
+    "C#": {
+      "files": 2,
+      "lines": 151
+    },
+    "Shell": {
+      "files": 2,
+      "lines": 150
+    },
+    "JSON": {
+      "files": 16,
+      "lines": 68
+    },
+    "XML": {
+      "files": 3,
+      "lines": 53
+    },
+    "Batch": {
+      "files": 2,
+      "lines": 53
+    },
+    "PowerShell": {
+      "files": 1,
+      "lines": 52
+    },
+    "Resource script": {
+      "files": 4,
+      "lines": 50
+    },
+    "other (.gitignore)": {
+      "files": 1,
+      "lines": 38
+    },
+    "Lua": {
+      "files": 1,
+      "lines": 28
+    },
+    "other (LICENSE)": {
+      "files": 1,
+      "lines": 25
+    },
+    "MSBuild": {
+      "files": 2,
+      "lines": 8
+    },
+    "Linker map": {
+      "files": 1,
+      "lines": 4
+    },
+    "other (.gitattributes)": {
+      "files": 1,
+      "lines": 3
+    },
+    "other (.gitkeep)": {
+      "files": 3,
+      "lines": 0
+    }
+  },
+  "by_folder": {
+    "(root)": {
+      "files": 6,
+      "lines": 953,
+      "languages": {
+        "other (.gitattributes)": {
+          "files": 1,
+          "lines": 3
+        },
+        "other (.gitignore)": {
+          "files": 1,
+          "lines": 38
+        },
+        "CMake": {
+          "files": 1,
+          "lines": 674
+        },
+        "JSON": {
+          "files": 1,
+          "lines": 20
+        },
+        "other (LICENSE)": {
+          "files": 1,
+          "lines": 25
+        },
+        "Markdown": {
+          "files": 1,
+          "lines": 193
+        }
+      }
+    },
+    ".github": {
+      "files": 1,
+      "lines": 2,
+      "languages": {
+        "YAML": {
+          "files": 1,
+          "lines": 2
+        }
+      }
+    },
+    ".github/ISSUE_TEMPLATE": {
+      "files": 2,
+      "lines": 74,
+      "languages": {
+        "YAML": {
+          "files": 2,
+          "lines": 74
+        }
+      }
+    },
+    ".github/workflows": {
+      "files": 2,
+      "lines": 157,
+      "languages": {
+        "YAML": {
+          "files": 2,
+          "lines": 157
+        }
+      }
+    },
+    "assets": {
+      "files": 2,
+      "lines": 22,
+      "languages": {
+        "XML": {
+          "files": 1,
+          "lines": 19
+        },
+        "Resource script": {
+          "files": 1,
+          "lines": 3
+        }
+      }
+    },
+    "assets/fonts": {
+      "files": 5,
+      "lines": 386,
+      "languages": {
+        "Text": {
+          "files": 4,
+          "lines": 372
+        },
+        "Markdown": {
+          "files": 1,
+          "lines": 14
+        }
+      }
+    },
+    "cmake": {
+      "files": 13,
+      "lines": 1321,
+      "languages": {
+        "CMake": {
+          "files": 13,
+          "lines": 1321
+        }
+      }
+    },
+    "cmake/toolchains": {
+      "files": 1,
+      "lines": 53,
+      "languages": {
+        "CMake": {
+          "files": 1,
+          "lines": 53
+        }
+      }
+    },
+    "docs": {
+      "files": 12,
+      "lines": 1573,
+      "languages": {
+        "Markdown": {
+          "files": 12,
+          "lines": 1573
+        }
+      }
+    },
+    "docs/formats": {
+      "files": 16,
+      "lines": 2564,
+      "languages": {
+        "Markdown": {
+          "files": 16,
+          "lines": 2564
+        }
+      }
+    },
+    "docs/licenses": {
+      "files": 4,
+      "lines": 163,
+      "languages": {
+        "Text": {
+          "files": 4,
+          "lines": 163
+        }
+      }
+    },
+    "examples/mods/added-table": {
+      "files": 3,
+      "lines": 18,
+      "languages": {
+        "Markdown": {
+          "files": 1,
+          "lines": 5
+        },
+        "JSON": {
+          "files": 2,
+          "lines": 13
+        }
+      }
+    },
+    "examples/mods/character-template": {
+      "files": 2,
+      "lines": 2,
+      "languages": {
+        "Markdown": {
+          "files": 1,
+          "lines": 1
+        },
+        "JSON": {
+          "files": 1,
+          "lines": 1
+        }
+      }
+    },
+    "examples/mods/event-logger": {
+      "files": 3,
+      "lines": 36,
+      "languages": {
+        "Markdown": {
+          "files": 1,
+          "lines": 7
+        },
+        "Lua": {
+          "files": 1,
+          "lines": 28
+        },
+        "JSON": {
+          "files": 1,
+          "lines": 1
+        }
+      }
+    },
+    "examples/mods/flashlight-click": {
+      "files": 2,
+      "lines": 9,
+      "languages": {
+        "Markdown": {
+          "files": 1,
+          "lines": 8
+        },
+        "JSON": {
+          "files": 1,
+          "lines": 1
+        }
+      }
+    },
+    "examples/mods/hide-pictures": {
+      "files": 3,
+      "lines": 10,
+      "languages": {
+        "Markdown": {
+          "files": 1,
+          "lines": 3
+        },
+        "JSON": {
+          "files": 2,
+          "lines": 7
+        }
+      }
+    },
+    "examples/mods/level-template": {
+      "files": 2,
+      "lines": 2,
+      "languages": {
+        "Markdown": {
+          "files": 1,
+          "lines": 1
+        },
+        "JSON": {
+          "files": 1,
+          "lines": 1
+        }
+      }
+    },
+    "examples/mods/native-model-template": {
+      "files": 2,
+      "lines": 2,
+      "languages": {
+        "Markdown": {
+          "files": 1,
+          "lines": 1
+        },
+        "JSON": {
+          "files": 1,
+          "lines": 1
+        }
+      }
+    },
+    "examples/mods/radio-tone": {
+      "files": 2,
+      "lines": 15,
+      "languages": {
+        "Markdown": {
+          "files": 1,
+          "lines": 14
+        },
+        "JSON": {
+          "files": 1,
+          "lines": 1
+        }
+      }
+    },
+    "examples/mods/red-hallway": {
+      "files": 3,
+      "lines": 9,
+      "languages": {
+        "Markdown": {
+          "files": 1,
+          "lines": 3
+        },
+        "JSON": {
+          "files": 2,
+          "lines": 6
+        }
+      }
+    },
+    "examples/mods/replace-basket": {
+      "files": 3,
+      "lines": 13,
+      "languages": {
+        "Markdown": {
+          "files": 1,
+          "lines": 3
+        },
+        "JSON": {
+          "files": 2,
+          "lines": 10
+        }
+      }
+    },
+    "examples/mods/wall-pictures": {
+      "files": 2,
+      "lines": 18,
+      "languages": {
+        "Markdown": {
+          "files": 1,
+          "lines": 12
+        },
+        "JSON": {
+          "files": 1,
+          "lines": 6
+        }
+      }
+    },
+    "installer/Extractor": {
+      "files": 2,
+      "lines": 94,
+      "languages": {
+        "MSBuild": {
+          "files": 1,
+          "lines": 4
+        },
+        "C#": {
+          "files": 1,
+          "lines": 90
+        }
+      }
+    },
+    "installer/Native": {
+      "files": 14,
+      "lines": 6144,
+      "languages": {
+        "C/C++ header": {
+          "files": 9,
+          "lines": 5167
+        },
+        "C++": {
+          "files": 2,
+          "lines": 908
+        },
+        "XML": {
+          "files": 1,
+          "lines": 24
+        },
+        "Resource script": {
+          "files": 2,
+          "lines": 45
+        }
+      }
+    },
+    "installer/Tests": {
+      "files": 2,
+      "lines": 65,
+      "languages": {
+        "C#": {
+          "files": 1,
+          "lines": 61
+        },
+        "MSBuild": {
+          "files": 1,
+          "lines": 4
+        }
+      }
+    },
+    "shaders": {
+      "files": 121,
+      "lines": 9460,
+      "languages": {
+        "GLSL": {
+          "files": 121,
+          "lines": 9460
+        }
+      }
+    },
+    "src": {
+      "files": 1,
+      "lines": 8678,
+      "languages": {
+        "C++": {
+          "files": 1,
+          "lines": 8678
+        }
+      }
+    },
+    "src/decomp": {
+      "files": 1,
+      "lines": 0,
+      "languages": {
+        "other (.gitkeep)": {
+          "files": 1,
+          "lines": 0
+        }
+      }
+    },
+    "src/engine": {
+      "files": 1,
+      "lines": 0,
+      "languages": {
+        "other (.gitkeep)": {
+          "files": 1,
+          "lines": 0
+        }
+      }
+    },
+    "src/engine/anim": {
+      "files": 20,
+      "lines": 4594,
+      "languages": {
+        "C++": {
+          "files": 10,
+          "lines": 3792
+        },
+        "C/C++ header": {
+          "files": 10,
+          "lines": 802
+        }
+      }
+    },
+    "src/engine/assets": {
+      "files": 9,
+      "lines": 1771,
+      "languages": {
+        "C++": {
+          "files": 5,
+          "lines": 1620
+        },
+        "C/C++ header": {
+          "files": 4,
+          "lines": 151
+        }
+      }
+    },
+    "src/engine/audio": {
+      "files": 31,
+      "lines": 11391,
+      "languages": {
+        "C++": {
+          "files": 15,
+          "lines": 9256
+        },
+        "C/C++ header": {
+          "files": 16,
+          "lines": 2135
+        }
+      }
+    },
+    "src/engine/core": {
+      "files": 33,
+      "lines": 13779,
+      "languages": {
+        "C/C++ header": {
+          "files": 24,
+          "lines": 12302
+        },
+        "C++": {
+          "files": 9,
+          "lines": 1477
+        }
+      }
+    },
+    "src/engine/data": {
+      "files": 2,
+      "lines": 486,
+      "languages": {
+        "C++": {
+          "files": 1,
+          "lines": 384
+        },
+        "C/C++ header": {
+          "files": 1,
+          "lines": 102
+        }
+      }
+    },
+    "src/engine/fs": {
+      "files": 21,
+      "lines": 2222,
+      "languages": {
+        "C++": {
+          "files": 10,
+          "lines": 1550
+        },
+        "C/C++ header": {
+          "files": 11,
+          "lines": 672
+        }
+      }
+    },
+    "src/engine/physics": {
+      "files": 2,
+      "lines": 932,
+      "languages": {
+        "C++": {
+          "files": 1,
+          "lines": 787
+        },
+        "C/C++ header": {
+          "files": 1,
+          "lines": 145
+        }
+      }
+    },
+    "src/engine/platform": {
+      "files": 49,
+      "lines": 9281,
+      "languages": {
+        "C++": {
+          "files": 21,
+          "lines": 7342
+        },
+        "C/C++ header": {
+          "files": 28,
+          "lines": 1939
+        }
+      }
+    },
+    "src/engine/render": {
+      "files": 117,
+      "lines": 39193,
+      "languages": {
+        "C/C++ header": {
+          "files": 59,
+          "lines": 6496
+        },
+        "C++": {
+          "files": 57,
+          "lines": 31856
+        },
+        "Objective-C++": {
+          "files": 1,
+          "lines": 841
+        }
+      }
+    },
+    "src/engine/script": {
+      "files": 4,
+      "lines": 667,
+      "languages": {
+        "C++": {
+          "files": 2,
+          "lines": 538
+        },
+        "C/C++ header": {
+          "files": 2,
+          "lines": 129
+        }
+      }
+    },
+    "src/engine/ui": {
+      "files": 20,
+      "lines": 2535,
+      "languages": {
+        "C++": {
+          "files": 11,
+          "lines": 2041
+        },
+        "C/C++ header": {
+          "files": 9,
+          "lines": 494
+        }
+      }
+    },
+    "src/engine/vfx": {
+      "files": 10,
+      "lines": 3854,
+      "languages": {
+        "C++": {
+          "files": 5,
+          "lines": 3096
+        },
+        "C/C++ header": {
+          "files": 5,
+          "lines": 758
+        }
+      }
+    },
+    "src/engine/voice": {
+      "files": 4,
+      "lines": 1364,
+      "languages": {
+        "C++": {
+          "files": 2,
+          "lines": 1187
+        },
+        "C/C++ header": {
+          "files": 2,
+          "lines": 177
+        }
+      }
+    },
+    "src/engine/xr": {
+      "files": 3,
+      "lines": 1354,
+      "languages": {
+        "C++": {
+          "files": 1,
+          "lines": 1087
+        },
+        "C/C++ header": {
+          "files": 2,
+          "lines": 267
+        }
+      }
+    },
+    "src/game": {
+      "files": 82,
+      "lines": 27144,
+      "languages": {
+        "other (.gitkeep)": {
+          "files": 1,
+          "lines": 0
+        },
+        "C++": {
+          "files": 38,
+          "lines": 22509
+        },
+        "C/C++ header": {
+          "files": 43,
+          "lines": 4635
+        }
+      }
+    },
+    "src/game/lisa_date": {
+      "files": 10,
+      "lines": 3641,
+      "languages": {
+        "C++": {
+          "files": 6,
+          "lines": 3108
+        },
+        "C/C++ header": {
+          "files": 4,
+          "lines": 533
+        }
+      }
+    },
+    "src/game/ui": {
+      "files": 39,
+      "lines": 10803,
+      "languages": {
+        "C++": {
+          "files": 19,
+          "lines": 8939
+        },
+        "C/C++ header": {
+          "files": 20,
+          "lines": 1864
+        }
+      }
+    },
+    "tests": {
+      "files": 92,
+      "lines": 13302,
+      "languages": {
+        "C++": {
+          "files": 86,
+          "lines": 13186
+        },
+        "GLSL": {
+          "files": 4,
+          "lines": 104
+        },
+        "XML": {
+          "files": 1,
+          "lines": 10
+        },
+        "Resource script": {
+          "files": 1,
+          "lines": 2
+        }
+      }
+    },
+    "tests/pad": {
+      "files": 19,
+      "lines": 1180,
+      "languages": {
+        "Text": {
+          "files": 19,
+          "lines": 1180
+        }
+      }
+    },
+    "tests/walkthrough": {
+      "files": 141,
+      "lines": 3303,
+      "languages": {
+        "Text": {
+          "files": 141,
+          "lines": 3303
+        }
+      }
+    },
+    "third_party/ffx_linux": {
+      "files": 3,
+      "lines": 168,
+      "languages": {
+        "Linker map": {
+          "files": 1,
+          "lines": 4
+        },
+        "C/C++ header": {
+          "files": 1,
+          "lines": 113
+        },
+        "C++": {
+          "files": 1,
+          "lines": 51
+        }
+      }
+    },
+    "third_party/ffx_linux/include": {
+      "files": 2,
+      "lines": 8,
+      "languages": {
+        "C/C++ header": {
+          "files": 2,
+          "lines": 8
+        }
+      }
+    },
+    "third_party/upscaler_notices": {
+      "files": 2,
+      "lines": 70,
+      "languages": {
+        "Text": {
+          "files": 2,
+          "lines": 70
+        }
+      }
+    },
+    "third_party/voice_notices": {
+      "files": 2,
+      "lines": 42,
+      "languages": {
+        "Text": {
+          "files": 2,
+          "lines": 42
+        }
+      }
+    },
+    "tools": {
+      "files": 42,
+      "lines": 17019,
+      "languages": {
+        "Python": {
+          "files": 35,
+          "lines": 16344
+        },
+        "Batch": {
+          "files": 1,
+          "lines": 30
+        },
+        "C++": {
+          "files": 1,
+          "lines": 132
+        },
+        "C/C++ header": {
+          "files": 4,
+          "lines": 461
+        },
+        "PowerShell": {
+          "files": 1,
+          "lines": 52
+        }
+      }
+    },
+    "tools/ci": {
+      "files": 7,
+      "lines": 948,
+      "languages": {
+        "Python": {
+          "files": 7,
+          "lines": 948
+        }
+      }
+    },
+    "tools/dx12": {
+      "files": 2,
+      "lines": 258,
+      "languages": {
+        "Python": {
+          "files": 1,
+          "lines": 62
+        },
+        "C++": {
+          "files": 1,
+          "lines": 196
+        }
+      }
+    },
+    "tools/linux": {
+      "files": 8,
+      "lines": 754,
+      "languages": {
+        "Python": {
+          "files": 5,
+          "lines": 581
+        },
+        "Shell": {
+          "files": 2,
+          "lines": 150
+        },
+        "Batch": {
+          "files": 1,
+          "lines": 23
+        }
+      }
+    },
+    "tools/macos": {
+      "files": 1,
+      "lines": 191,
+      "languages": {
+        "Python": {
+          "files": 1,
+          "lines": 191
+        }
+      }
+    },
+    "tools/vk_null_swapchain_layer": {
+      "files": 1,
+      "lines": 132,
+      "languages": {
+        "C++": {
+          "files": 1,
+          "lines": 132
+        }
+      }
+    },
+    "tools/xr_test_runtime": {
+      "files": 1,
+      "lines": 2386,
+      "languages": {
+        "C++": {
+          "files": 1,
+          "lines": 2386
+        }
+      }
+    }
+  },
+  "binary_files": [
+    "assets/extras.pak",
+    "assets/fonts/NotoKufiArabic.ttf",
+    "assets/fonts/NotoNaskhArabic.ttf",
+    "assets/fonts/NotoSans.ttf",
+    "assets/fonts/NotoSansSC.ttf",
+    "assets/pt.icns",
+    "assets/pt.ico",
+    "docs/media/lisa.gif",
+    "examples/mods/added-table/Assets/mods/added_table/table.glb",
+    "examples/mods/flashlight-click/Assets/sh/sound/wem/1058735461.wav",
+    "examples/mods/radio-tone/Assets/sh/sound/wem/615826540.wav",
+    "examples/mods/replace-basket/Assets/mods/replace_basket/crate.glb",
+    "examples/mods/wall-pictures/Assets/sh/environ/object/shsb/house/shsb_hous001/sourceimages/shsb_hous001_a1_bsm.png",
+    "src/engine/platform/os.cpp"
+  ]
+}
