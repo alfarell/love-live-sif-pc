@@ -1,0 +1,41 @@
+id,kind,component,sif_evidence,pt_pc_offers,status,effort,risk,notes
+F01,format,ARC .pac container,"3506 files ARC\0; lister parses 13,497 entries (Part 9 pac_list.py)",Vfs interface + mods layer (Fox readers not usable),adapt,S,L,Finish: entry payload offset (2nd u32 at data start); name hashes for unnamed entries
+F02,format,cmp\0 wrapper (zlib/lzma),"46 files; zlib OK; lzma in common/common.pac fails as LZMA-alone",zlib dependency,new,S,M,Find the LZMA variant (raw LZMA1 props?) - blocks common.pac
+F03,format,tex / btx textures,"3403 tex + 711 texs entries (~10.6 GB); btx magic in sandbox",TextureManager upload core (BC formats); no detiling,new,M,H,PS4 GPU tiling likely (Hypothesis) - detiler needed; GNM texture descriptor fields
+F04,format,mdl / mdls models,"684 mdl + 50 mdls (~4.5 GB), chr and stage",ModelCache/GpuMesh pattern only,new,L,H,Vertex layout from GNM fetch shaders; skinning
+F05,format,mot / mots motions,"711 mot (live dance) + 50 mots",skeleton/pose math only,new,L,H,Dance animation per song and character; curve codec unknown
+F06,format,dyns dynamics,683 entries in chr,"none (pt-pc sim_bones is P.T.)",new,M,M,Hypothesis: secondary motion (hair/skirt) parameters; Bullet linked in eboot
+F07,format,scds note charts,"130 score.pac (one per live); sandbox sample.scd magic Scor",none,new,M,M,Core of gameplay; small files; validate against play
+F08,format,scn scenes / btls timelines / cam cameras,"130 scn, 150 btls, 30 cam",none,new,L,H,Stage choreography: camera cuts, effects, lights over song time
+F09,format,efx effects (.efxa),333 entries in effect/,"vfx system pattern (Fox vfx not usable)",new,L,M,Particle/effect runtime to rebuild
+F10,format,col collision / accs accessories / dat dats,"11 col, 20 accs, 94 dat/dats",none,new,M,M,
+F11,format,bin data tables,"6235 bin entries: ~59 *_data.bin master tables, message, ui2 layouts",none,new,M,M,Structures from eboot disassembly; drives all menus and progression
+F12,format,UI layouts and Flash (.iggy / ui2 bin / swf),"8 .iggy files; ui and ui2 archives; GfxScene classes in eboot; no Iggy runtime strings",UI batcher and text layout (generic),unknown,L,H,Biggest UI risk: Flash-based UI runtime may need reimplementing (Part 3 Q3)
+F13,format,fonts,"font.pac; FreeType in eboot",text layout + HarfBuzz/Noto fallback,adapt,S,L,
+F14,format,CRI AWB / HCA audio,"121 awb (1.28 GB), HCA unencrypted (sampled)",audio output layer only,new,M,M,Public HCA decoding knowledge (Hypothesis: vgmstream); MDCT decoder
+F15,format,CRI ACB / ACF cue sheets,"3 acb + 1 acf inside sound/sound.pac; music/voice/sys",none,new,M,M,@UTF tables; cue->track->waveform; categories and AISAC
+F16,format,CRI USM video,"202 usm (848 MB), Sofdec2 in eboot",none,new,L,M,Demux USM + decode video (VP9 or H.264 or Sofdec Prime - unknown) + sync
+F17,format,GCN shaders (sh_custom.pac),"26,196 OrbShdr binaries; gcn.py decodes 300/300 sample",gcn.py/gcnexpr.py + shader toolchain,new,L,H,Rewrite renders with own shaders; must match look; scale unknown (unique count?)
+F18,format,profile card JPEG / proca_preset,80 jpg + libjpeg in eboot,stb image,reuse,S,L,
+F19,format,save data (sce_sdmemory*),"24 files in 4 folders; SaveDataMemory2 API",save-slot pattern,new,M,M,Layout from eboot; import of user's PS4 saves optional
+S01,system,boot / title / top menu flow (sqBoot sqTitle sqTopMenu),"sequence names in eboot",RunGame skeleton,new,M,M,
+S02,system,live gameplay: notes judgement combo scoring,"Component* classes; judge ring; Perfect/Great; extendCombo",none,new,L,H,Exact judgement windows and scoring from disassembly; CP2 target
+S03,system,live presentation: 3D stage + characters + dance + camera + effects,"chr/stage/live data; scn/btls/cam",renderer core,new,L,H,Largest visual system; needs F03-F09 and F17
+S04,system,result screen and rewards,"ComponentIngameResult; reward.pac; mission.pac",none,new,M,M,
+S05,system,story / talk / messages,"talk.pac; message.pac (3264 bin); voice.awb",none,new,M,M,
+S06,system,costumes / dress / accessories / items,"dress_data.bin; item_data.bin; accs",none,new,M,M,
+S07,system,missions / awards / honorific titles / badges,"award_master.bin; honorific_title_datas.bin; ui_badge.pac",none,new,M,L,
+S08,system,profile cards,"LP5 Profile Card strings; proca_preset",none,new,S,L,
+S09,system,DLC ownership,"DLCManager; sceAppContentGetAddcontInfoList; dlc_*_data.bin",none,new,S,L,Report user's own installed DLC (Extracted/ param.sfo content IDs)
+S10,system,settings / options,"options in eboot; PS4 system settings",settings INI + options menu pattern,adapt,S,L,
+S11,system,SD (chibi) characters UI,"sd_chr + sd_character.iggy",none,new,M,M,Depends on F12
+S12,system,localization (ja/en/cn/tw),"_en/_cn/_tw variants",text layout,adapt,S,L,
+S13,system,online rankings / TUS / matching,"NpToolkit2 TUS, ranking strings",none,skip,S,L,Offline only: show unavailable
+S14,system,trophies,"libSceNpTrophy; trophy00.trp",none,skip,S,L,Optional local achievements
+P01,platform,app shell / logging / crash / threads,n/a,log crash_report parallel_for main.cpp structure,reuse,S,L,MIT copy
+P02,platform,game folder detection / installer,"CUSA24620 param.sfo",game_folder pattern + installer,adapt,S,L,Markers: eboot.bin + sce_sys/param.sfo TITLE_ID + live/
+P03,platform,renderer core (RHI Vulkan/D3D12),n/a,gpu::Device vk_context d3d12 pipeline cache,reuse,S,L,
+P04,platform,audio output with latency compensation,rhythm game,AudioOutput SDL3 (no latency hint),adapt,M,M,Add small buffer + played-position clock + calibration
+P05,platform,input with event timestamps,rhythm game,raw PS4 pad layer (per-frame poll),adapt,M,M,Timestamp every event; map to audio clock
+P06,platform,video playback output,USM,none,new,M,M,Texture upload + A/V sync (with F16)
+P07,platform,headless test runner,n/a,walkthrough method,adapt,M,L,Chart-driven autoplay for regression
