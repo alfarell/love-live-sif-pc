@@ -1,0 +1,7 @@
+.vs/
+
+# derived binaries and extracted data stay local (CLAUDE.md rule 4)
+work/
+# Python bytecode caches
+__pycache__/
+*.pyc
