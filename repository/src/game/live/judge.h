@@ -2,8 +2,8 @@
 // Judgement, combo and a provisional score for one chart. Windows come from the game's own table
 // s_EvaluateRangeDatas (live_params.bin): 4 groups of (early, late) rows of {Perfect, Great, Good, Bad} bounds in ms;
 // beyond the Bad bound a note is a Miss (five grades, as on the game's result screen).
-// Group 0 = presses, group 1 = hold releases (Hypothesis), groups 2-3 = the same +20 ms (skill "extendEvaluation").
-// Rules not yet recovered from the eboot (U5) are marked Hypothesis and kept in one place here.
+// Group 0 = presses, group 1 = hold releases (eboot 0x9FCF0/0x9FF80), groups 2-3 = the same +20 ms (skill
+// "extendEvaluation", Hypothesis). Rules follow the eboot (analysis/202611010903-u5-live-rules/); gaps are marked.
 
 #include <array>
 #include <span>
@@ -55,7 +55,7 @@ public:
     const std::vector<Judgement>& Log() const { return log_; }
     std::array<int, kGrades> counts{};
     int combo = 0, max_combo = 0;
-    double score = 0;  // provisional (see judge.cpp)
+    double score = 0;  // game points (see judge.cpp; combo multiplier and hold ticks not yet included)
 
 private:
     enum class State { Pending, Holding, Done };
@@ -66,7 +66,6 @@ private:
     WindowSet win_;
     std::vector<State> state_;
     std::array<int, kLanes> holding_{};  // note index held in each lane, or -1
-    double note_value_ = 0;
     std::vector<Judgement> log_;
 };
 

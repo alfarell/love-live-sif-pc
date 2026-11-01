@@ -1,5 +1,6 @@
 #include "game/live/judge.h"
 
+#include <algorithm>
 #include <cmath>
 
 namespace sif::live {
@@ -7,11 +8,17 @@ namespace {
 
 int32_t S32(const uint8_t* p) { return int32_t(uint32_t(p[0]) | uint32_t(p[1]) << 8 | uint32_t(p[2]) << 16 | uint32_t(p[3]) << 24); }
 
-// Hypothesis (U5): Perfect and Great keep the combo; Good, Bad and Miss break it (as in the mobile game).
+// Perfect and Great keep the combo; Good, Bad and Miss break it (eboot 0xAA3B0; Good keeps it only under the
+// "combo softening" skills, not implemented).
 bool KeepsCombo(Grade g) { return g == Grade::Perfect || g == Grade::Great; }
-// Hypothesis (U5): provisional score weights; the real formula (s_CommonParam floats, combo bonus) needs the eboot.
+// points = round(100 x weight[grade] x combo multiplier), capped at 9,999,999 (eboot 0xAA520). Weights and base 100
+// are s_CommonParam +0xC0..+0xCC and +0xB4 in live_params.bin.
 constexpr double kWeight[kGrades] = {1.0, 0.7, 0.2, 0.1, 0.0};
-constexpr double kMaxScore = 1'000'000;
+constexpr double kBasePoints = 100;
+constexpr double kMaxScore = 9'999'999;
+// shortcut: combo multiplier fixed at s_CommonParam +0xD0[0] = 1.0; the level that indexes it (+0xD0..+0xF0) and
+// hold-tick points (10 per tick) are not traced yet, upgrade when U5 continues
+constexpr double kComboMultiplier = 1.0;
 
 }
 
@@ -46,22 +53,22 @@ void Judge::Reset(const Chart& chart, const WindowSet& windows) {
     counts = {};
     combo = max_combo = 0;
     score = 0;
-    size_t judgements = 0;
-    for (const Note& n : chart.notes) judgements += n.IsHold() ? 2 : 1;
-    note_value_ = judgements ? kMaxScore / double(judgements) : 0;
 }
 
 Grade Judge::Classify(const Windows& w, double dt) const {
-    for (int g = 0; g < kBounds; ++g) {
-        if (dt < 0 ? -dt <= w.early[size_t(g)] : dt <= w.late[size_t(g)]) return Grade(g);
+    // eboot 0xA0070: inner bounds are strict (|dt| == 40 is Great), the Bad bound is inclusive, beyond it a Miss
+    const double a = std::abs(dt);
+    const auto& b = dt < 0 ? w.early : w.late;
+    for (int g = 0; g < kBounds - 1; ++g) {
+        if (a < b[size_t(g)]) return Grade(g);
     }
-    return Grade::Miss;
+    return a <= b[kBounds - 1] ? Grade::Bad : Grade::Miss;
 }
 
 void Judge::Record(int note, bool release, Grade grade, double offset) {
     log_.push_back({note, release, grade, offset});
     ++counts[size_t(grade)];
-    score += note_value_ * kWeight[int(grade)];
+    score = std::min(kMaxScore, score + std::round(kBasePoints * kWeight[int(grade)] * kComboMultiplier));
     combo = KeepsCombo(grade) ? combo + 1 : 0;
     if (combo > max_combo) max_combo = combo;
 }
@@ -77,12 +84,12 @@ void Judge::Press(int lane, double t) {
         if (dt > win_.press.LateLimit()) continue;  // already late (Update will miss it)
         const Grade g = Classify(win_.press, dt);
         Record(int(i), false, g, dt);
-        if (n.IsHold() && g != Grade::Miss) {
+        // eboot 0x9ECC0: only a Good-or-better press starts holding; a Bad press ends the hold without a release
+        if (n.IsHold() && g <= Grade::Good) {
             state_[i] = State::Holding;
             holding_[size_t(lane)] = int(i);
         } else {
             state_[i] = State::Done;
-            if (n.IsHold()) Record(int(i), true, Grade::Miss, 0);  // a missed hold start loses its release too
         }
         return;
     }
@@ -95,8 +102,8 @@ void Judge::Release(int lane, double t) {
     holding_[size_t(lane)] = -1;
     state_[size_t(i)] = State::Done;
     const double dt = t - chart_->notes[size_t(i)].end_ms;
-    // released before the release window opens: counts as a Miss (Hypothesis)
-    Record(i, true, dt < -win_.release.EarlyLimit() ? Grade::Miss : Classify(win_.release, dt), dt);
+    // released before the release window opens: Bad (eboot 0xA0070, release path)
+    Record(i, true, dt < -win_.release.EarlyLimit() ? Grade::Bad : Classify(win_.release, dt), dt);
 }
 
 void Judge::Update(double now) {
@@ -105,12 +112,11 @@ void Judge::Update(double now) {
         const Note& n = chart_->notes[i];
         if (state_[i] == State::Pending && now - n.time_ms > win_.press.LateLimit()) {
             state_[i] = State::Done;
-            Record(int(i), false, Grade::Miss, 0);
-            if (n.IsHold()) Record(int(i), true, Grade::Miss, 0);
+            Record(int(i), false, Grade::Miss, 0);  // an unpressed hold is one Miss (eboot 0x9FDF0 -> 0x9ECC0)
         } else if (state_[i] == State::Holding && now - n.end_ms > win_.release.LateLimit()) {
             state_[i] = State::Done;
             holding_[size_t(n.lane)] = -1;
-            Record(int(i), true, Grade::Miss, 0);  // held too long (Hypothesis)
+            Record(int(i), true, Grade::Miss, 0);  // held past the release Bad bound (eboot 0x9FDF0, state 2)
         }
     }
 }

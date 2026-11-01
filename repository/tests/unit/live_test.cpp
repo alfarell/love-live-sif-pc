@@ -52,16 +52,19 @@ static void Synthetic() {
     const WindowSet w = GameWindows();
     const Judge perfect = Autoplay(c, w, 0);
     Check(perfect.counts[0] == 12 && perfect.max_combo == 12 && perfect.Finished(), "autoplay: 12 Perfect (11 notes + 1 release)");
-    Check(perfect.score > 999'999 && perfect.score < 1'000'001, "autoplay: provisional score 1,000,000");
-    Check(Autoplay(c, w, 40).counts[0] == 12, "+40 ms is still Perfect (edge)");
-    Check(Autoplay(c, w, 41).counts[1] == 11, "+41 ms is Great");
-    Check(Autoplay(c, w, -133).counts[1] == 11, "-133 ms is Great (edge)");
-    Check(Autoplay(c, w, -150).counts[2] == 11, "-150 ms is Good");
+    Check(perfect.score == 1200, "autoplay: 12 x 100 points");
+    // window edges are strict except the Bad bound (eboot 0xA0070)
+    Check(Autoplay(c, w, 39).counts[0] == 12, "+39 ms is Perfect");
+    Check(Autoplay(c, w, 40).counts[1] == 11, "+40 ms is Great (strict edge)");
+    Check(Autoplay(c, w, -132).counts[1] == 11, "-132 ms is Great");
+    Check(Autoplay(c, w, -133).counts[2] == 11, "-133 ms is Good (strict edge)");
     const Judge late = Autoplay(c, w, 250);
-    Check(late.counts[3] == 11 && late.max_combo <= 1, "+250 ms is Bad (inside the 267 ms bound) and breaks the combo");
+    Check(late.counts[3] == 11 && late.max_combo == 0, "+250 ms: 11 Bad, a Bad hold press ends the hold, combo broken");
+    Check(late.score == 11 * 10, "Bad scores 10 points (weight 0.1)");
     const Judge none = Autoplay(c, w, 400);  // outside every window: inputs ignored, all notes time out
-    Check(none.counts[4] == 12, "no hit: 11 notes + 1 hold release missed");
+    Check(none.counts[4] == 11, "no hit: 11 Misses (an unpressed hold is one Miss)");
     Check(Autoplay(c, w, 0, 150).counts[1] == 1, "hold released 150 ms late: Great release");
+    Check(Autoplay(c, w, 0, -400).counts[3] == 1, "hold released before its release window: Bad");
 }
 
 static void Real(const char* root) {
