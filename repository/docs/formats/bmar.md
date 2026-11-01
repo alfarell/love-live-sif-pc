@@ -1,6 +1,6 @@
 # SIF models and motions: `BMAR104` ("BladeModelPac")
 
-Status: container, scene graph, meshes and vertex formats **verified on all 8,241 `BMAR` files** (3,534 `mdl`/`.bmarc` models, 4,707 `mot` motions): all parse, and all 27,392 meshes match their stored stride (M2 follow-up, 2026-10-31). Bind-pose renders were checked visually for a character (`chr/c11/.../mod_11_chika`) and a stage (`stage/st017.pac/model.pac/017_livehall.bmarc`). Motion keyframes are surveyed, not decoded. Reader: `tools/bmar_dump.py` (list, OBJ export, preview PNG). Little-endian.
+Status: container, scene graph, meshes and vertex formats **verified on all 8,241 `BMAR` files** (3,534 `mdl`/`.bmarc` models, 4,707 `mot` motions): all parse, and all 27,392 meshes match their stored stride (M2 follow-up, 2026-10-31). Bind-pose renders were checked visually for a character (`chr/c11/.../mod_11_chika`) and a stage (`stage/st017.pac/model.pac/017_livehall.bmarc`). Motion keyframes and skinning decoded in M5 (2026-11-01): `mod_01_honoka` posed with the song 0010 dance renders correctly. Reader: `tools/bmar_dump.py` (list, OBJ export, preview PNG). Little-endian.
 
 "Blade" fits the eboot's `Bl*` class names (`BlShaderArchive`). *Hypothesis:* it is the in-house engine's name. The chunk style (`POF0` pointer-fixup table) resembles Sega's NN formats; SIF AC is a Sega title (*Hypothesis*).
 
@@ -79,7 +79,7 @@ Sizes are solved from all 22 format/stride pairs in the game. Every stride match
 | Bit | Attribute | Encoding | Bytes |
 |---|---|---|---|
 | 0x00000001 | position | f32×3 | 12 |
-| 0x40000000 (+0x00010000) | skin | f32×4 weights (sum 1), u8×4 bone indices (into the `MTXP` palette), 20 bytes zero in samples | 40 |
+| 0x40000000 (+0x00010000) | skin | 8 influences: f32×4 weights, u8×4 bone indices, f32×4 weights, u8×4 bone indices (indices into the `MTXP` palette; all 8 weights sum to 1; the second set is zero on most body vertices, used on hair) | 40 |
 | 0x00000004 | normal | f32×3 | 12 |
 | 0x00000008 | normal | f16×4 | 8 |
 | 0x00000020 | color | u8×4 | 4 |
@@ -106,17 +106,25 @@ Most common formats:
 - `DRAW` (16 bytes): u32 node, u32 mesh, u32 material, u32 0.
 - `MATE` (72 bytes): name*, texture name*, then colors/params (not decoded).
 - `TXTR`: texture name*.
-- `MTXP`: node-index list* + matrix array* (64-byte matrices; *Hypothesis:* inverse bind matrices for the skin palette).
+- `MTXP` (one per skinned model): +0 node index list* (u32 each), +8 inverse bind matrices* (f32[16], column-major, in the Z-up model space without `bml_axisNode`), +0x12 u16 count. Palette matrix k = posed world(node[k]) × inverse bind[k]; it is the identity in the bind pose (checked on 4 entries of `mod_01_honoka`, error 0).
 
 ## Motions (`BMA` part)
 
 | Chunk | Content |
 |---|---|
-| `ANHD` (12 bytes) | char[4] version `103`, f32 frame rate (60), f32 frame count (e.g. 210 = 3.5 s for `mot_11_chika_010_idle`) |
+| `ANHD` (12 bytes) | char[4] version `103`, f32 frame rate (60), f32 frame count (e.g. 210 = 3.5 s for `mot_11_chika_010_idle`; 9,060 = 151 s for the song 0010 dance) |
 | `ANSK` (16 bytes) | track table*, u16 track count (91), u16 ? |
 | `ANMS`, `ANMT`, `ANVS` | in some files; not decoded (*Hypothesis:* morph, material, visibility tracks) |
 
 - **Track (24 bytes):** node name*, channel table*, u32 node name hash (= `NODE` +0x5C), u32 channel count (3).
-- **Channel (24 bytes):** key times*?, key values*?, u32 key count, u32 channel type (0, 3, 2; *Hypothesis:* translate, rotate, scale).
-
-Key encoding: M5 work.
+- **Channel (24 bytes):** key table*, value array*, u32 key count, u32 channel type: 0 translate, 3 rotate, 2 scale.
+- **Key (12 bytes):** f32 frame, u32 byte offset into the value array, u32 interpolation flag.
+- **Values:** translate and scale f32[3]; rotate a quaternion f32[4] in order x, y, z, w.
+  - Rotation keys match the `NODE` Euler rotation (local = T · Rz · Ry · Rx · S) for all 27 nodes that don't move at frame 0; the other 56 already move at frame 0.
+  - Translation keys match the bind pose for 81 of 83 nodes (bone lengths are kept).
+- **Frames:** increasing in all 319 extracted animation files. The song 0010 dance keys every 2 frames (4,235 keys per moving channel); static channels have 1 key.
+- **Interpolation flag** (over 319 files, 34,682 channels of each type):
+  - 0 in all but 10 channels;
+  - 1 and 2 also occur, and channels with flag 2 can have 36-byte values (*Hypothesis:* value + in/out tangents).
+  - The port treats every key as linear (normalized lerp for quaternions).
+- `ANMS` (95 files) and `ANMT` (12 files): not decoded.
