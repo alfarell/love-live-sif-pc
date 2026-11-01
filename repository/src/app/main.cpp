@@ -1,9 +1,9 @@
-// SIF port entry point (M3): settings, game-folder check and Vfs mount, renderer, one game texture on screen, one
-// cue played through the CRI path.
-// Options: --frames N (close after N frames, for tests), --crash (force an access violation after the window opens),
-//          --data DIR (log, settings and dump folder; default <exe>/data), --game DIR (the CUSA24620 dump; saved to
-//          settings), --show PATH (Vfs path of a btx texture to draw), --play SHEET:CUE (e.g. "sys:11_gatya";
-//          "none" to stay silent).
+// SIF port entry point: settings, game-folder check and Vfs mount, renderer, audio; then one of
+//   - the M4 live slice: --live ID:VARIANT (e.g. 10:4 = song 0010, ac_challenge), with --autoplay;
+//   - calibration: --calibrate (tap Space to a click track; stores timing.audio_offset_ms);
+//   - the M3 check: one game texture (--show PATH) and one cue (--play SHEET:CUE, or "none").
+// Other options: --frames N (close after N frames), --crash (forced access violation), --data DIR (log, settings and
+// dump folder; default <exe>/data), --game DIR (the CUSA24620 dump; saved to settings).
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 
@@ -14,6 +14,7 @@
 #include <string>
 #include <vector>
 
+#include "app/live_screen.h"
 #include "engine/audio/audio_output.h"
 #include "engine/audio/sound_bank.h"
 #include "engine/core/crash_report.h"
@@ -42,6 +43,8 @@ struct Options {
     std::string game;
     std::string show = kDefaultTexture;
     std::string play = kDefaultCue;
+    bool live = false, calibrate = false;
+    sif::LiveOptions live_options;
 };
 
 Options ParseOptions(int argc, char** argv) {
@@ -53,7 +56,16 @@ Options ParseOptions(int argc, char** argv) {
         else if (!std::strcmp(argv[i], "--game") && i + 1 < argc) o.game = argv[++i];
         else if (!std::strcmp(argv[i], "--show") && i + 1 < argc) o.show = argv[++i];
         else if (!std::strcmp(argv[i], "--play") && i + 1 < argc) o.play = argv[++i];
+        else if (!std::strcmp(argv[i], "--autoplay")) o.live_options.autoplay = true;
+        else if (!std::strcmp(argv[i], "--calibrate")) o.calibrate = true;
+        else if (!std::strcmp(argv[i], "--live") && i + 1 < argc) {
+            o.live = true;
+            char* rest = nullptr;
+            o.live_options.song = int(std::strtol(argv[++i], &rest, 10));
+            if (rest && *rest == ':') o.live_options.variant = int(std::strtol(rest + 1, nullptr, 10));
+        }
     }
+    o.live_options.max_frames = o.frames;
     if (o.data_dir.empty()) o.data_dir = sif::os::ExecutableFile().parent_path() / "data";
     return o;
 }
@@ -114,6 +126,28 @@ int main(int argc, char** argv) {
         return Quit(1, "renderer failed");
     }
 
+    sif::AudioOutput audio;
+    const bool audio_ok = audio.Open(settings.audio.buffer_frames, settings.audio.volume, &why);
+    if (!audio_ok) sif::LogError("audio: {}", why);  // keep running without sound
+
+    if (options.calibrate || options.live) {
+        int code = 0;
+        if (!audio_ok) {
+            code = 1;  // both modes need the audio clock
+        } else if (options.calibrate) {
+            if (sif::RunCalibration(window, renderer, audio, settings, options.frames) &&
+                !sif::SaveAppSettings(settings_path, settings)) {
+                sif::LogWarn("settings: cannot write {}", sif::os::PathToUtf8(settings_path));
+            }
+        } else {
+            code = sif::RunLive(window, renderer, audio, vfs, settings, options.live_options);
+        }
+        audio.Close();
+        renderer.Shutdown();
+        SDL_DestroyWindow(window);
+        return Quit(code, code ? "mode failed" : "normal end");
+    }
+
     sif::Texture texture;
     {
         std::vector<uint8_t> file;
@@ -128,10 +162,7 @@ int main(int argc, char** argv) {
         }
     }
 
-    sif::AudioOutput audio;
-    if (!audio.Open(settings.audio.buffer_frames, settings.audio.volume, &why)) {
-        sif::LogError("audio: {}", why);  // keep running without sound
-    } else if (const size_t colon = options.play.find(':'); options.play != "none" && colon != std::string::npos) {
+    if (const size_t colon = options.play.find(':'); audio_ok && options.play != "none" && colon != std::string::npos) {
         const std::string sheet_name = options.play.substr(0, colon), cue = options.play.substr(colon + 1);
         sif::cri::CueSheet sheet;
         sif::cri::Pcm pcm;

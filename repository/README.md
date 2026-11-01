@@ -8,13 +8,14 @@ No game assets, `eboot.bin`, extracted files or keys are stored here. The port r
 
 | Folder | Content |
 |---|---|
-| `src/app` | `main.cpp` (entry point) |
 | `src/engine` | Engine code: `core` (log, crash reports, thread pool), `platform` (OS layer, settings), `fs` (ARC/cmp `.pac` reader, Vfs over the dump), `formats` (`btx` textures), `render` (SDL3 GPU renderer), `audio` (CRI `@UTF`/ACB/AWB, HCA/ADX decoding, SDL3 output) |
 | `src/tools` | Native tools (`sif_hca2wav`) |
 | `shaders` | GLSL, compiled to SPIR-V by `glslc` at build time and embedded |
 | `third_party` | Vendored sources: vgmstream clHCA (ISC), LZMA SDK decoder (public domain); see `THIRD_PARTY.md` |
 | `tests/unit` | One executable per test, `Check()` style; `sif_vfs_test` / `sif_audio_test` take the dump folder as an optional argument |
-| `docs/formats` | Format specs: `arc`, `btx`, `bmar`, `scd`, `cri`, `shaders` |
+| `src/game` | SIF game rules: `live` (chart, judgement, song loading) |
+| `src/app` | Entry point and screens (`live_screen`: the M4 song slice and calibration) |
+| `docs/formats` | Format specs: `arc`, `blbn`, `btx`, `bmar`, `scd`, `cri`, `shaders` |
 | `tools` | Python RE and data tools (`py -3.14 -I tools/<name>.py ...`); `tools/data` holds small generated metadata |
 
 ## Build (Windows)
@@ -31,8 +32,11 @@ The build folder is `../work/build/<preset>/`. SDL3 and zlib are fetched at conf
 ## Run
 
 ```
-sif.exe --game <your CUSA24620 dump folder> [--show VFS_PATH] [--play SHEET:CUE|none] [--frames N] [--crash] [--data DIR]
+sif.exe --game <your CUSA24620 dump folder> [--live ID:VARIANT [--autoplay] | --calibrate | --show VFS_PATH --play SHEET:CUE|none] [--frames N] [--crash] [--data DIR]
 ```
+
+- `--live 10:4` plays song 0010 on chart variant 04 (`ac_challenge`; 00-04 arcade, 10-13 home difficulties). Keys for the 9 lanes, left to right: `A S D F Space J K L ;`. Esc quits. The title bar shows combo, judgement counts and the (provisional) score; `sif.log` gets the result and the mean press offset. `--autoplay` presses every note on time.
+- `--calibrate` plays 24 clicks; press Space on each. The median offset is stored as `timing.audio_offset_ms` and applied to judgement.
 
 - The game folder must be the user's own dump (checked: `sce_sys/param.sfo` names CUSA24620; `common/common.pac`, `sound/sound.pac`, `live/` exist). It is saved to `settings.ini`, so later runs need no `--game`. Song add-ons are read from the dump's `sound/dlc/`.
 - Writes `sif.log` and `settings.ini` in `<exe>/data/` (or `--data DIR`).

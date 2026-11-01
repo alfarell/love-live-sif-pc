@@ -1,0 +1,248 @@
+#include "app/live_screen.h"
+
+#include <SDL3/SDL.h>
+
+#include <algorithm>
+#include <cmath>
+#include <cstdio>
+#include <string>
+#include <vector>
+
+#include "engine/audio/audio_output.h"
+#include "engine/core/log.h"
+#include "engine/platform/settings.h"
+#include "engine/render/renderer.h"
+#include "game/live/song.h"
+
+namespace sif {
+namespace {
+
+using live::Grade;
+using live::kLanes;
+
+// lanes left to right (lane 0 = note number 55, Hypothesis): A S D F Space J K L ;
+constexpr SDL_Scancode kLaneKeys[kLanes] = {SDL_SCANCODE_A,     SDL_SCANCODE_S, SDL_SCANCODE_D, SDL_SCANCODE_F,
+                                            SDL_SCANCODE_SPACE, SDL_SCANCODE_J, SDL_SCANCODE_K, SDL_SCANCODE_L,
+                                            SDL_SCANCODE_SEMICOLON};
+
+int LaneOf(SDL_Scancode key) {
+    for (int i = 0; i < kLanes; ++i) {
+        if (kLaneKeys[i] == key) return i;
+    }
+    return -1;
+}
+
+struct Layout {
+    float cx = 0, cy = 0, radius = 0, button = 0;
+    void Fit(int w, int h) {
+        // SIF layout: notes start at a point near the top centre and travel to 9 buttons on a lower half circle
+        radius = std::min(float(w) * 0.42f, float(h) * 0.72f);
+        cx = float(w) / 2;
+        cy = float(h) * 0.18f;
+        button = radius * 0.11f;
+    }
+    void Lane(int lane, float& x, float& y) const {
+        const float a = 3.14159265f * (1.0f - float(lane) / float(kLanes - 1));  // pi (left) .. 0 (right), lower arc
+        x = cx + radius * std::cos(a);
+        y = cy + radius * std::sin(a);
+    }
+};
+
+const float kGradeColor[live::kGrades][4] = {
+    {1.0f, 0.85f, 0.2f, 1}, {1.0f, 0.45f, 0.7f, 1}, {0.4f, 0.9f, 0.5f, 1}, {0.35f, 0.5f, 1.0f, 1}, {0.5f, 0.5f, 0.55f, 1}};
+
+}
+
+int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vfs& vfs, const AppSettings& settings,
+            const LiveOptions& opt) {
+    live::Song song;
+    cri::Pcm music;
+    std::string error;
+    if (!live::LoadSong(vfs, opt.song, opt.variant, song, &error) || !live::LoadSongMusic(vfs, song, music, &error)) {
+        LogError("live {:04d}/{:02d}: {}", opt.song, opt.variant, error);
+        return 1;
+    }
+    LogInfo("live {:04d}/{:02d} '{}': chart {}, {} notes, lead-in {:.0f} ms, {:.0f} BPM, {:.1f} s audio, offset {} ms{}",
+            opt.song, opt.variant, song.title, song.chart_name, song.chart.notes.size(), song.chart.lead_in_ms,
+            song.chart.first_bpm, double(music.Frames()) / music.rate, settings.timing.audio_offset_ms,
+            opt.autoplay ? ", autoplay" : "");
+    const live::Chart& chart = song.chart;
+    live::Judge judge;
+    judge.Reset(chart, song.windows);
+    const double offset = settings.timing.audio_offset_ms;
+    audio.Play(std::move(music));
+
+    Layout layout;
+    std::vector<double> flash(kLanes, -1e9);
+    std::vector<Grade> flash_grade(kLanes, Grade::Miss);
+    size_t log_seen = 0, auto_next = 0;
+    std::vector<std::pair<double, int>> auto_releases;  // autoplay: (time, lane)
+    double end_at = -1;
+    long frame = 0;
+    for (bool running = true; running && (opt.max_frames < 0 || frame < opt.max_frames); ++frame) {
+        SDL_Event e;
+        while (SDL_PollEvent(&e)) {
+            if (e.type == SDL_EVENT_QUIT || (e.type == SDL_EVENT_KEY_DOWN && e.key.scancode == SDL_SCANCODE_ESCAPE)) {
+                running = false;
+            } else if ((e.type == SDL_EVENT_KEY_DOWN || e.type == SDL_EVENT_KEY_UP) && !e.key.repeat && !opt.autoplay) {
+                const int lane = LaneOf(e.key.scancode);
+                if (lane < 0) continue;
+                const double t = audio.PlayheadMs(e.key.timestamp) - offset;  // input timestamp on the master clock
+                judge.Update(t);
+                e.type == SDL_EVENT_KEY_DOWN ? judge.Press(lane, t) : judge.Release(lane, t);
+            }
+        }
+        const double now = audio.PlayheadMs(SDL_GetTicksNS()) - offset;
+        if (opt.autoplay) {
+            for (; auto_next < chart.notes.size() && chart.notes[auto_next].time_ms <= now; ++auto_next) {
+                const live::Note& n = chart.notes[auto_next];
+                judge.Press(n.lane, n.time_ms);
+                auto_releases.push_back({n.IsHold() ? n.end_ms : n.time_ms + 30, n.lane});
+            }
+            for (auto it = auto_releases.begin(); it != auto_releases.end();) {
+                if (it->first <= now) {
+                    judge.Release(it->second, it->first);
+                    it = auto_releases.erase(it);
+                } else {
+                    ++it;
+                }
+            }
+        }
+        judge.Update(now);
+        for (; log_seen < judge.Log().size(); ++log_seen) {
+            const live::Judgement& j = judge.Log()[log_seen];
+            const int lane = chart.notes[size_t(j.note)].lane;
+            flash[size_t(lane)] = now;
+            flash_grade[size_t(lane)] = j.grade;
+        }
+
+        if (renderer.BeginFrame()) {
+            layout.Fit(renderer.Width(), renderer.Height());
+            const float ring[4] = {0.85f, 0.85f, 0.95f, 0.9f};
+            for (int l = 0; l < kLanes; ++l) {
+                float x, y;
+                layout.Lane(l, x, y);
+                renderer.DrawCircle(x, y, layout.button, 0.82f, ring);
+                if (now - flash[size_t(l)] < 150) {
+                    float c[4];
+                    std::copy(kGradeColor[int(flash_grade[size_t(l)])], kGradeColor[int(flash_grade[size_t(l)])] + 4, c);
+                    c[3] = float(1.0 - (now - flash[size_t(l)]) / 150.0);
+                    renderer.DrawCircle(x, y, layout.button * 1.25f, 0.6f, c);
+                }
+            }
+            const auto point = [&](int lane, double t, float& x, float& y, float& r) {
+                const float p = float(std::clamp(1.0 - (t - now) / opt.approach_ms, 0.0, 1.0));
+                float lx, ly;
+                layout.Lane(lane, lx, ly);
+                x = layout.cx + (lx - layout.cx) * p;
+                y = layout.cy + (ly - layout.cy) * p;
+                r = layout.button * (0.2f + 0.75f * p);
+            };
+            // far notes first, so nearer ones are drawn on top
+            for (size_t i = chart.notes.size(); i-- > 0;) {
+                const live::Note& n = chart.notes[i];
+                if (!judge.Active(i) || n.time_ms - now > opt.approach_ms) continue;
+                float x, y, r;
+                if (n.IsHold()) {
+                    const float trail[4] = {0.95f, 0.95f, 1.0f, 0.35f};
+                    const double head = judge.Held(i) ? now : n.time_ms;
+                    for (double t = n.end_ms; t > head; t -= 40) {  // trail: discs from the tail to the head
+                        if (t - now > opt.approach_ms) continue;
+                        point(n.lane, t, x, y, r);
+                        renderer.DrawCircle(x, y, r * 0.7f, 0, trail);
+                    }
+                    point(n.lane, n.end_ms, x, y, r);
+                    renderer.DrawCircle(x, y, r * 0.8f, 0.5f, ring);
+                }
+                point(n.lane, judge.Held(i) ? now : n.time_ms, x, y, r);
+                const float body[4] = {1.0f, 0.55f, 0.75f, 1.0f};
+                renderer.DrawCircle(x, y, r, 0, body);
+            }
+            renderer.EndFrame();
+        } else {
+            SDL_Delay(5);
+        }
+
+        if (frame % 15 == 0) {
+            char title[256];
+            std::snprintf(title, sizeof(title), "SIF port - %s [%02d]  combo %d  P %d / Gr %d / Go %d / B %d / M %d  score %.0f",
+                          song.title.c_str(), opt.variant, judge.combo, judge.counts[0], judge.counts[1], judge.counts[2],
+                          judge.counts[3], judge.counts[4], judge.score);
+            SDL_SetWindowTitle(window, title);
+        }
+        if (judge.Finished() && end_at < 0) end_at = now;
+        if (end_at >= 0 && (!audio.Playing() || now - end_at > 3000)) running = false;
+    }
+
+    double sum = 0, sum2 = 0;
+    int n = 0;
+    for (const live::Judgement& j : judge.Log()) {
+        if (j.release || j.grade == Grade::Miss) continue;
+        sum += j.offset_ms;
+        sum2 += j.offset_ms * j.offset_ms;
+        ++n;
+    }
+    const double mean = n ? sum / n : 0, sd = n ? std::sqrt(std::max(0.0, sum2 / n - mean * mean)) : 0;
+    LogInfo("live result: Perfect {} Great {} Good {} Bad {} Miss {}, max combo {}, provisional score {:.0f}; "
+            "press offset mean {:+.1f} ms, sd {:.1f} ms over {} hits",
+            judge.counts[0], judge.counts[1], judge.counts[2], judge.counts[3], judge.counts[4], judge.max_combo,
+            judge.score, mean, sd, n);
+    return 0;
+}
+
+bool RunCalibration(SDL_Window* window, Renderer& renderer, AudioOutput& audio, AppSettings& settings, long max_frames) {
+    // click track: 2 s silence, then 24 clicks at 120 BPM (a 15 ms 1 kHz tone burst each)
+    constexpr int kRate = 48000, kClicks = 24;
+    constexpr double kFirst = 2000, kBeat = 500;
+    cri::Pcm pcm{kRate, 2, std::vector<int16_t>(size_t(kRate * (kFirst + kBeat * (kClicks + 2)) / 1000) * 2)};
+    for (int c = 0; c < kClicks; ++c) {
+        const size_t start = size_t((kFirst + kBeat * c) * kRate / 1000);
+        for (size_t i = 0; i < size_t(kRate * 15 / 1000); ++i) {
+            const double env = 1.0 - double(i) / (kRate * 0.015);
+            const auto s = int16_t(12000 * env * std::sin(2 * 3.14159265358979 * 1000 * double(i) / kRate));
+            pcm.samples[(start + i) * 2] = pcm.samples[(start + i) * 2 + 1] = s;
+        }
+    }
+    SDL_SetWindowTitle(window, "SIF port - calibration: press Space on every click");
+    LogInfo("calibration: {} clicks at {:.0f} ms intervals", kClicks, kBeat);
+    audio.Play(std::move(pcm));
+    std::vector<double> taps;
+    double last_tap = -1e9;
+    long frame = 0;
+    for (bool running = true; running && (max_frames < 0 || frame < max_frames); ++frame) {
+        SDL_Event e;
+        while (SDL_PollEvent(&e)) {
+            if (e.type == SDL_EVENT_QUIT || (e.type == SDL_EVENT_KEY_DOWN && e.key.scancode == SDL_SCANCODE_ESCAPE)) {
+                running = false;
+            } else if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat && e.key.scancode == SDL_SCANCODE_SPACE) {
+                const double t = audio.PlayheadMs(e.key.timestamp);  // no offset: this measures it
+                const double nearest = kFirst + kBeat * std::round((t - kFirst) / kBeat);
+                if (nearest >= kFirst && std::abs(t - nearest) < kBeat / 2) taps.push_back(t - nearest);
+                last_tap = t;
+            }
+        }
+        const double now = audio.PlayheadMs(SDL_GetTicksNS());
+        if (renderer.BeginFrame()) {
+            const float cx = float(renderer.Width()) / 2, cy = float(renderer.Height()) / 2;
+            const double phase = std::fmod(std::max(0.0, now - kFirst), kBeat) / kBeat;  // visual beat
+            const float beat[4] = {1, 0.85f, 0.2f, float(now >= kFirst ? 1.0 - phase : 0.0)};
+            const float tap[4] = {0.4f, 0.8f, 1.0f, float(std::max(0.0, 1.0 - (now - last_tap) / 200))};
+            renderer.DrawCircle(cx, cy, 80, 0.8f, beat);
+            renderer.DrawCircle(cx, cy, 50, 0, tap);
+            renderer.EndFrame();
+        }
+        if (!audio.Playing()) running = false;
+    }
+    if (taps.size() < 8) {
+        LogWarn("calibration: only {} taps, nothing stored", taps.size());
+        return false;
+    }
+    std::sort(taps.begin(), taps.end());
+    const double median = taps[taps.size() / 2];
+    settings.timing.audio_offset_ms = int(std::lround(median));
+    LogInfo("calibration: {} taps, median offset {:+.1f} ms (range {:+.1f} .. {:+.1f}); stored as audio_offset_ms",
+            taps.size(), median, taps.front(), taps.back());
+    return true;
+}
+
+}
