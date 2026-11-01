@@ -40,6 +40,10 @@ Source: https://github.com/vgmstream/vgmstream `src/coding/libs/clhca.{c,h}`, `c
 
 Source: https://github.com/ip7z/7zip (Igor Pavlov's 7-Zip/LZMA SDK mirror) `C/LzmaDec.{c,h}`, `C/7zTypes.h`, `C/Precomp.h`, `C/Compiler.h`; latest commit touching `LzmaDec.c` is `0766b733fe3e06dd2a7f9a3cfbf2108ac73abd17` (2026-09-04), fetched 2026-10-31. Copied unchanged to `third_party/lzma/`. Each file states "Igor Pavlov : Public domain". Decodes the two `cmp\0lzma` archives (`common/common.pac`, `common2.pac`).
 
+## stb_truetype (public domain or MIT)
+
+Source: https://github.com/nothings/stb `stb_truetype.h` v1.26; latest commit touching it is `6e9f34d5429cf16790ec43c9bac3f1ee4ad1f760` (2024-07-15), fetched 2026-11-01 (git blob `90a5c2e2`). Copied unchanged to `third_party/stb/`. The file ends with its dual licence (MIT or Unlicense), Sean Barrett / RAD Game Tools. Rasterizes the game's TrueType UI fonts (`common/common.pac/font.pac`; chosen by the user over FreeType and SDL3_ttf, M6).
+
 ## Fetched at build time
 
 | Library | Version | License | Use |
