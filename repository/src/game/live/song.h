@@ -11,16 +11,19 @@
 namespace sif::live {
 
 // variant: 00-04 = ac_easy, ac_normal, ac_hard, ac_extreme, ac_challenge; 10-13 = cs_basic .. cs_master
-// (difficulty names from the eboot strings; the order is a Hypothesis based on note counts).
+// (difficulty names from the eboot strings; the order matches the difficulty index 0-8 in s_live_datas).
 struct Song {
     int id = 0, variant = 0;
     std::string chart_name, title;
     Chart chart;
     WindowSet windows;
+    ScoreRules rules;
 };
 
 bool LoadSong(const Vfs& vfs, int id, int variant, Song& out, std::string* error = nullptr);
 bool LoadWindows(const Vfs& vfs, WindowSet& out, std::string* error = nullptr);
+// Score multiplier and hold-tick values for one chart (s_live_datas in live_datas.bin, s_CommonParam in live_params.bin).
+bool LoadScoreRules(const Vfs& vfs, int id, int variant, ScoreRules& out, std::string* error = nullptr);
 // Music: the music.acb cue whose CueId equals the song id.
 bool LoadSongMusic(const Vfs& vfs, Song& song, cri::Pcm& out, std::string* error = nullptr);
 

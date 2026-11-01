@@ -68,7 +68,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
             opt.autoplay ? ", autoplay" : "");
     const live::Chart& chart = song.chart;
     live::Judge judge;
-    judge.Reset(chart, song.windows);
+    judge.Reset(chart, song.windows, song.rules);
     const double offset = settings.timing.audio_offset_ms;
     audio.Play(std::move(music));
 

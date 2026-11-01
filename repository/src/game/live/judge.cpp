@@ -11,14 +11,11 @@ int32_t S32(const uint8_t* p) { return int32_t(uint32_t(p[0]) | uint32_t(p[1]) <
 // Perfect and Great keep the combo; Good, Bad and Miss break it (eboot 0xAA3B0; Good keeps it only under the
 // "combo softening" skills, not implemented).
 bool KeepsCombo(Grade g) { return g == Grade::Perfect || g == Grade::Great; }
-// points = round(100 x weight[grade] x combo multiplier), capped at 9,999,999 (eboot 0xAA520). Weights and base 100
-// are s_CommonParam +0xC0..+0xCC and +0xB4 in live_params.bin.
+// points = round(100 x weight[grade] x difficulty multiplier [x tick rate]) per judgement or hold tick, capped at
+// 9,999,999 (eboot 0xAA520, 0xA9D80). Weights and base 100 are s_CommonParam +0xC0..+0xCC and +0xB4.
 constexpr double kWeight[kGrades] = {1.0, 0.7, 0.2, 0.1, 0.0};
 constexpr double kBasePoints = 100;
 constexpr double kMaxScore = 9'999'999;
-// shortcut: combo multiplier fixed at s_CommonParam +0xD0[0] = 1.0; the level that indexes it (+0xD0..+0xF0) and
-// hold-tick points (10 per tick) are not traced yet, upgrade when U5 continues
-constexpr double kComboMultiplier = 1.0;
 
 }
 
@@ -44,10 +41,12 @@ bool WindowsFromTable(std::span<const uint8_t> t, WindowSet& out, std::string* e
     return true;
 }
 
-void Judge::Reset(const Chart& chart, const WindowSet& windows) {
+void Judge::Reset(const Chart& chart, const WindowSet& windows, const ScoreRules& rules) {
     chart_ = &chart;
     win_ = windows;
+    rules_ = rules;
     state_.assign(chart.notes.size(), State::Pending);
+    holds_.assign(chart.notes.size(), {});
     holding_.fill(-1);
     log_.clear();
     counts = {};
@@ -68,9 +67,26 @@ Grade Judge::Classify(const Windows& w, double dt) const {
 void Judge::Record(int note, bool release, Grade grade, double offset) {
     log_.push_back({note, release, grade, offset});
     ++counts[size_t(grade)];
-    score = std::min(kMaxScore, score + std::round(kBasePoints * kWeight[int(grade)] * kComboMultiplier));
+    AddPoints(1.0, grade);
     combo = KeepsCombo(grade) ? combo + 1 : 0;
     if (combo > max_combo) max_combo = combo;
+}
+
+void Judge::AddPoints(double note_fraction, Grade grade, int count) {
+    // std::round is half away from zero, like the eboot's sign/floor(|x| + 0.5)
+    const double each = std::round(rules_.multiplier * note_fraction * kWeight[int(grade)] * kBasePoints);
+    score = std::min(kMaxScore, score + each * count);
+}
+
+void Judge::Ticks(size_t i, double now) {
+    // eboot 0x9ECC0, held state: one tick each time (now - press) passes another tick length, until the note's end
+    // (clamped here, so a late update still gets the ticks a per-frame update would have given)
+    Hold& h = holds_[i];
+    now = std::min(now, chart_->notes[i].end_ms);
+    while (h.ticked < h.ticks && now - h.press_ms - (h.ticked + 1) * rules_.tick_ms > 0) {
+        ++h.ticked;
+        AddPoints(rules_.tick_rate, h.press);  // ticks score with the press grade; no combo or count change
+    }
 }
 
 void Judge::Press(int lane, double t) {
@@ -88,6 +104,7 @@ void Judge::Press(int lane, double t) {
         if (n.IsHold() && g <= Grade::Good) {
             state_[i] = State::Holding;
             holding_[size_t(lane)] = int(i);
+            holds_[i] = {g, t, int(std::round((n.end_ms - n.time_ms) / rules_.tick_ms)), 0};
         } else {
             state_[i] = State::Done;
         }
@@ -99,11 +116,16 @@ void Judge::Release(int lane, double t) {
     if (!chart_ || lane < 0 || lane >= kLanes) return;
     const int i = holding_[size_t(lane)];
     if (i < 0) return;
+    Ticks(size_t(i), t);
     holding_[size_t(lane)] = -1;
     state_[size_t(i)] = State::Done;
     const double dt = t - chart_->notes[size_t(i)].end_ms;
     // released before the release window opens: Bad (eboot 0xA0070, release path)
-    Record(i, true, dt < -win_.release.EarlyLimit() ? Grade::Bad : Classify(win_.release, dt), dt);
+    const Grade g = dt < -win_.release.EarlyLimit() ? Grade::Bad : Classify(win_.release, dt);
+    Record(i, true, g, dt);
+    // a Perfect or Great release awards the ticks not yet given, at the release grade (eboot 0x9ECC0)
+    Hold& h = holds_[size_t(i)];
+    if (g <= Grade::Great) AddPoints(rules_.tick_rate, g, h.ticks - h.ticked);
 }
 
 void Judge::Update(double now) {
@@ -113,7 +135,9 @@ void Judge::Update(double now) {
         if (state_[i] == State::Pending && now - n.time_ms > win_.press.LateLimit()) {
             state_[i] = State::Done;
             Record(int(i), false, Grade::Miss, 0);  // an unpressed hold is one Miss (eboot 0x9FDF0 -> 0x9ECC0)
-        } else if (state_[i] == State::Holding && now - n.end_ms > win_.release.LateLimit()) {
+        } else if (state_[i] == State::Holding) {
+            Ticks(i, now);
+            if (now - n.end_ms <= win_.release.LateLimit()) continue;
             state_[i] = State::Done;
             holding_[size_t(n.lane)] = -1;
             Record(int(i), true, Grade::Miss, 0);  // held past the release Bad bound (eboot 0x9FDF0, state 2)

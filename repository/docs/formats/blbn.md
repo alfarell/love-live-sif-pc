@@ -18,12 +18,16 @@ Offsets are from the file start. Names are the C++ symbols of the game's static 
 
 | Symbol | Size | Content |
 |---|---|---|
-| `s_CommonParam` | 500 | Per-difficulty integer groups (2,300 … 650; *Hypothesis:* note approach times in ms). From the eboot (U5): +0xB4 base points 100, +0xB8 hold-tick points 10, **+0xC0…+0xCC score weights Bad 0.1 / Good 0.2 / Great 0.7 / Perfect 1.0**, +0xD0 combo-multiplier table (9 floats, 1.0–3.0), +0x118/+0x11C note-type multipliers, +0x138…+0x14C rank thresholds (0.45 … 1.2) |
+| `s_CommonParam` | 500 | Per-difficulty integer groups (2,300 … 650; *Hypothesis:* note approach times in ms). From the eboot (U5): +0xB4 base points 100, +0xB8 hold-tick points 10, **+0xC0…+0xCC score weights Bad 0.1 / Good 0.2 / Great 0.7 / Perfect 1.0**, +0xD0 score multiplier per difficulty index (9 floats, 1.0–3.0), +0x118/+0x11C note-type multipliers, +0x120 skill multiplier 3.0, +0x128 hold-tick fraction 0.033, +0x130 tick length 1/24 s, +0x138…+0x14C rank thresholds (0.45 … 1.2) |
 | **`s_EvaluateRangeDatas`** | 128 | **Judgement windows in ms**, 4 groups × (early row, late row) × {Perfect, Great, Good, Miss} (see below). Early rows are stored Miss-first, late rows Perfect-first |
 | `s_CalibrationData` | 8 | 32, 16: built-in timing offset in ms per input-device type (type 1 → 32, types 0/2 → 16), added to the user's adjustment (eboot 0x9F7C0) |
 | `s_UserCalibrationData` | 44 | −80 … +80 in steps of 16: the user-selectable timing offsets in ms (11 values) |
 | `s_SkillAdjustDatas`, `s_LedControlParam`, `s_Camera*`, `s_liveView*`, `s_skill*` | | Skills, LEDs (arcade cabinet), cameras, live-view, skill voices and effects |
 | `ll3::s_SKILL_LEVEL_*`, `s_INVALID_SKILL_ID`, `live::s_skillVoiceCallNum` | 4 each | Constants |
+
+## `common/common.pac/live_common.pac/live_datas.bin`
+
+`s_live_datas`: 1,125 records of 904 bytes, one per chart (eboot 0x945B0 searches it by id). +0x00 id = song × 1000 + variant, +0x04 song, +0x08 variant, +0x0C 100, +0x14 difficulty index 0–8 (indexes `s_CommonParam` +0xD0), +0x18 *Hypothesis:* star level. The rest is not decoded.
 
 ### Judgement windows (`s_EvaluateRangeDatas`)
 

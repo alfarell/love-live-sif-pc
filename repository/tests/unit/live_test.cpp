@@ -1,5 +1,6 @@
 // Headless autoplay test for the live (song play) rules. Synthetic: window edges, combo, holds. With the CUSA24620
 // dump folder as the first argument: song 0010 (ac_challenge chart) autoplayed at fixed input offsets.
+#include <cmath>
 #include <cstdio>
 #include <string>
 
@@ -20,9 +21,10 @@ static void Check(bool ok, const std::string& what) {
 }
 
 // Presses every note `offset` ms late (negative = early) and releases holds `release_offset` ms late.
-static Judge Autoplay(const Chart& chart, const WindowSet& w, double offset, double release_offset = 0) {
+static Judge Autoplay(const Chart& chart, const WindowSet& w, double offset, double release_offset = 0,
+                      const ScoreRules& rules = {}) {
     Judge j;
-    j.Reset(chart, w);
+    j.Reset(chart, w, rules);
     struct Input { double t; int lane; bool press; };
     std::vector<Input> inputs;
     for (const Note& n : chart.notes) {
@@ -52,7 +54,10 @@ static void Synthetic() {
     const WindowSet w = GameWindows();
     const Judge perfect = Autoplay(c, w, 0);
     Check(perfect.counts[0] == 12 && perfect.max_combo == 12 && perfect.Finished(), "autoplay: 12 Perfect (11 notes + 1 release)");
-    Check(perfect.score == 1200, "autoplay: 12 x 100 points");
+    // the 1000 ms hold has round(1000 / 41) = 24 ticks of round(0.033 x 100) = 3 points (eboot 0x9ECC0, 0xA9D80)
+    Check(perfect.score == 1200 + 24 * 3, "autoplay: 12 x 100 points + 24 ticks x 3");
+    Check(Autoplay(c, w, 0, 0, {3.0}).score == 12 * 300 + 24 * 10, "difficulty multiplier 3.0 (ac_challenge)");
+    Check(Autoplay(c, w, 0, -400).score == 11 * 100 + 10 + 14 * 3, "hold let go at 600 ms: 14 ticks, Bad release");
     // window edges are strict except the Bad bound (eboot 0xA0070)
     Check(Autoplay(c, w, 39).counts[0] == 12, "+39 ms is Perfect");
     Check(Autoplay(c, w, 40).counts[1] == 11, "+40 ms is Great (strict edge)");
@@ -60,7 +65,7 @@ static void Synthetic() {
     Check(Autoplay(c, w, -133).counts[2] == 11, "-133 ms is Good (strict edge)");
     const Judge late = Autoplay(c, w, 250);
     Check(late.counts[3] == 11 && late.max_combo == 0, "+250 ms: 11 Bad, a Bad hold press ends the hold, combo broken");
-    Check(late.score == 11 * 10, "Bad scores 10 points (weight 0.1)");
+    Check(late.score == 11 * 10, "Bad scores 10 points (weight 0.1), no ticks");
     const Judge none = Autoplay(c, w, 400);  // outside every window: inputs ignored, all notes time out
     Check(none.counts[4] == 11, "no hit: 11 Misses (an unpressed hold is one Miss)");
     Check(Autoplay(c, w, 0, 150).counts[1] == 1, "hold released 150 ms late: Great release");
@@ -84,8 +89,22 @@ static void Real(const char* root) {
                     j.counts[1], j.counts[2], j.counts[3], j.counts[4], j.max_combo, j.score);
         Check(j.Finished(), "autoplay finishes");
     }
-    const Judge p = Autoplay(song.chart, w, 0);
+    const Judge p = Autoplay(song.chart, w, 0, 0, song.rules);
     Check(p.counts[1] + p.counts[2] + p.counts[3] + p.counts[4] == 0, "song 0010 autoplay: all Perfect");
+    Check(song.rules.multiplier == 3.0f && song.rules.tick_ms == 41, "song 0010/04 (ac_challenge): multiplier 3.0");
+    std::printf("song 0010/04 all Perfect: score %.0f\n", p.score);
+    // song 0340 ac_easy: the chart measured on the game's result screens in shadPS4
+    Song easy;
+    Check(LoadSong(vfs, 340, 0, easy, &error), "load song 0340 variant 00: " + error);
+    int holds = 0, ticks = 0;
+    for (const Note& n : easy.chart.notes) {
+        if (!n.IsHold()) continue;
+        ++holds;
+        ticks += int(std::round((n.end_ms - n.time_ms) / easy.rules.tick_ms));
+    }
+    const Judge e = Autoplay(easy.chart, w, 0, 0, easy.rules);
+    std::printf("song 0340/00: %zu notes, %d holds, %d ticks, %d skipped, multiplier %.1f, all Perfect %.0f\n",
+                easy.chart.notes.size(), holds, ticks, easy.chart.skipped, easy.rules.multiplier, e.score);
 }
 
 int main(int argc, char** argv) {
