@@ -11,6 +11,7 @@
 #include "engine/audio/audio_output.h"
 #include "engine/core/log.h"
 #include "engine/platform/settings.h"
+#include "engine/formats/bscm.h"
 #include "engine/fs/vfs.h"
 #include "engine/render/renderer.h"
 #include "engine/render/scene_model.h"
@@ -67,6 +68,9 @@ struct LiveScene {
     std::vector<uint8_t> motion_file;
     bmar::Motion dance;
     bool has_dance = false;
+    std::vector<uint8_t> camera_file;
+    bscm::Camera camera;
+    bool has_camera = false;
 
     void Load(Renderer& renderer, const Vfs& vfs, const LiveOptions& opt) {
         std::string error;
@@ -83,20 +87,27 @@ struct LiveScene {
         const std::string motion_path = FindEntry(vfs, mot, "mot_");
         has_dance = !motion_path.empty() && vfs.Read(motion_path, motion_file, &error) && bmar::ParseMotion(motion_file, dance, &error);
         if (!has_dance) LogWarn("live: dance {}: {}", mot, motion_path.empty() ? "not found" : error);
-        LogInfo("live scene: stage {} ({}), member {} ({}), dance {} ({:.0f} frames)", opt.stage, stage_path, opt.member,
-                member_path, motion_path, has_dance ? dance.frames : 0.0f);
+        char cam[96];
+        std::snprintf(cam, sizeof(cam), "live/%04d/%04d.pac/scene.pac/camera_anim_%04d_00_main.bscam", opt.song, opt.song, opt.song);
+        has_camera = vfs.Read(cam, camera_file, &error) && bscm::Parse(camera_file, camera, &error);
+        if (!has_camera) LogWarn("live: camera {}: {}", cam, error);
+        LogInfo("live scene: stage {} ({}), member {} ({}), dance {} ({:.0f} frames), camera {}", opt.stage, stage_path,
+                opt.member, member_path, motion_path, has_dance ? dance.frames : 0.0f, has_camera ? cam : "fixed");
     }
 
     // `now_ms`: audio time. The dance (and camera) clock runs `start_frame` ahead of the music: frames before it are
     // the stage intro, which the port skips (shortcut: the music starts at once; play the intro first when the
     // pre-music flow is built)
     void Draw(Renderer& renderer, double now_ms, float start_frame) {
-        if (has_member) {
-            member.Pose(renderer, has_dance ? &dance : nullptr, float(std::max(0.0, now_ms) / 1000.0 * dance.fps) + start_frame);
-        }
-        // shortcut: fixed front camera until the song's camera track is decoded (M5 step 4); Z-up world, model faces -Y
+        const float frame = float(std::max(0.0, now_ms) / 1000.0 * 60.0) + start_frame;  // dance and camera clock, 60 fps
+        if (has_member) member.Pose(renderer, has_dance ? &dance : nullptr, frame);
         const float aspect = float(renderer.Width()) / float(std::max(1, renderer.Height()));
-        renderer.SetCamera(Perspective(0.70f, aspect, 0.1f, 500.0f) * LookAt({0, -6.0f, 1.4f}, {0, 0, 1.0f}, {0, 0, 1}));
+        if (has_camera) {
+            const bscm::Pose pose = bscm::Sample(camera, frame);
+            renderer.SetCamera(Perspective(pose.fov_deg * 3.14159265f / 180.0f, aspect, 0.1f, 500.0f) * bscm::ViewMatrix(pose));
+        } else {  // fixed front view; Z-up world, models face -Y
+            renderer.SetCamera(Perspective(0.70f, aspect, 0.1f, 500.0f) * LookAt({0, -6.0f, 1.4f}, {0, 0, 1.0f}, {0, 0, 1}));
+        }
         if (has_stage) stage.Draw(renderer, Mat4{});
         if (has_member) member.Draw(renderer, Mat4{});
     }
