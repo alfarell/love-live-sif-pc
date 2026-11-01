@@ -1,7 +1,9 @@
 #pragma once
 // Everything one live (song play) needs from the dump: the playable chart, the judgement windows and the music.
 
+#include <array>
 #include <string>
+#include <vector>
 
 #include "engine/audio/decode.h"
 #include "engine/fs/vfs.h"
@@ -27,6 +29,16 @@ bool LoadWindows(const Vfs& vfs, WindowSet& out, std::string* error = nullptr);
 bool LoadScoreRules(const Vfs& vfs, int id, int variant, ScoreRules& out, std::string* error = nullptr);
 // The song's dance/camera clock: frame = audio ms / 1000 x 60 + this value.
 bool LoadDanceStart(const Vfs& vfs, int id, float& out, std::string* error = nullptr);
+
+// One playable song for the song select: s_music_datas order, only songs whose live/NNNN package is in the dump.
+struct SongInfo {
+    int id = 0;
+    std::string title;           // s_music_datas title in the UI language (+0x48 + 8 x language)
+    std::string credits;         // lyricist, composer, arranger lines (+0xD0, +0x90, +0xB0 + 8 x language)
+    std::array<int, 9> stars{};  // star level per difficulty index (s_live_datas +0x18; 0 = no chart)
+};
+// `language`: 0 Japanese, 1 English, 2 simplified Chinese, 3 traditional Chinese (the order of the title pointers).
+bool LoadSongList(const Vfs& vfs, int language, std::vector<SongInfo>& out, std::string* error = nullptr);
 // Music: the music.acb cue whose CueId equals the song id.
 bool LoadSongMusic(const Vfs& vfs, Song& song, cri::Pcm& out, std::string* error = nullptr);
 

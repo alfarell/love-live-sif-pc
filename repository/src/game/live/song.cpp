@@ -81,6 +81,40 @@ bool LoadDanceStart(const Vfs& vfs, int id, float& out, std::string* error) {
     return Fail(error, "no s_music_datas record for this song");
 }
 
+bool LoadSongList(const Vfs& vfs, int language, std::vector<SongInfo>& out, std::string* error) {
+    out.clear();
+    std::vector<uint8_t> file;
+    std::span<const uint8_t> music, charts;
+    if (!ReadTable(vfs, "common/common.pac/live_common.pac/live_datas.bin", "s_music_datas", file, music, error)) return false;
+    std::vector<uint8_t> file2;
+    if (!ReadTable(vfs, "common/common.pac/live_common.pac/live_datas.bin", "s_live_datas", file2, charts, error)) return false;
+    constexpr size_t kMusic = 832, kChart = 904;
+    for (size_t r = 0; r + kMusic <= music.size(); r += kMusic) {
+        SongInfo s;
+        s.id = At<int32_t>(music, r);
+        char folder[32];
+        std::snprintf(folder, sizeof(folder), "live/%04d/%04d.pac", s.id, s.id);
+        if (s.id <= 0 || !vfs.Exists(folder)) continue;  // not in this dump (e.g. DLC not installed)
+        // title pointers are file offsets into live_datas.bin
+        const auto text = [&](size_t field) {
+            const uint64_t at = At<uint64_t>(music, r + field + 8 * size_t(std::clamp(language, 0, 3)));
+            if (at >= file.size()) return std::string();
+            const char* t = reinterpret_cast<const char*>(&file[size_t(at)]);
+            return std::string(t, strnlen(t, file.size() - size_t(at)));
+        };
+        s.title = text(0x48);
+        // the game's setup screen formats "%s\n%s\n%s" from these three fields (eboot 0x16D960)
+        s.credits = text(0xD0) + "\n" + text(0x90) + "\n" + text(0xB0);
+        for (size_t c = 0; c + kChart <= charts.size(); c += kChart) {
+            if (At<int32_t>(charts, c + 4) != s.id) continue;
+            const int index = At<int32_t>(charts, c + 0x14);
+            if (index >= 0 && index < 9) s.stars[size_t(index)] = At<int32_t>(charts, c + 0x18);
+        }
+        out.push_back(std::move(s));
+    }
+    return true;
+}
+
 bool LoadSong(const Vfs& vfs, int id, int variant, Song& out, std::string* error) {
     out = {};
     out.id = id;
