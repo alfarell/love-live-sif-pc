@@ -55,6 +55,7 @@ add_library(sif_engine STATIC
   src/engine/core/crash_report.cpp
   src/engine/core/parallel_for.cpp
   src/engine/formats/blbn.cpp
+  src/engine/formats/bmar.cpp
   src/engine/formats/btx.cpp
   src/engine/fs/pac.cpp
   src/engine/fs/vfs.cpp
@@ -95,6 +96,12 @@ add_executable(sif_vfs_test tests/unit/vfs_test.cpp)
 target_link_libraries(sif_vfs_test PRIVATE sif_engine)
 if(MSVC)
   target_compile_options(sif_vfs_test PRIVATE /utf-8 /EHsc)
+endif()
+
+add_executable(sif_bmar_test tests/unit/bmar_test.cpp)
+target_link_libraries(sif_bmar_test PRIVATE sif_engine)
+if(MSVC)
+  target_compile_options(sif_bmar_test PRIVATE /utf-8 /EHsc)
 endif()
 
 add_executable(sif_live_test tests/unit/live_test.cpp)
