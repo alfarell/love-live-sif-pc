@@ -1,7 +1,9 @@
 #pragma once
-// M4 vertical slice screens: one song played on 9 lanes (2D, no 3D stage yet) and an input-offset calibration.
+// Live screens: one song played on 9 lanes over the 3D stage with one dancing member (M5), and an input-offset
+// calibration.
 
 #include <cstdint>
+#include <string>
 
 struct SDL_Window;
 
@@ -17,6 +19,10 @@ struct LiveOptions {
     int variant = 4;          // 00-04 ac_easy..ac_challenge, 10-13 cs_basic..cs_master
     bool autoplay = false;
     double approach_ms = 1300;  // note travel time; Hypothesis: s_CommonParam holds per-difficulty values (1300 for ac 04?)
+    // shortcut: the song's stage and member line-up are not traced (analysis/202611011121-m5-live-presentation/);
+    // chosen here, default the live hall and Honoka
+    std::string stage = "st017";
+    int member = 1;  // chr/cNN, 1-9 = mu's
     long max_frames = -1;
 };
 

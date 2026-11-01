@@ -32,10 +32,10 @@ The build folder is `../work/build/<preset>/`. SDL3 and zlib are fetched at conf
 ## Run
 
 ```
-sif.exe --game <your CUSA24620 dump folder> [--live ID:VARIANT [--autoplay] | --calibrate | --show VFS_PATH --play SHEET:CUE|none] [--frames N] [--crash] [--data DIR]
+sif.exe --game <your CUSA24620 dump folder> [--live ID:VARIANT [--autoplay] [--stage stNNN] [--member N] | --calibrate | --show VFS_PATH --play SHEET:CUE|none] [--frames N] [--crash] [--data DIR]
 ```
 
-- `--live 10:4` plays song 0010 on chart variant 04 (`ac_challenge`; 00-04 arcade, 10-13 home difficulties). Keys for the 9 lanes, left to right: `A S D F Space J K L ;`. Esc quits. The title bar shows combo, judgement counts and the (provisional) score; `sif.log` gets the result and the mean press offset. `--autoplay` presses every note on time.
+- `--live 10:4` plays song 0010 on chart variant 04 (`ac_challenge`; 00-04 arcade, 10-13 home difficulties). Keys for the 9 lanes, left to right: `A S D F Space J K L ;`. Esc quits. The title bar shows combo, judgement counts and the score; `sif.log` gets the result and the mean press offset. `--autoplay` presses every note on time. The live screen draws the stage (`--stage`, default `st017`) and one member dancing the song (`--member 1`-`9`, default 1 = Honoka) behind the lanes, from a fixed camera.
 - `--calibrate` plays 24 clicks; press Space on each. The median offset is stored as `timing.audio_offset_ms` and applied to judgement.
 
 - The game folder must be the user's own dump (checked: `sce_sys/param.sfo` names CUSA24620; `common/common.pac`, `sound/sound.pac`, `live/` exist). It is saved to `settings.ini`, so later runs need no `--game`. Song add-ons are read from the dump's `sound/dlc/`.

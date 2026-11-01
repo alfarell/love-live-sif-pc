@@ -58,6 +58,8 @@ Options ParseOptions(int argc, char** argv) {
         else if (!std::strcmp(argv[i], "--play") && i + 1 < argc) o.play = argv[++i];
         else if (!std::strcmp(argv[i], "--autoplay")) o.live_options.autoplay = true;
         else if (!std::strcmp(argv[i], "--calibrate")) o.calibrate = true;
+        else if (!std::strcmp(argv[i], "--stage") && i + 1 < argc) o.live_options.stage = argv[++i];
+        else if (!std::strcmp(argv[i], "--member") && i + 1 < argc) o.live_options.member = int(std::strtol(argv[++i], nullptr, 10));
         else if (!std::strcmp(argv[i], "--live") && i + 1 < argc) {
             o.live = true;
             char* rest = nullptr;

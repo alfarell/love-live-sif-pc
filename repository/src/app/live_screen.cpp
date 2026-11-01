@@ -11,7 +11,9 @@
 #include "engine/audio/audio_output.h"
 #include "engine/core/log.h"
 #include "engine/platform/settings.h"
+#include "engine/fs/vfs.h"
 #include "engine/render/renderer.h"
+#include "engine/render/scene_model.h"
 #include "game/live/song.h"
 
 namespace sif {
@@ -48,6 +50,59 @@ struct Layout {
     }
 };
 
+// First entry in an archive folder whose name starts with `prefix` ("" if none).
+std::string FindEntry(const Vfs& vfs, const std::string& folder, const std::string& prefix) {
+    std::vector<pac::ArcEntry> entries;
+    if (!vfs.List(folder, entries)) return {};
+    for (const pac::ArcEntry& e : entries) {
+        if (e.name.starts_with(prefix)) return folder + "/" + e.name;
+    }
+    return {};
+}
+
+// Stage, one member and the member's dance for the song; missing parts are logged and skipped.
+struct LiveScene {
+    SceneModel stage, member;
+    bool has_stage = false, has_member = false;
+    std::vector<uint8_t> motion_file;
+    bmar::Motion dance;
+    bool has_dance = false;
+
+    void Load(Renderer& renderer, const Vfs& vfs, const LiveOptions& opt) {
+        std::string error;
+        const std::string stage_path = FindEntry(vfs, "stage/" + opt.stage + ".pac/model.pac", "");
+        has_stage = !stage_path.empty() && stage.Load(renderer, vfs, stage_path, &error);
+        if (!has_stage) LogWarn("live: stage {}: {}", opt.stage, stage_path.empty() ? "not found" : error);
+        char chr[64], mot[64], prefix[32];
+        std::snprintf(chr, sizeof(chr), "chr/c%02d/c%02d.pac/model.pac", opt.member, opt.member);
+        std::snprintf(mot, sizeof(mot), "live/%04d/c%02d_%04d.pac", opt.song, opt.member, opt.song);
+        std::snprintf(prefix, sizeof(prefix), "mod_%02d_", opt.member);
+        const std::string member_path = FindEntry(vfs, chr, prefix);
+        has_member = !member_path.empty() && member.Load(renderer, vfs, member_path, &error);
+        if (!has_member) LogWarn("live: member {}: {}", opt.member, member_path.empty() ? "no model" : error);
+        const std::string motion_path = FindEntry(vfs, mot, "mot_");
+        has_dance = !motion_path.empty() && vfs.Read(motion_path, motion_file, &error) && bmar::ParseMotion(motion_file, dance, &error);
+        if (!has_dance) LogWarn("live: dance {}: {}", mot, motion_path.empty() ? "not found" : error);
+        LogInfo("live scene: stage {} ({}), member {} ({}), dance {} ({:.0f} frames)", opt.stage, stage_path, opt.member,
+                member_path, motion_path, has_dance ? dance.frames : 0.0f);
+    }
+
+    // `now_ms`: audio time. shortcut: dance frame 0 = audio 0 (Hypothesis, M5 step 3 checks it)
+    void Draw(Renderer& renderer, double now_ms) {
+        if (has_member) member.Pose(renderer, has_dance ? &dance : nullptr, float(std::max(0.0, now_ms) / 1000.0 * dance.fps));
+        // shortcut: fixed front camera until the song's camera track is decoded (M5 step 4); Z-up world, model faces -Y
+        const float aspect = float(renderer.Width()) / float(std::max(1, renderer.Height()));
+        renderer.SetCamera(Perspective(0.70f, aspect, 0.1f, 500.0f) * LookAt({0, -6.0f, 1.4f}, {0, 0, 1.0f}, {0, 0, 1}));
+        if (has_stage) stage.Draw(renderer, Mat4{});
+        if (has_member) member.Draw(renderer, Mat4{});
+    }
+
+    void Release(Renderer& renderer) {
+        stage.Release(renderer);
+        member.Release(renderer);
+    }
+};
+
 const float kGradeColor[live::kGrades][4] = {
     {1.0f, 0.85f, 0.2f, 1}, {1.0f, 0.45f, 0.7f, 1}, {0.4f, 0.9f, 0.5f, 1}, {0.35f, 0.5f, 1.0f, 1}, {0.5f, 0.5f, 0.55f, 1}};
 
@@ -70,6 +125,8 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
     live::Judge judge;
     judge.Reset(chart, song.windows, song.rules);
     const double offset = settings.timing.audio_offset_ms;
+    LiveScene scene;
+    scene.Load(renderer, vfs, opt);
     audio.Play(std::move(music));
 
     Layout layout;
@@ -117,6 +174,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
         }
 
         if (renderer.BeginFrame()) {
+            scene.Draw(renderer, now);
             layout.Fit(renderer.Width(), renderer.Height());
             const float ring[4] = {0.85f, 0.85f, 0.95f, 0.9f};
             for (int l = 0; l < kLanes; ++l) {
@@ -174,6 +232,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
         if (end_at >= 0 && (!audio.Playing() || now - end_at > 3000)) running = false;
     }
 
+    scene.Release(renderer);
     double sum = 0, sum2 = 0;
     int n = 0;
     for (const live::Judgement& j : judge.Log()) {
