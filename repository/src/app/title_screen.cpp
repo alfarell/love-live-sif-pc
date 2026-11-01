@@ -37,9 +37,11 @@ bool IsConfirm(const SDL_Event& e) {
 }
 
 bool RunTitle(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, long max_frames) {
-    UiScreen ui;
+    UiText text;
     std::string error;
-    if (!ui.Load(renderer, vfs, "ui2/01_title", lang, &error)) {
+    if (!text.Load(vfs, lang, &error)) LogWarn("title: text: {}", error);  // the screens still work without text
+    UiScreen ui;
+    if (!ui.Load(renderer, vfs, "ui2/01_title", lang, &error, &text)) {
         LogError("title: {}", error);
         return false;
     }

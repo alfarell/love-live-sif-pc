@@ -121,6 +121,16 @@ bool SceneModel::Load(Renderer& renderer, const Vfs& vfs, const std::string& pat
                 }
             }
         }
+        if (!verts.empty()) {
+            part.bounds[0] = part.bounds[2] = verts[0].position[0];
+            part.bounds[1] = part.bounds[3] = verts[0].position[1];
+            for (const MeshVertex& v : verts) {
+                part.bounds[0] = std::min(part.bounds[0], v.position[0]);
+                part.bounds[1] = std::min(part.bounds[1], v.position[1]);
+                part.bounds[2] = std::max(part.bounds[2], v.position[0]);
+                part.bounds[3] = std::max(part.bounds[3], v.position[1]);
+            }
+        }
         std::vector<uint16_t> indices(mesh.index_count);
         std::memcpy(indices.data(), mesh.indices.data(), mesh.indices.size());
         for (uint16_t& i : indices) i = std::min<uint16_t>(i, uint16_t(mesh.vertex_count - 1));
@@ -179,6 +189,17 @@ void SceneModel::DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha) co
         if (part.texture < 0) continue;  // text boxes and untextured helpers
         renderer.DrawUiMesh(part.gpu, &textures_[size_t(part.texture)], to_clip * world_[part.node], alpha);
     }
+}
+
+std::vector<std::array<float, 4>> SceneModel::TextBoxes() const {
+    std::vector<std::array<float, 4>> out;
+    for (const Part& part : parts_) {
+        if (part.texture >= 0) continue;
+        const Vec3 a = TransformPoint(world_[part.node], {part.bounds[0], part.bounds[1], 0});
+        const Vec3 b = TransformPoint(world_[part.node], {part.bounds[2], part.bounds[3], 0});
+        out.push_back({std::min(a.x, b.x), std::min(a.y, b.y), std::max(a.x, b.x), std::max(a.y, b.y)});
+    }
+    return out;
 }
 
 void SceneModel::Release(Renderer& renderer) {

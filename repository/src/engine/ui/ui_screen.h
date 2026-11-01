@@ -11,6 +11,7 @@
 #include "engine/formats/bmar.h"
 #include "engine/render/renderer.h"
 #include "engine/render/scene_model.h"
+#include "engine/ui/ui_text.h"
 
 namespace sif {
 
@@ -22,7 +23,11 @@ public:
 
     // `screen` like "ui2/01_title"; `lang` "en", "cn", "tw" or "" (Japanese) picks ui2/01_title_<lang>.pac, falling
     // back to the base package. Loads every part and layout of the package.
-    bool Load(Renderer& renderer, const Vfs& vfs, const std::string& screen, const std::string& lang, std::string* error);
+    // `text` (optional, must outlive the screen) draws the package's ui_text.bin strings into their parts' text boxes.
+    bool Load(Renderer& renderer, const Vfs& vfs, const std::string& screen, const std::string& lang, std::string* error,
+              const UiText* text = nullptr);
+    // Replaces the default string of a part's text box (e.g. with message.pac text).
+    void SetText(const std::string& part, int box, const std::string& utf8);
     void Release(Renderer& renderer);
 
     // Canvas -> clip space for the current window (letterboxed, aspect kept).
@@ -35,6 +40,15 @@ public:
     bool HasPart(const std::string& part) const { return parts_.contains(part); }
 
 private:
+    struct TextEntry {
+        int style = 0;
+        std::string utf8;
+        Texture texture;   // rendered on first draw
+        int width = 0, height = 0;
+        bool rendered = false;
+    };
+    void DrawTexts(Renderer& renderer, const std::string& part, const Mat4& to_clip, float alpha) const;
+
     struct Layout {
         std::vector<uint8_t> file;
         bmar::Model model;
@@ -43,6 +57,10 @@ private:
     std::string package_;
     std::map<std::string, std::unique_ptr<SceneModel>> parts_;
     std::map<std::string, std::unique_ptr<Layout>> layouts_;
+    const UiText* text_ = nullptr;
+    mutable std::map<std::pair<std::string, int>, TextEntry> texts_;  // (part, box) -> string
+    GpuMesh unit_quad_;  // (0,0)-(1,-1), for text bitmaps
+    Renderer* renderer_ = nullptr;
 };
 
 }

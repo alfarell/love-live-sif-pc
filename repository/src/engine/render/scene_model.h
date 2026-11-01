@@ -25,12 +25,15 @@ public:
     void DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha) const;
     void Release(Renderer& renderer);
     const bmar::Model& Data() const { return model_; }
+    // UI text boxes: the untextured meshes in draw order, as (x0, y0, x1, y1) after their node transform
+    std::vector<std::array<float, 4>> TextBoxes() const;
 
 private:
     struct Part {
         uint32_t node = 0;
         int texture = -1;  // index into textures_
         bool skinned = false;
+        float bounds[4]{};  // x0, y0, x1, y1 of the vertices in node space (UI text boxes)
         GpuMesh gpu;
         std::vector<MeshVertex> bind, posed;              // skinned parts only keep these
         std::vector<std::array<uint8_t, 8>> bones;

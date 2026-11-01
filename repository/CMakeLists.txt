@@ -45,6 +45,13 @@ if(MSVC)
   target_compile_options(clhca PRIVATE /W0)
 endif()
 
+# stb_truetype (public domain / MIT, see THIRD_PARTY.md): UI font rasterizer; upstream warnings are not ours to fix
+add_library(stb_truetype STATIC src/engine/ui/stb_truetype_impl.c)
+target_include_directories(stb_truetype PUBLIC third_party/stb)
+if(MSVC)
+  target_compile_options(stb_truetype PRIVATE /W0)
+endif()
+
 add_library(sif_engine STATIC
   src/engine/audio/audio_output.cpp
   src/engine/audio/cri_utf.cpp
@@ -65,9 +72,10 @@ add_library(sif_engine STATIC
   src/engine/render/renderer.cpp
   src/engine/render/scene_model.cpp
   src/engine/ui/ui_screen.cpp
+  src/engine/ui/ui_text.cpp
   ${SHADER_INCS})
 target_include_directories(sif_engine PUBLIC src PRIVATE ${SHADER_OUT})
-target_link_libraries(sif_engine PUBLIC SDL3::SDL3-static zlibstatic lzmadec clhca)
+target_link_libraries(sif_engine PUBLIC SDL3::SDL3-static zlibstatic lzmadec clhca stb_truetype)
 target_compile_definitions(sif_engine PUBLIC NOMINMAX WIN32_LEAN_AND_MEAN _CRT_SECURE_NO_WARNINGS)
 if(WIN32)
   target_link_libraries(sif_engine PUBLIC dbghelp)
