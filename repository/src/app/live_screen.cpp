@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -61,13 +62,19 @@ std::string FindEntry(const Vfs& vfs, const std::string& folder, const std::stri
     return {};
 }
 
-// Stage, one member and the member's dance for the song; missing parts are logged and skipped.
+// Stage, the members dancing the song, and the song's camera; missing parts are logged and skipped. Each member's
+// dance is authored at that member's spot on the stage (the root moves to the formation), so all are drawn unplaced.
 struct LiveScene {
-    SceneModel stage, member;
-    bool has_stage = false, has_member = false;
-    std::vector<uint8_t> motion_file;
-    bmar::Motion dance;
-    bool has_dance = false;
+    struct Dancer {
+        int member = 0;
+        SceneModel model;
+        std::vector<uint8_t> motion_file;
+        bmar::Motion dance;
+        bool has_dance = false;
+    };
+    SceneModel stage;
+    bool has_stage = false;
+    std::vector<std::unique_ptr<Dancer>> dancers;
     std::vector<uint8_t> camera_file;
     bscm::Camera camera;
     bool has_camera = false;
@@ -77,22 +84,29 @@ struct LiveScene {
         const std::string stage_path = FindEntry(vfs, "stage/" + opt.stage + ".pac/model.pac", "");
         has_stage = !stage_path.empty() && stage.Load(renderer, vfs, stage_path, &error);
         if (!has_stage) LogWarn("live: stage {}: {}", opt.stage, stage_path.empty() ? "not found" : error);
-        char chr[64], mot[64], prefix[32];
-        std::snprintf(chr, sizeof(chr), "chr/c%02d/c%02d.pac/model.pac", opt.member, opt.member);
-        std::snprintf(mot, sizeof(mot), "live/%04d/c%02d_%04d.pac", opt.song, opt.member, opt.song);
-        std::snprintf(prefix, sizeof(prefix), "mod_%02d_", opt.member);
-        const std::string member_path = FindEntry(vfs, chr, prefix);
-        has_member = !member_path.empty() && member.Load(renderer, vfs, member_path, &error);
-        if (!has_member) LogWarn("live: member {}: {}", opt.member, member_path.empty() ? "no model" : error);
-        const std::string motion_path = FindEntry(vfs, mot, "mot_");
-        has_dance = !motion_path.empty() && vfs.Read(motion_path, motion_file, &error) && bmar::ParseMotion(motion_file, dance, &error);
-        if (!has_dance) LogWarn("live: dance {}: {}", mot, motion_path.empty() ? "not found" : error);
+        for (int m = opt.member ? opt.member : 1; m <= (opt.member ? opt.member : 9); ++m) {
+            char chr[64], mot[64], prefix[32];
+            std::snprintf(chr, sizeof(chr), "chr/c%02d/c%02d.pac/model.pac", m, m);
+            std::snprintf(mot, sizeof(mot), "live/%04d/c%02d_%04d.pac", opt.song, m, opt.song);
+            std::snprintf(prefix, sizeof(prefix), "mod_%02d_", m);
+            const std::string model_path = FindEntry(vfs, chr, prefix), motion_path = FindEntry(vfs, mot, "mot_");
+            if (motion_path.empty()) continue;  // not in this song
+            auto d = std::make_unique<Dancer>();
+            d->member = m;
+            if (model_path.empty() || !d->model.Load(renderer, vfs, model_path, &error)) {
+                LogWarn("live: member {}: {}", m, model_path.empty() ? "no model" : error);
+                continue;
+            }
+            d->has_dance = vfs.Read(motion_path, d->motion_file, &error) && bmar::ParseMotion(d->motion_file, d->dance, &error);
+            if (!d->has_dance) LogWarn("live: dance {}: {}", motion_path, error);
+            dancers.push_back(std::move(d));
+        }
         char cam[96];
         std::snprintf(cam, sizeof(cam), "live/%04d/%04d.pac/scene.pac/camera_anim_%04d_00_main.bscam", opt.song, opt.song, opt.song);
         has_camera = vfs.Read(cam, camera_file, &error) && bscm::Parse(camera_file, camera, &error);
         if (!has_camera) LogWarn("live: camera {}: {}", cam, error);
-        LogInfo("live scene: stage {} ({}), member {} ({}), dance {} ({:.0f} frames), camera {}", opt.stage, stage_path,
-                opt.member, member_path, motion_path, has_dance ? dance.frames : 0.0f, has_camera ? cam : "fixed");
+        LogInfo("live scene: stage {} ({}), {} members dancing, camera {}", opt.stage, stage_path, dancers.size(),
+                has_camera ? cam : "fixed");
     }
 
     // `now_ms`: audio time. The dance (and camera) clock runs `start_frame` ahead of the music: frames before it are
@@ -100,7 +114,7 @@ struct LiveScene {
     // pre-music flow is built)
     void Draw(Renderer& renderer, double now_ms, float start_frame) {
         const float frame = float(std::max(0.0, now_ms) / 1000.0 * 60.0) + start_frame;  // dance and camera clock, 60 fps
-        if (has_member) member.Pose(renderer, has_dance ? &dance : nullptr, frame);
+        for (auto& d : dancers) d->model.Pose(renderer, d->has_dance ? &d->dance : nullptr, frame);
         const float aspect = float(renderer.Width()) / float(std::max(1, renderer.Height()));
         if (has_camera) {
             const bscm::Pose pose = bscm::Sample(camera, frame);
@@ -109,12 +123,12 @@ struct LiveScene {
             renderer.SetCamera(Perspective(0.70f, aspect, 0.1f, 500.0f) * LookAt({0, -6.0f, 1.4f}, {0, 0, 1.0f}, {0, 0, 1}));
         }
         if (has_stage) stage.Draw(renderer, Mat4{});
-        if (has_member) member.Draw(renderer, Mat4{});
+        for (auto& d : dancers) d->model.Draw(renderer, Mat4{});
     }
 
     void Release(Renderer& renderer) {
         stage.Release(renderer);
-        member.Release(renderer);
+        for (auto& d : dancers) d->model.Release(renderer);
     }
 };
 
@@ -150,6 +164,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
     size_t log_seen = 0, auto_next = 0;
     std::vector<std::pair<double, int>> auto_releases;  // autoplay: (time, lane)
     double end_at = -1;
+    std::vector<double> frame_cpu_ms;
     long frame = 0;
     for (bool running = true; running && (opt.max_frames < 0 || frame < opt.max_frames); ++frame) {
         SDL_Event e;
@@ -189,6 +204,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
         }
 
         if (renderer.BeginFrame()) {
+            const uint64_t draw_start = SDL_GetTicksNS();
             scene.Draw(renderer, now, song.dance_start_frame);
             layout.Fit(renderer.Width(), renderer.Height());
             const float ring[4] = {0.85f, 0.85f, 0.95f, 0.9f};
@@ -232,6 +248,8 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                 renderer.DrawCircle(x, y, r, 0, body);
             }
             renderer.EndFrame();
+            const double cpu_ms = double(SDL_GetTicksNS() - draw_start) / 1e6;  // CPU cost of one frame, without the vsync wait
+            frame_cpu_ms.push_back(cpu_ms);
         } else {
             SDL_Delay(5);
         }
@@ -248,6 +266,14 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
     }
 
     scene.Release(renderer);
+    if (!frame_cpu_ms.empty()) {
+        std::sort(frame_cpu_ms.begin(), frame_cpu_ms.end());
+        double total = 0;
+        for (double t : frame_cpu_ms) total += t;
+        LogInfo("live frame cost (CPU, {} members): mean {:.2f} ms, median {:.2f} ms, 99th percentile {:.2f} ms over {} frames",
+                scene.dancers.size(), total / double(frame_cpu_ms.size()), frame_cpu_ms[frame_cpu_ms.size() / 2],
+                frame_cpu_ms[frame_cpu_ms.size() * 99 / 100], frame_cpu_ms.size());
+    }
     double sum = 0, sum2 = 0;
     int n = 0;
     for (const live::Judgement& j : judge.Log()) {

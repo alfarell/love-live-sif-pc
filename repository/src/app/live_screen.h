@@ -1,5 +1,5 @@
 #pragma once
-// Live screens: one song played on 9 lanes over the 3D stage with one dancing member (M5), and an input-offset
+// Live screens: one song played on 9 lanes over the 3D stage with the members dancing (M5), and an input-offset
 // calibration.
 
 #include <cstdint>
@@ -19,10 +19,10 @@ struct LiveOptions {
     int variant = 4;          // 00-04 ac_easy..ac_challenge, 10-13 cs_basic..cs_master
     bool autoplay = false;
     double approach_ms = 1300;  // note travel time; Hypothesis: s_CommonParam holds per-difficulty values (1300 for ac 04?)
-    // shortcut: the song's stage and member line-up are not traced (analysis/202611011121-m5-live-presentation/);
-    // chosen here, default the live hall and Honoka
+    // shortcut: the song's stage is not traced (analysis/202611011121-m5-live-presentation/); chosen here, default the
+    // live hall. The line-up is the members who have a dance file for the song
     std::string stage = "st017";
-    int member = 1;  // chr/cNN, 1-9 = mu's
+    int member = 0;  // only chr/cNN (1-9 = mu's); 0 = every member who dances the song
     long max_frames = -1;
 };
 
