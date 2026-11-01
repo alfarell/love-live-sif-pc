@@ -22,11 +22,12 @@ public:
     void Pose(Renderer& renderer, const bmar::Motion* motion, float frame);
     void Pose(Renderer& renderer, std::span<const bmar::Layer> layers);
     void Draw(Renderer& renderer, const Mat4& placement) const;
-    // UI: every textured mesh blended in the 2D pass; `to_clip` maps the model to clip space. With `clip`, its node,
-    // visibility (ANVS) and material (ANMT: colour, transparency) tracks apply at `frame`.
+    // UI: every textured mesh blended in the 2D pass; `to_clip` maps the model to clip space. Clip layers (the game
+    // plays several per instance, e.g. an animation on layer 0 and the "switch" label clip on layer 1) apply their
+    // node, visibility (ANVS) and material (ANMT: colour, UV offset) tracks; later layers win per node or material.
     // `hidden` (optional): node names hidden with their children, like the game's per-node visibility flag.
-    void DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha, const bmar::Motion* clip = nullptr,
-                float frame = 0, const std::set<std::string>* hidden = nullptr) const;
+    void DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha, std::span<const bmar::Layer> clips = {},
+                const std::set<std::string>* hidden = nullptr) const;
     void Release(Renderer& renderer);
     const bmar::Model& Data() const { return model_; }
     // UI text boxes: the untextured meshes in draw order, as (x0, y0, x1, y1) after their node transform

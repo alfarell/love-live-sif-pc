@@ -384,7 +384,8 @@ void Renderer::DrawUiMesh(const GpuMesh& mesh, const Texture* texture, const Mat
     DrawUiMesh(mesh, texture, to_clip, {1, 1, 1, alpha});
 }
 
-void Renderer::DrawUiMesh(const GpuMesh& mesh, const Texture* texture, const Mat4& to_clip, const std::array<float, 4>& tint) {
+void Renderer::DrawUiMesh(const GpuMesh& mesh, const Texture* texture, const Mat4& to_clip, const std::array<float, 4>& tint,
+                          const std::array<float, 2>& uv_offset) {
     if (!pass_ || !mesh.vertices || tint[3] <= 0) return;
     Use2D();
     SDL_BindGPUGraphicsPipeline(pass_, ui_);
@@ -392,7 +393,8 @@ void Renderer::DrawUiMesh(const GpuMesh& mesh, const Texture* texture, const Mat
         Mat4 mvp, model;
     } transform{to_clip, Mat4{}};
     SDL_PushGPUVertexUniformData(cmd_, 0, &transform, sizeof(transform));
-    SDL_PushGPUFragmentUniformData(cmd_, 0, tint.data(), sizeof(float) * 4);
+    const float uniforms[8] = {tint[0], tint[1], tint[2], tint[3], uv_offset[0], uv_offset[1], 0, 0};
+    SDL_PushGPUFragmentUniformData(cmd_, 0, uniforms, sizeof(uniforms));
     SDL_GPUTextureSamplerBinding binding{(texture && texture->gpu ? texture : &white_)->gpu, sampler_};
     SDL_BindGPUFragmentSamplers(pass_, 0, &binding, 1);
     SDL_GPUBufferBinding vb{mesh.vertices, 0}, ib{mesh.indices, 0};

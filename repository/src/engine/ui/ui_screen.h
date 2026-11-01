@@ -46,8 +46,13 @@ public:
     bool HasPart(const std::string& part) const { return parts_.contains(part); }
 
     // Clips: `instance` is the node path "layout/node[/node...]" of a placed part, or "*" for every instance whose part
-    // has the clip; `clip` like "a003". Update advances all playing clips (60 frames per second).
-    void Play(const std::string& instance, const std::string& clip, bool loop);
+    // has the clip; `clip` like "a003" (ids: 00_common ui_animation.bin, e.g. 1 in, 3 loop, 20 switch). Each instance
+    // has animation layers (the game: FUN_0024bd10(rate, instance, clip, layer)). Update advances all playing clips
+    // (60 frames per second); a clip set with `SetClipTime` holds that frame (the game: FUN_004b4790(time, inst, layer)),
+    // e.g. the "switch" clip on layer 1 at the label id.
+    void Play(const std::string& instance, const std::string& clip, bool loop, int layer = 0);
+    void SetClipTime(const std::string& instance, int layer, float frame);
+    static std::string ClipName(int id);  // 20 -> "a020"
     // Hides a node by name inside every placed part (the game: FUN_0024b8e0 + FUN_004739c0, e.g. "new00"), or a
     // whole placed instance by its path ("uil0001_TopMenu00/uil0004_SubMenuList01").
     void HideNode(const std::string& node, bool hide);
@@ -96,7 +101,12 @@ private:
     std::map<std::string, std::vector<std::string>> stems_;  // package -> its uip/uil entry stems
     std::map<std::string, Part> parts_;
     std::map<std::string, std::unique_ptr<Layout>> layouts_;
-    std::map<std::string, Playing> playing_;  // by instance path
+    struct Held {
+        std::string clip;
+        float frame = 0;
+    };
+    std::map<std::string, Playing> playing_;               // by instance path (layer 0)
+    std::map<std::pair<std::string, int>, Held> held_;     // (instance path, layer >= 1) -> clip at a fixed frame
     Playing play_all_;  // "*": this clip on every instance whose part has it (empty clip = none)
     std::set<std::string> hidden_nodes_, hidden_paths_;
     const UiText* text_ = nullptr;

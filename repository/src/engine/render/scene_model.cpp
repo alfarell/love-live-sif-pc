@@ -185,9 +185,9 @@ void SceneModel::Draw(Renderer& renderer, const Mat4& placement) const {
     }
 }
 
-void SceneModel::DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha, const bmar::Motion* clip,
-                        float frame, const std::set<std::string>* hidden) const {
-    if (!clip && (!hidden || hidden->empty())) {
+void SceneModel::DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha, std::span<const bmar::Layer> clips,
+                        const std::set<std::string>* hidden) const {
+    if (clips.empty() && (!hidden || hidden->empty())) {
         for (const Part& part : parts_) {
             if (part.texture < 0) continue;  // text boxes and untextured helpers
             renderer.DrawUiMesh(part.gpu, &textures_[size_t(part.texture)], to_clip * world_[part.node], alpha);
@@ -195,14 +195,14 @@ void SceneModel::DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha, co
         return;
     }
     std::vector<Mat4> world;
-    bmar::Pose(model_, clip, frame, world);
+    bmar::Pose(model_, clips, world);
     // a node is hidden when its own ANVS track, the caller's hidden set or an ancestor says so
     std::vector<bool> visible(model_.nodes.size(), true);
     for (size_t i = 0; i < model_.nodes.size(); ++i) {
         if (hidden && hidden->contains(model_.nodes[i].name)) visible[i] = false;
-        if (clip) {
-            for (const bmar::PropertyTrack& t : clip->visibility) {
-                if (t.name == model_.nodes[i].name && bmar::SampleKeys(t.keys, frame)[0] < 0.5f) visible[i] = false;
+        for (const bmar::Layer& l : clips) {
+            for (const bmar::PropertyTrack& t : l.motion->visibility) {
+                if (t.name == model_.nodes[i].name && bmar::SampleKeys(t.keys, l.frame)[0] < 0.5f) visible[i] = false;
             }
         }
         const int parent = model_.nodes[i].parent;
@@ -211,17 +211,22 @@ void SceneModel::DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha, co
     for (const Part& part : parts_) {
         if (part.texture < 0 || !visible[part.node]) continue;
         std::array<float, 4> tint{1, 1, 1, alpha};
+        std::array<float, 2> uv{0, 0};
         const std::string& material = model_.materials[part.material].name;
-        for (const bmar::PropertyTrack& t : clip ? clip->materials : std::vector<bmar::PropertyTrack>{}) {
-            if (t.name != material) continue;
-            const std::array<float, 4> v = bmar::SampleKeys(t.keys, frame);
-            if (t.type == 6) {  // colour, 0-255
-                for (int c = 0; c < 3; ++c) tint[size_t(c)] = v[size_t(c)] / 255.0f;
-            } else if (t.type == 4) {  // transparency, 0 = opaque (Hypothesis)
-                tint[3] *= 1.0f - std::clamp(v[0], 0.0f, 1.0f);
+        for (const bmar::Layer& l : clips) {
+            for (const bmar::PropertyTrack& t : l.motion->materials) {
+                if (t.name != material) continue;
+                const std::array<float, 4> v = bmar::SampleKeys(t.keys, l.frame);
+                if (t.type == 6) {  // colour, 0-255
+                    for (int c = 0; c < 3; ++c) tint[size_t(c)] = v[size_t(c)] / 255.0f;
+                } else if (t.type == 4) {  // U offset (label atlas column), first component
+                    uv[0] = v[0];
+                } else if (t.type == 5) {  // V offset (label atlas row)
+                    uv[1] = v[0];
+                }
             }
         }
-        renderer.DrawUiMesh(part.gpu, &textures_[size_t(part.texture)], to_clip * world[part.node], tint);
+        renderer.DrawUiMesh(part.gpu, &textures_[size_t(part.texture)], to_clip * world[part.node], tint, uv);
     }
 }
 

@@ -172,8 +172,26 @@ void UiScreen::SetText(const std::string& part, int box, const std::string& utf8
     t.rendered = false;
 }
 
-void UiScreen::Play(const std::string& instance, const std::string& clip, bool loop) {
+void UiScreen::Play(const std::string& instance, const std::string& clip, bool loop, int layer) {
+    if (layer > 0) {
+        held_[{instance, layer}].clip = clip;
+        return;
+    }
     (instance == "*" ? play_all_ : playing_[instance]) = {clip, 0, loop};
+}
+
+void UiScreen::SetClipTime(const std::string& instance, int layer, float frame) {
+    if (layer > 0) {
+        held_[{instance, layer}].frame = frame;
+    } else if (const auto it = playing_.find(instance); it != playing_.end()) {
+        it->second.frame = frame;
+    }
+}
+
+std::string UiScreen::ClipName(int id) {
+    char name[16];
+    std::snprintf(name, sizeof(name), "a%03d", id);
+    return name;
 }
 
 void UiScreen::HideNode(const std::string& node, bool hide) {
@@ -254,6 +272,7 @@ void UiScreen::Release(Renderer& renderer) {
     parts_.clear();
     layouts_.clear();
     playing_.clear();
+    held_.clear();
     play_all_ = {};
 }
 
@@ -279,11 +298,21 @@ void UiScreen::DrawPartAt(Renderer& renderer, const std::string& key, const Mat4
     const auto own = playing_.find(path);
     const Playing& p = own != playing_.end() ? own->second : play_all_;
     const auto c = p.clip.empty() ? part.clips.end() : part.clips.find(p.clip);
-    const bmar::Motion* clip = c != part.clips.end() ? &c->second.second : nullptr;
-    double frame = p.frame;
-    const bool loop = p.loop;
-    if (clip && clip->frames > 0) frame = loop ? std::fmod(frame, double(clip->frames)) : std::min(frame, double(clip->frames));
-    part.model->DrawUi(renderer, to_clip, alpha, clip, float(frame), &hidden_nodes_);
+    std::vector<bmar::Layer> layers;
+    if (c != part.clips.end() && c->second.second.frames > 0) {
+        const double length = c->second.second.frames;
+        layers.push_back({&c->second.second, float(p.loop ? std::fmod(p.frame, length) : std::min(p.frame, length))});
+    }
+    for (auto h = held_.lower_bound({path, 1}); h != held_.end() && h->first.first == path; ++h) {
+        if (const auto hc = part.clips.find(h->second.clip); hc != part.clips.end()) {
+            // a held time past the clip's end wraps (Hypothesis: the top menu asks the 6-label wheel clip, frames 0-5,
+            // for frames 3-10)
+            const float length = hc->second.second.frames;
+            const float frame = h->second.frame > length ? std::fmod(h->second.frame, length + 1) : h->second.frame;
+            layers.push_back({&hc->second.second, frame});
+        }
+    }
+    part.model->DrawUi(renderer, to_clip, alpha, layers, &hidden_nodes_);
     DrawTexts(renderer, key, to_clip, alpha);
 }
 

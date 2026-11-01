@@ -141,9 +141,9 @@ Most common formats:
 | Type | Chunk | Values | Meaning |
 |---|---|---|---|
 | 6 | `ANMT` | RGB 0–255 (22 channels) | Material colour (e.g. a banner fading in from black over frames 10–15) |
-| 4 | `ANMT` | RGB 0–0.75 (15) | *Hypothesis:* transparency (0 = opaque), as Maya's material attribute |
-| 5 | `ANMT` | RGB 0–0.62 (15) | *Hypothesis:* incandescence; not applied |
+| 4 | `ANMT` | 0–0.75 (15) | **U offset** of the material's texture (first component; label atlas column: 0, 0.25, 0.5, 0.75) |
+| 5 | `ANMT` | 0–0.62 (15) | **V offset** (label atlas row: steps of 0.125 or 0.25) |
 | 11 | `ANVS` | 0 / 1 (120) | Node visible |
 
 - **Value width:** usually 12 bytes per `ANMT` key, but a few channels store one float (the port replicates it); `ANVS` keys are 4 bytes.
-- No UV channel exists in any clip. Menu labels that pick a cell of a label atlas are set by game code.
+- Types 4/5 were first read as transparency/incandescence; the top menu's label clips settle them as UV offsets. Clip `a020` ("switch") of `uip0005_SubMenuList00` steps U through 0, 0.25, 0.5, 0.75 per frame and V by 0.125 every 4 frames over a 0.25 × 0.125 cell, so frame *N* shows atlas cell *N*. The game poses that clip at the label id (M6, `analysis/202611011550-m6-ui-boot-flow/`).
