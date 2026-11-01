@@ -31,12 +31,13 @@ public:
     bool Exists(std::string_view path) const;
 
 private:
-    // The last cmp-wrapped top-level file read with an entry path, unpacked: ui2 screens are single cmp files, and
-    // loading one reads dozens of entries from it.
+    // The last few cmp-wrapped top-level files read with an entry path, unpacked, most recent first: ui2 screens are
+    // single cmp files, and loading one reads hundreds of entries from it and from the packages it borrows from
+    // (00_common, the language-free package).
     struct Cache {
+        static constexpr size_t kSize = 4;  // unpacked ui2 packages are about 10-30 MB each
         std::mutex mutex;
-        std::filesystem::path disk;
-        std::shared_ptr<const std::vector<uint8_t>> data;
+        std::vector<std::pair<std::filesystem::path, std::shared_ptr<const std::vector<uint8_t>>>> entries;
     };
     std::filesystem::path root_;
     std::shared_ptr<Cache> cache_ = std::make_shared<Cache>();

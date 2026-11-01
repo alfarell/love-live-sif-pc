@@ -1,5 +1,6 @@
 #include "engine/fs/vfs.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <memory>
@@ -48,20 +49,35 @@ bool ReadTopIndex(FILE* f, std::vector<pac::ArcEntry>& entries, std::string* err
     return pac::ParseArc(head, entries, error);
 }
 
-// Follows `parts` through ARC tables held in memory, unpacking cmp wrappers on the way.
-bool Descend(std::vector<uint8_t>& data, std::span<const std::string_view> parts, std::string* error) {
-    if (!pac::UnpackCmp(data, error)) return false;
+// Follows `parts` through ARC tables held in memory, unpacking cmp wrappers on the way; only the final entry (and
+// any nested cmp level) is copied, so reads from a cached package do not copy the whole package.
+bool Descend(std::span<const uint8_t> data, std::span<const std::string_view> parts, std::vector<uint8_t>& out,
+             std::string* error) {
+    std::vector<uint8_t> owned;  // the innermost unpacked cmp level, when there is one
+    const auto enter = [&](std::span<const uint8_t> d) {
+        if (d.size() < 4 || std::memcmp(d.data(), "cmp\0", 4) != 0) {
+            data = d;
+            return true;
+        }
+        std::vector<uint8_t> packed(d.begin(), d.end());  // d may point into `owned`
+        if (!pac::UnpackCmp(packed, error)) return false;
+        owned = std::move(packed);
+        data = owned;
+        return true;
+    };
+    if (!enter(data)) return false;
     for (std::string_view part : parts) {
         std::vector<pac::ArcEntry> entries;
         if (!pac::ParseArc(data, entries, error)) return false;
         size_t i = 0;
         while (i < entries.size() && !pac::EntryMatches(entries[i], i, part)) ++i;
         if (i == entries.size()) return Fail(error, "no entry '" + std::string(part) + "'");
-        std::vector<uint8_t> child(data.begin() + ptrdiff_t(entries[i].offset),
-                                   data.begin() + ptrdiff_t(entries[i].offset + entries[i].size));
-        data = std::move(child);
-        if (!pac::UnpackCmp(data, error)) return false;
+        if (entries[i].offset > data.size() || entries[i].size > data.size() - entries[i].offset) {
+            return Fail(error, "entry '" + std::string(part) + "' outside its archive");
+        }
+        if (!enter(data.subspan(size_t(entries[i].offset), entries[i].size))) return false;
     }
+    out.assign(data.begin(), data.end());
     return true;
 }
 
@@ -92,21 +108,33 @@ bool Vfs::Read(std::string_view path, std::vector<uint8_t>& out, std::string* er
     std::vector<uint8_t> magic;
     if (rest.empty() || !ReadAt(f.get(), 0, 4, magic) || std::memcmp(magic.data(), "ARC\0", 4) != 0) {
         // a plain file, or a cmp-wrapped archive: read it whole
-        if (!rest.empty()) {  // entries of a cmp-wrapped archive: the unpacked archive may be cached
+        if (rest.empty()) {  // a plain file; a cmp\0 file is unpacked
+            if (!ReadAt(f.get(), 0, size_t(file_size), out)) return Fail(error, "read failed: " + os::PathToUtf8(disk));
+            return pac::UnpackCmp(out, error);
+        }
+        // entries of a cmp-wrapped archive: the unpacked archive may be cached
+        std::shared_ptr<const std::vector<uint8_t>> data;
+        {
             std::lock_guard lock(cache_->mutex);
-            if (cache_->data && cache_->disk == disk) {
-                out = *cache_->data;
-                return Descend(out, rest, error);
+            auto& c = cache_->entries;
+            for (size_t i = 0; i < c.size(); ++i) {
+                if (c[i].first != disk) continue;
+                data = c[i].second;
+                std::rotate(c.begin(), c.begin() + ptrdiff_t(i), c.begin() + ptrdiff_t(i) + 1);  // to the front
+                break;
             }
         }
-        if (!ReadAt(f.get(), 0, size_t(file_size), out)) return Fail(error, "read failed: " + os::PathToUtf8(disk));
-        if (!rest.empty()) {
-            if (!pac::UnpackCmp(out, error)) return false;
+        if (!data) {
+            std::vector<uint8_t> file;
+            if (!ReadAt(f.get(), 0, size_t(file_size), file)) return Fail(error, "read failed: " + os::PathToUtf8(disk));
+            if (!pac::UnpackCmp(file, error)) return false;
+            data = std::make_shared<const std::vector<uint8_t>>(std::move(file));
             std::lock_guard lock(cache_->mutex);
-            cache_->disk = disk;
-            cache_->data = std::make_shared<const std::vector<uint8_t>>(out);
+            auto& c = cache_->entries;
+            c.insert(c.begin(), {disk, data});
+            if (c.size() > Cache::kSize) c.pop_back();
         }
-        return Descend(out, rest, error);  // unpacks a cmp\0 file even when no entry path follows
+        return Descend(*data, rest, out, error);
     }
     std::vector<pac::ArcEntry> entries;
     if (!ReadTopIndex(f.get(), entries, error)) return false;
@@ -117,8 +145,13 @@ bool Vfs::Read(std::string_view path, std::vector<uint8_t>& out, std::string* er
     if (!ReadAt(f.get(), entries[i].block, 8, header)) return Fail(error, "entry header truncated");
     pac::ApplyBlockHeader(header.data(), entries[i]);
     if (entries[i].offset + entries[i].size > file_size) return Fail(error, "entry outside file");
-    if (!ReadAt(f.get(), entries[i].offset, entries[i].size, out)) return Fail(error, "entry read failed");
-    return Descend(out, rest.subspan(1), error);
+    std::vector<uint8_t> entry;
+    if (!ReadAt(f.get(), entries[i].offset, entries[i].size, entry)) return Fail(error, "entry read failed");
+    if (rest.size() == 1) {
+        out = std::move(entry);
+        return pac::UnpackCmp(out, error);
+    }
+    return Descend(entry, rest.subspan(1), out, error);
 }
 
 bool Vfs::ReadRange(std::string_view path, uint64_t offset, size_t size, std::vector<uint8_t>& out,
