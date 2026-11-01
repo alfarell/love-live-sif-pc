@@ -1,0 +1,178 @@
+#include "engine/render/scene_model.h"
+
+#include <algorithm>
+#include <cctype>
+#include <cstring>
+#include <unordered_map>
+
+#include "engine/core/log.h"
+#include "engine/fs/vfs.h"
+
+namespace sif {
+namespace {
+
+std::string Lower(std::string s) {
+    for (char& c : s) c = char(std::tolower(static_cast<unsigned char>(c)));
+    return s;
+}
+
+// "stage_01.tga" / "honoka_body_01" -> "stage_01" / "honoka_body_01", lower case; texture entries are named either way
+std::string TextureKey(const std::string& name) {
+    std::string s = Lower(name);
+    for (const char* ext : {".tga", ".btx", ".dds", ".png"}) {
+        if (s.ends_with(ext)) s.resize(s.size() - std::strlen(ext));
+    }
+    return s;
+}
+
+template <class T> T At(std::span<const uint8_t> d, size_t off) {
+    T v;
+    std::memcpy(&v, &d[off], sizeof(T));
+    return v;
+}
+
+}
+
+bool SceneModel::Load(Renderer& renderer, const Vfs& vfs, const std::string& path, std::string* error) {
+    if (!vfs.Read(path, file_, error) || !bmar::Parse(file_, model_, error)) return false;
+
+    // textures by key: embedded BMT entries first, then a texture archive next to the model
+    // (chr: model.pac/texture.texs) or next to its model.pac (stage: stNNN.pac/texture.pac)
+    std::unordered_map<std::string, std::string> sources;  // key -> vfs path, or "#<n>" for BMT entry n
+    for (size_t i = 0; i < model_.textures.size(); ++i) sources.emplace(TextureKey(model_.textures[i].name), "#" + std::to_string(i));
+    const std::string folder = path.substr(0, path.rfind('/'));
+    for (const std::string& dir : {folder, folder.substr(0, folder.rfind('/'))}) {
+        for (const char* archive : {"texture.texs", "texture.pac"}) {
+            std::vector<pac::ArcEntry> entries;
+            if (!vfs.List(dir + "/" + archive, entries)) continue;
+            for (const pac::ArcEntry& e : entries) sources.emplace(TextureKey(e.name), dir + "/" + archive + "/" + e.name);
+        }
+    }
+    std::unordered_map<std::string, int> loaded;
+    std::vector<int> material_texture(model_.materials.size(), -1);
+    for (size_t m = 0; m < model_.materials.size(); ++m) {
+        const std::string key = TextureKey(model_.materials[m].texture);
+        if (const auto it = loaded.find(key); it != loaded.end()) {
+            material_texture[m] = it->second;
+            continue;
+        }
+        const auto src = sources.find(key);
+        if (src == sources.end()) {
+            LogWarn("model {}: texture '{}' not found", path, model_.materials[m].texture);
+            loaded[key] = -1;
+            continue;
+        }
+        std::vector<uint8_t> tex_file;
+        std::span<const uint8_t> tex;
+        std::string why;
+        if (src->second[0] == '#') {
+            const pac::ArcEntry& e = model_.textures[std::stoul(src->second.substr(1))];
+            tex = model_.texture_archive.subspan(size_t(e.offset), e.size);
+        } else if (vfs.Read(src->second, tex_file, &why)) {
+            tex = tex_file;
+        }
+        btx::Image image;
+        Texture gpu;
+        if (tex.empty() || !btx::Parse(tex, image, &why) || !renderer.Upload(image, gpu, &why)) {
+            LogWarn("model {}: texture '{}': {}", path, model_.materials[m].texture, why);
+            loaded[key] = -1;
+            continue;
+        }
+        textures_.push_back(gpu);
+        material_texture[m] = loaded[key] = int(textures_.size() - 1);
+    }
+
+    for (const bmar::Draw& d : model_.draws) {
+        const bmar::Mesh& mesh = model_.meshes[d.mesh];
+        const bmar::VertexLayout& l = mesh.layout;
+        Part part;
+        part.node = d.node;
+        part.texture = material_texture[d.material];
+        part.skinned = l.skin >= 0 && !model_.palette.empty();
+        std::vector<MeshVertex> verts(mesh.vertex_count);
+        if (part.skinned) {
+            part.bones.resize(mesh.vertex_count);
+            part.weights.resize(mesh.vertex_count);
+        }
+        for (uint32_t v = 0; v < mesh.vertex_count; ++v) {
+            const std::span<const uint8_t> src = mesh.vertices.subspan(size_t(v) * mesh.stride, mesh.stride);
+            MeshVertex& out = verts[v];
+            for (int i = 0; i < 3; ++i) out.position[i] = At<float>(src, size_t(l.position) + 4 * size_t(i));
+            if (l.normal >= 0) {
+                for (int i = 0; i < 3; ++i) {
+                    out.normal[i] = l.normal_f16 ? bmar::HalfToFloat(At<uint16_t>(src, size_t(l.normal) + 2 * size_t(i)))
+                                                 : At<float>(src, size_t(l.normal) + 4 * size_t(i));
+                }
+            }
+            if (l.uv0 >= 0) {
+                for (int i = 0; i < 2; ++i) {
+                    out.uv[i] = l.uv0_f16 ? bmar::HalfToFloat(At<uint16_t>(src, size_t(l.uv0) + 2 * size_t(i)))
+                                          : At<float>(src, size_t(l.uv0) + 4 * size_t(i));
+                }
+            }
+            if (part.skinned) {  // (f32x4 weights, u8x4 palette indices) twice
+                for (int set = 0; set < 2; ++set) {
+                    for (int i = 0; i < 4; ++i) {
+                        part.weights[v][size_t(set * 4 + i)] = At<float>(src, size_t(l.skin) + 20 * size_t(set) + 4 * size_t(i));
+                        uint8_t bone = src[size_t(l.skin) + 20 * size_t(set) + 16 + size_t(i)];
+                        part.bones[v][size_t(set * 4 + i)] = bone < model_.palette.size() ? bone : 0;
+                    }
+                }
+            }
+        }
+        std::vector<uint16_t> indices(mesh.index_count);
+        std::memcpy(indices.data(), mesh.indices.data(), mesh.indices.size());
+        for (uint16_t& i : indices) i = std::min<uint16_t>(i, uint16_t(mesh.vertex_count - 1));
+        if (!renderer.CreateMesh(verts, indices, part.skinned, part.gpu, error)) return false;
+        if (part.skinned) {
+            part.posed = verts;
+            part.bind = std::move(verts);
+        }
+        parts_.push_back(std::move(part));
+    }
+    bmar::Pose(model_, nullptr, 0, world_);
+    return true;
+}
+
+void SceneModel::Pose(Renderer& renderer, const bmar::Motion* motion, float frame) {
+    bmar::Pose(model_, motion, frame, world_);
+    skin_.resize(model_.palette.size());
+    for (size_t k = 0; k < skin_.size(); ++k) skin_[k] = world_[model_.palette[k].node] * model_.palette[k].inverse_bind;
+    for (Part& part : parts_) {
+        if (!part.skinned) continue;
+        for (size_t v = 0; v < part.bind.size(); ++v) {
+            Mat4 m;
+            std::fill(std::begin(m.m), std::end(m.m), 0.0f);
+            for (int i = 0; i < 8; ++i) {
+                const float w = part.weights[v][size_t(i)];
+                if (w == 0) continue;
+                const Mat4& s = skin_[part.bones[v][size_t(i)]];
+                for (int e = 0; e < 16; ++e) m.m[e] += w * s.m[e];
+            }
+            const MeshVertex& in = part.bind[v];
+            MeshVertex& out = part.posed[v];
+            const Vec3 p = TransformPoint(m, {in.position[0], in.position[1], in.position[2]});
+            const Vec3 n = TransformDir(m, {in.normal[0], in.normal[1], in.normal[2]});
+            out.position[0] = p.x, out.position[1] = p.y, out.position[2] = p.z;
+            out.normal[0] = n.x, out.normal[1] = n.y, out.normal[2] = n.z;
+        }
+        renderer.UpdateMesh(part.gpu, part.posed);
+    }
+}
+
+void SceneModel::Draw(Renderer& renderer, const Mat4& placement) const {
+    for (const Part& part : parts_) {
+        // skinned vertices are already in model space; rigid meshes are stored relative to their node
+        const Mat4 model = part.skinned ? placement : placement * world_[part.node];
+        renderer.DrawMesh(part.gpu, part.texture >= 0 ? &textures_[size_t(part.texture)] : nullptr, model);
+    }
+}
+
+void SceneModel::Release(Renderer& renderer) {
+    for (Part& part : parts_) renderer.Release(part.gpu);
+    for (Texture& t : textures_) renderer.Release(t);
+    parts_.clear();
+    textures_.clear();
+}
+
+}

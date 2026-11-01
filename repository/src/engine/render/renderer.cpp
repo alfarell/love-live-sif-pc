@@ -3,6 +3,7 @@
 #include <SDL3/SDL.h>
 
 #include <algorithm>
+#include <cstddef>
 #include <cstring>
 #include <vector>
 
@@ -20,6 +21,12 @@ const uint32_t kBlitFrag[] =
     ;
 const uint32_t kShapeFrag[] =
 #include "shape.frag.inc"
+    ;
+const uint32_t kMeshVert[] =
+#include "mesh.vert.inc"
+    ;
+const uint32_t kMeshFrag[] =
+#include "mesh.frag.inc"
     ;
 
 bool Fail(std::string* error, const char* what) {
@@ -88,22 +95,71 @@ bool Renderer::Init(SDL_Window* window, bool vsync, std::string* error) {
     SDL_ReleaseGPUShader(device_, shape_fs);
     if (!blit_ || !shape_) return Fail(error, "SDL_CreateGPUGraphicsPipeline");
 
+    // 3D meshes: depth-tested, opaque with alpha test (mesh.frag)
+    depth_format_ = SDL_GPUTextureSupportsFormat(device_, SDL_GPU_TEXTUREFORMAT_D32_FLOAT, SDL_GPU_TEXTURETYPE_2D,
+                                                 SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET)
+                        ? SDL_GPU_TEXTUREFORMAT_D32_FLOAT
+                        : SDL_GPU_TEXTUREFORMAT_D16_UNORM;
+    SDL_GPUShader* mesh_vs = MakeShader(device_, kMeshVert, sizeof(kMeshVert), SDL_GPU_SHADERSTAGE_VERTEX, 0, 1);
+    SDL_GPUShader* mesh_fs = MakeShader(device_, kMeshFrag, sizeof(kMeshFrag), SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 0);
+    if (!mesh_vs || !mesh_fs) return Fail(error, "SDL_CreateGPUShader (mesh)");
+    SDL_GPUVertexBufferDescription vb{0, sizeof(MeshVertex), SDL_GPU_VERTEXINPUTRATE_VERTEX, 0};
+    const SDL_GPUVertexAttribute attrs[3] = {
+        {0, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3, uint32_t(offsetof(MeshVertex, position))},
+        {1, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3, uint32_t(offsetof(MeshVertex, normal))},
+        {2, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2, uint32_t(offsetof(MeshVertex, uv))}};
+    SDL_GPUColorTargetDescription opaque{};
+    opaque.format = target.format;
+    SDL_GPUGraphicsPipelineCreateInfo mesh{};
+    mesh.vertex_shader = mesh_vs;
+    mesh.fragment_shader = mesh_fs;
+    mesh.vertex_input_state.vertex_buffer_descriptions = &vb;
+    mesh.vertex_input_state.num_vertex_buffers = 1;
+    mesh.vertex_input_state.vertex_attributes = attrs;
+    mesh.vertex_input_state.num_vertex_attributes = 3;
+    mesh.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
+    mesh.rasterizer_state.cull_mode = SDL_GPU_CULLMODE_NONE;  // shortcut: winding not confirmed (bmar.md), draw both sides
+    mesh.depth_stencil_state.enable_depth_test = true;
+    mesh.depth_stencil_state.enable_depth_write = true;
+    mesh.depth_stencil_state.compare_op = SDL_GPU_COMPAREOP_LESS;
+    mesh.target_info.color_target_descriptions = &opaque;
+    mesh.target_info.num_color_targets = 1;
+    mesh.target_info.has_depth_stencil_target = true;
+    mesh.target_info.depth_stencil_format = SDL_GPUTextureFormat(depth_format_);
+    mesh_ = SDL_CreateGPUGraphicsPipeline(device_, &mesh);
+    SDL_ReleaseGPUShader(device_, mesh_vs);
+    SDL_ReleaseGPUShader(device_, mesh_fs);
+    if (!mesh_) return Fail(error, "SDL_CreateGPUGraphicsPipeline (mesh)");
+
     SDL_GPUSamplerCreateInfo s{};
     s.min_filter = s.mag_filter = SDL_GPU_FILTER_LINEAR;
     s.mipmap_mode = SDL_GPU_SAMPLERMIPMAPMODE_LINEAR;
     s.address_mode_u = s.address_mode_v = s.address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
     s.max_lod = 16.0f;
     sampler_ = SDL_CreateGPUSampler(device_, &s);
-    if (!sampler_) return Fail(error, "SDL_CreateGPUSampler");
-    return true;
+    s.address_mode_u = s.address_mode_v = s.address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_REPEAT;
+    repeat_sampler_ = SDL_CreateGPUSampler(device_, &s);
+    if (!sampler_ || !repeat_sampler_) return Fail(error, "SDL_CreateGPUSampler");
+
+    static const uint8_t kWhite[4] = {255, 255, 255, 255};
+    btx::Image white;
+    white.width = white.height = 1;
+    white.levels = {{1, 1, 4, 0, 4}};
+    white.data = kWhite;
+    white.chain_size = 4;
+    return Upload(white, white_, error);
 }
 
 void Renderer::Shutdown() {
     if (!device_) return;
     SDL_WaitForGPUIdle(device_);
+    Release(white_);
+    if (depth_) SDL_ReleaseGPUTexture(device_, depth_);
     if (sampler_) SDL_ReleaseGPUSampler(device_, sampler_);
+    if (repeat_sampler_) SDL_ReleaseGPUSampler(device_, repeat_sampler_);
     if (blit_) SDL_ReleaseGPUGraphicsPipeline(device_, blit_);
     if (shape_) SDL_ReleaseGPUGraphicsPipeline(device_, shape_);
+    if (mesh_) SDL_ReleaseGPUGraphicsPipeline(device_, mesh_);
     SDL_ReleaseWindowFromGPUDevice(device_, window_);
     SDL_DestroyGPUDevice(device_);
     device_ = nullptr;
@@ -177,27 +233,132 @@ void Renderer::Release(Texture& texture) {
 bool Renderer::BeginFrame() {
     cmd_ = SDL_AcquireGPUCommandBuffer(device_);
     if (!cmd_) return false;
-    SDL_GPUTexture* swap = nullptr;
-    if (!SDL_WaitAndAcquireGPUSwapchainTexture(cmd_, window_, &swap, &width_, &height_) || !swap) {
+    swapchain_ = nullptr;
+    if (!SDL_WaitAndAcquireGPUSwapchainTexture(cmd_, window_, &swapchain_, &width_, &height_) || !swapchain_) {
         SDL_SubmitGPUCommandBuffer(cmd_);
         cmd_ = nullptr;
         return false;
     }
+    if (!depth_ || depth_width_ != width_ || depth_height_ != height_) {
+        if (depth_) SDL_ReleaseGPUTexture(device_, depth_);
+        SDL_GPUTextureCreateInfo info{};
+        info.type = SDL_GPU_TEXTURETYPE_2D;
+        info.format = SDL_GPUTextureFormat(depth_format_);
+        info.usage = SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET;
+        info.width = width_;
+        info.height = height_;
+        info.layer_count_or_depth = 1;
+        info.num_levels = 1;
+        depth_ = SDL_CreateGPUTexture(device_, &info);
+        depth_width_ = width_;
+        depth_height_ = height_;
+        if (!depth_) LogError("renderer: depth buffer {}x{}: {}", width_, height_, SDL_GetError());
+    }
+    return BeginPass(true);
+}
+
+bool Renderer::BeginPass(bool three_d) {
     SDL_GPUColorTargetInfo target{};
-    target.texture = swap;
+    target.texture = swapchain_;
     target.clear_color = {0.05f, 0.05f, 0.07f, 1.0f};
-    target.load_op = SDL_GPU_LOADOP_CLEAR;
+    target.load_op = three_d ? SDL_GPU_LOADOP_CLEAR : SDL_GPU_LOADOP_LOAD;
     target.store_op = SDL_GPU_STOREOP_STORE;
-    pass_ = SDL_BeginGPURenderPass(cmd_, &target, 1, nullptr);
-    return true;
+    SDL_GPUDepthStencilTargetInfo depth{};
+    depth.texture = depth_;
+    depth.clear_depth = 1.0f;
+    depth.load_op = SDL_GPU_LOADOP_CLEAR;
+    depth.store_op = SDL_GPU_STOREOP_DONT_CARE;
+    depth.stencil_load_op = SDL_GPU_LOADOP_DONT_CARE;
+    depth.stencil_store_op = SDL_GPU_STOREOP_DONT_CARE;
+    pass_3d_ = three_d && depth_;
+    pass_ = SDL_BeginGPURenderPass(cmd_, &target, 1, pass_3d_ ? &depth : nullptr);
+    return pass_ != nullptr;
+}
+
+void Renderer::Use2D() {
+    if (!pass_ || !pass_3d_) return;
+    SDL_EndGPURenderPass(pass_);
+    BeginPass(false);
 }
 
 void Renderer::EndFrame() {
     if (!cmd_) return;
-    SDL_EndGPURenderPass(pass_);
+    if (pass_) SDL_EndGPURenderPass(pass_);
     SDL_SubmitGPUCommandBuffer(cmd_);
     cmd_ = nullptr;
     pass_ = nullptr;
+}
+
+bool Renderer::UploadBuffer(SDL_GPUBuffer* buffer, SDL_GPUTransferBuffer* staging, const void* data, uint32_t size) {
+    void* dst = SDL_MapGPUTransferBuffer(device_, staging, true);  // cycle: the previous upload may still be in flight
+    if (!dst) return false;
+    std::memcpy(dst, data, size);
+    SDL_UnmapGPUTransferBuffer(device_, staging);
+    SDL_GPUCommandBuffer* cmd = SDL_AcquireGPUCommandBuffer(device_);
+    if (!cmd) return false;
+    SDL_GPUCopyPass* copy = SDL_BeginGPUCopyPass(cmd);
+    SDL_GPUTransferBufferLocation from{staging, 0};
+    SDL_GPUBufferRegion to{buffer, 0, size};
+    SDL_UploadToGPUBuffer(copy, &from, &to, true);
+    SDL_EndGPUCopyPass(copy);
+    return SDL_SubmitGPUCommandBuffer(cmd);
+}
+
+bool Renderer::CreateMesh(std::span<const MeshVertex> vertices, std::span<const uint16_t> indices, bool dynamic,
+                          GpuMesh& out, std::string* error) {
+    out = {};
+    const uint32_t vsize = uint32_t(vertices.size_bytes()), isize = uint32_t(indices.size_bytes());
+    if (vsize == 0 || isize == 0) {
+        if (error) *error = "empty mesh";
+        return false;
+    }
+    SDL_GPUBufferCreateInfo vb{SDL_GPU_BUFFERUSAGE_VERTEX, vsize, 0};
+    SDL_GPUBufferCreateInfo ib{SDL_GPU_BUFFERUSAGE_INDEX, isize, 0};
+    out.vertices = SDL_CreateGPUBuffer(device_, &vb);
+    out.indices = SDL_CreateGPUBuffer(device_, &ib);
+    SDL_GPUTransferBufferCreateInfo tb{SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD, std::max(vsize, isize), 0};
+    SDL_GPUTransferBuffer* staging = SDL_CreateGPUTransferBuffer(device_, &tb);
+    out.vertex_count = uint32_t(vertices.size());
+    out.index_count = uint32_t(indices.size());
+    const bool ok = out.vertices && out.indices && staging && UploadBuffer(out.vertices, staging, vertices.data(), vsize) &&
+                    UploadBuffer(out.indices, staging, indices.data(), isize);
+    if (dynamic && ok) {
+        out.staging = staging;
+    } else if (staging) {
+        SDL_ReleaseGPUTransferBuffer(device_, staging);
+    }
+    if (!ok) {
+        Release(out);
+        return Fail(error, "CreateMesh");
+    }
+    return true;
+}
+
+bool Renderer::UpdateMesh(GpuMesh& mesh, std::span<const MeshVertex> vertices) {
+    if (!mesh.staging || vertices.size() != mesh.vertex_count) return false;
+    return UploadBuffer(mesh.vertices, mesh.staging, vertices.data(), uint32_t(vertices.size_bytes()));
+}
+
+void Renderer::Release(GpuMesh& mesh) {
+    if (mesh.vertices) SDL_ReleaseGPUBuffer(device_, mesh.vertices);
+    if (mesh.indices) SDL_ReleaseGPUBuffer(device_, mesh.indices);
+    if (mesh.staging) SDL_ReleaseGPUTransferBuffer(device_, mesh.staging);
+    mesh = {};
+}
+
+void Renderer::DrawMesh(const GpuMesh& mesh, const Texture* texture, const Mat4& model) {
+    if (!pass_ || !pass_3d_ || !mesh.vertices) return;
+    SDL_BindGPUGraphicsPipeline(pass_, mesh_);
+    struct {
+        Mat4 mvp, model;
+    } transform{view_proj_ * model, model};
+    SDL_PushGPUVertexUniformData(cmd_, 0, &transform, sizeof(transform));
+    SDL_GPUTextureSamplerBinding binding{(texture && texture->gpu ? texture : &white_)->gpu, repeat_sampler_};
+    SDL_BindGPUFragmentSamplers(pass_, 0, &binding, 1);
+    SDL_GPUBufferBinding vb{mesh.vertices, 0}, ib{mesh.indices, 0};
+    SDL_BindGPUVertexBuffers(pass_, 0, &vb, 1);
+    SDL_BindGPUIndexBuffer(pass_, &ib, SDL_GPU_INDEXELEMENTSIZE_16BIT);
+    SDL_DrawGPUIndexedPrimitives(pass_, mesh.index_count, 1, 0, 0, 0);
 }
 
 void Renderer::PushRect(float x, float y, float w, float h) {
@@ -209,6 +370,7 @@ void Renderer::PushRect(float x, float y, float w, float h) {
 
 void Renderer::DrawTexture(const Texture& texture, float x, float y, float w, float h) {
     if (!pass_ || !texture.gpu) return;
+    Use2D();
     SDL_BindGPUGraphicsPipeline(pass_, blit_);
     PushRect(x, y, w, h);
     SDL_GPUTextureSamplerBinding binding{texture.gpu, sampler_};
@@ -225,6 +387,7 @@ void Renderer::DrawTextureFitted(const Texture& texture) {
 
 void Renderer::DrawCircle(float cx, float cy, float radius, float inner, const float color[4]) {
     if (!pass_ || radius <= 0) return;
+    Use2D();
     SDL_BindGPUGraphicsPipeline(pass_, shape_);
     PushRect(cx - radius, cy - radius, 2 * radius, 2 * radius);
     const float shape[8] = {color[0], color[1], color[2], color[3], inner, 1.5f / radius, 0, 0};
