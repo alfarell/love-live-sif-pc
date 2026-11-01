@@ -3,6 +3,7 @@
 // archive, skinned meshes posed on the CPU (8 influences, MTXP palette). Positions stay in the model's Z-up space.
 
 #include <array>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -23,8 +24,9 @@ public:
     void Draw(Renderer& renderer, const Mat4& placement) const;
     // UI: every textured mesh blended in the 2D pass; `to_clip` maps the model to clip space. With `clip`, its node,
     // visibility (ANVS) and material (ANMT: colour, transparency) tracks apply at `frame`.
+    // `hidden` (optional): node names hidden with their children, like the game's per-node visibility flag.
     void DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha, const bmar::Motion* clip = nullptr,
-                float frame = 0) const;
+                float frame = 0, const std::set<std::string>* hidden = nullptr) const;
     void Release(Renderer& renderer);
     const bmar::Model& Data() const { return model_; }
     // UI text boxes: the untextured meshes in draw order, as (x0, y0, x1, y1) after their node transform

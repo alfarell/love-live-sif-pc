@@ -8,6 +8,7 @@
 
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -47,6 +48,10 @@ public:
     // Clips: `instance` is the node path "layout/node[/node...]" of a placed part, or "*" for every instance whose part
     // has the clip; `clip` like "a003". Update advances all playing clips (60 frames per second).
     void Play(const std::string& instance, const std::string& clip, bool loop);
+    // Hides a node by name inside every placed part (the game: FUN_0024b8e0 + FUN_004739c0, e.g. "new00"), or a
+    // whole placed instance by its path ("uil0001_TopMenu00/uil0004_SubMenuList01").
+    void HideNode(const std::string& node, bool hide);
+    void HideInstance(const std::string& path, bool hide);
     void Update(double seconds);
     std::vector<std::string> Layouts() const;
 
@@ -93,6 +98,7 @@ private:
     std::map<std::string, std::unique_ptr<Layout>> layouts_;
     std::map<std::string, Playing> playing_;  // by instance path
     Playing play_all_;  // "*": this clip on every instance whose part has it (empty clip = none)
+    std::set<std::string> hidden_nodes_, hidden_paths_;
     const UiText* text_ = nullptr;
     mutable std::map<std::pair<std::string, int>, TextEntry> texts_;  // (part, box) -> string
     GpuMesh unit_quad_;  // (0,0)-(1,-1), for text bitmaps

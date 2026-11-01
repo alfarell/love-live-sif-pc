@@ -186,8 +186,8 @@ void SceneModel::Draw(Renderer& renderer, const Mat4& placement) const {
 }
 
 void SceneModel::DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha, const bmar::Motion* clip,
-                        float frame) const {
-    if (!clip) {
+                        float frame, const std::set<std::string>* hidden) const {
+    if (!clip && (!hidden || hidden->empty())) {
         for (const Part& part : parts_) {
             if (part.texture < 0) continue;  // text boxes and untextured helpers
             renderer.DrawUiMesh(part.gpu, &textures_[size_t(part.texture)], to_clip * world_[part.node], alpha);
@@ -196,11 +196,14 @@ void SceneModel::DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha, co
     }
     std::vector<Mat4> world;
     bmar::Pose(model_, clip, frame, world);
-    // a node is hidden when its own ANVS track or an ancestor's says so
+    // a node is hidden when its own ANVS track, the caller's hidden set or an ancestor says so
     std::vector<bool> visible(model_.nodes.size(), true);
     for (size_t i = 0; i < model_.nodes.size(); ++i) {
-        for (const bmar::PropertyTrack& t : clip->visibility) {
-            if (t.name == model_.nodes[i].name && bmar::SampleKeys(t.keys, frame)[0] < 0.5f) visible[i] = false;
+        if (hidden && hidden->contains(model_.nodes[i].name)) visible[i] = false;
+        if (clip) {
+            for (const bmar::PropertyTrack& t : clip->visibility) {
+                if (t.name == model_.nodes[i].name && bmar::SampleKeys(t.keys, frame)[0] < 0.5f) visible[i] = false;
+            }
         }
         const int parent = model_.nodes[i].parent;
         if (parent >= 0 && !visible[size_t(parent)]) visible[i] = false;
@@ -209,7 +212,7 @@ void SceneModel::DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha, co
         if (part.texture < 0 || !visible[part.node]) continue;
         std::array<float, 4> tint{1, 1, 1, alpha};
         const std::string& material = model_.materials[part.material].name;
-        for (const bmar::PropertyTrack& t : clip->materials) {
+        for (const bmar::PropertyTrack& t : clip ? clip->materials : std::vector<bmar::PropertyTrack>{}) {
             if (t.name != material) continue;
             const std::array<float, 4> v = bmar::SampleKeys(t.keys, frame);
             if (t.type == 6) {  // colour, 0-255

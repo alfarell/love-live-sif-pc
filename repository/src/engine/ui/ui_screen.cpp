@@ -176,6 +176,22 @@ void UiScreen::Play(const std::string& instance, const std::string& clip, bool l
     (instance == "*" ? play_all_ : playing_[instance]) = {clip, 0, loop};
 }
 
+void UiScreen::HideNode(const std::string& node, bool hide) {
+    if (hide) {
+        hidden_nodes_.insert(node);
+    } else {
+        hidden_nodes_.erase(node);
+    }
+}
+
+void UiScreen::HideInstance(const std::string& path, bool hide) {
+    if (hide) {
+        hidden_paths_.insert(path);
+    } else {
+        hidden_paths_.erase(path);
+    }
+}
+
 void UiScreen::Update(double seconds) {
     for (auto& [path, p] : playing_) p.frame += seconds * 60.0;
     play_all_.frame += seconds * 60.0;
@@ -267,7 +283,7 @@ void UiScreen::DrawPartAt(Renderer& renderer, const std::string& key, const Mat4
     double frame = p.frame;
     const bool loop = p.loop;
     if (clip && clip->frames > 0) frame = loop ? std::fmod(frame, double(clip->frames)) : std::min(frame, double(clip->frames));
-    part.model->DrawUi(renderer, to_clip, alpha, clip, float(frame));
+    part.model->DrawUi(renderer, to_clip, alpha, clip, float(frame), &hidden_nodes_);
     DrawTexts(renderer, key, to_clip, alpha);
 }
 
@@ -284,7 +300,7 @@ void UiScreen::DrawLayoutAt(Renderer& renderer, const std::string& key, const Ma
         }
         if (a <= 0) continue;
         const std::string& target = l.targets[i];
-        if (target.empty()) continue;
+        if (target.empty() || hidden_paths_.contains(path + "/" + name)) continue;
         const Mat4 node_clip = to_clip * l.world[i];
         if (layouts_.contains(target)) {
             DrawLayoutAt(renderer, target, node_clip, path + "/" + name, a, nullptr);
