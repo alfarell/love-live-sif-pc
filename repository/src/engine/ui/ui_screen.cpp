@@ -41,6 +41,7 @@ bool UiScreen::Load(Renderer& renderer, const Vfs& vfs, const std::string& scree
                     std::string* error, const UiText* text) {
     text_ = text;
     renderer_ = &renderer;
+    vfs_ = &vfs;
     lang_ = lang;
     package_ = PackageOf(vfs, screen, lang);
     std::vector<pac::ArcEntry> entries;
@@ -164,6 +165,14 @@ std::string UiScreen::FindStem(const Vfs& vfs, const std::string& package, const
     return {};
 }
 
+void UiScreen::SetInstanceText(const std::string& instance, int box, const std::string& utf8) {
+    TextEntry& t = instance_texts_[{instance, box}];
+    if (t.utf8 == utf8 && (t.rendered || utf8.empty())) return;
+    if (renderer_ && t.texture.gpu) renderer_->Release(t.texture);
+    t = {};
+    t.utf8 = utf8;
+}
+
 void UiScreen::SetText(const std::string& part, int box, const std::string& utf8) {
     TextEntry& t = texts_[{part, box}];
     if (t.rendered && t.utf8 == utf8) return;
@@ -202,6 +211,32 @@ void UiScreen::HideNode(const std::string& node, bool hide) {
     }
 }
 
+void UiScreen::HideNode(const std::string& instance, const std::string& node, bool hide) {
+    if (hide) {
+        instance_hidden_[instance].insert(node);
+    } else if (const auto it = instance_hidden_.find(instance); it != instance_hidden_.end()) {
+        it->second.erase(node);
+    }
+}
+
+bool UiScreen::SetMaterialTexture(const std::string& instance, const std::string& material, const std::string& vfs_path) {
+    auto it = loaded_textures_.find(vfs_path);
+    if (it == loaded_textures_.end()) {
+        std::vector<uint8_t> file;
+        btx::Image image;
+        Texture texture;
+        std::string why;
+        if (!vfs_ || !renderer_ || !vfs_->Read(vfs_path, file, &why) || !btx::Parse(file, image, &why) ||
+            !renderer_->Upload(image, texture, &why)) {
+            LogWarn("ui: texture {}: {}", vfs_path, why);
+            return false;
+        }
+        it = loaded_textures_.emplace(vfs_path, texture).first;
+    }
+    instance_textures_[instance][material] = &it->second;
+    return true;
+}
+
 void UiScreen::HideInstance(const std::string& path, bool hide) {
     if (hide) {
         hidden_paths_.insert(path);
@@ -223,33 +258,38 @@ std::vector<std::string> UiScreen::Layouts() const {
     return out;
 }
 
-void UiScreen::DrawTexts(Renderer& renderer, const std::string& part, const Mat4& to_clip, float alpha) const {
+void UiScreen::Render(Renderer& renderer, TextEntry& t, const TextStyle& style, float px) const {
+    t.rendered = true;
+    TextBitmap bitmap;
+    if (!text_->Render(style, t.utf8, px, bitmap)) return;
+    btx::Image image;
+    image.width = uint32_t(bitmap.width);
+    image.height = uint32_t(bitmap.height);
+    image.levels = {{image.width, image.height, image.width * 4, 0, uint64_t(bitmap.bgra.size())}};
+    image.data = bitmap.bgra;
+    image.chain_size = bitmap.bgra.size();
+    if (renderer.Upload(image, t.texture, nullptr)) {
+        t.width = bitmap.width;
+        t.height = bitmap.height;
+    }
+}
+
+void UiScreen::DrawTexts(Renderer& renderer, const std::string& part, const std::string& path, const Mat4& to_clip,
+                         float alpha) const {
     if (!text_) return;
     const auto model = parts_.find(part);
     if (model == parts_.end()) return;
     const std::vector<std::array<float, 4>> boxes = model->second.model->TextBoxes();
     for (auto it = texts_.lower_bound({part, 0}); it != texts_.end() && it->first.first == part; ++it) {
-        TextEntry& t = it->second;
         const int box = it->first.second;
-        const TextStyle* style = text_->Style(t.style);
+        const TextStyle* style = text_->Style(it->second.style);
+        const auto own = instance_texts_.find({path, box});
+        TextEntry& t = own != instance_texts_.end() ? own->second : it->second;
         if (!style || box >= int(boxes.size()) || t.utf8.empty()) continue;
         const auto& b = boxes[size_t(box)];  // x0, y0, x1, y1 (y up)
-        if (!t.rendered) {
-            t.rendered = true;
-            TextBitmap bitmap;
-            const float px = style->size > 0 ? style->size : b[3] - b[1];
-            if (text_->Render(*style, t.utf8, px, bitmap)) {
-                btx::Image image;
-                image.width = uint32_t(bitmap.width);
-                image.height = uint32_t(bitmap.height);
-                image.levels = {{image.width, image.height, image.width * 4, 0, uint64_t(bitmap.bgra.size())}};
-                image.data = bitmap.bgra;
-                image.chain_size = bitmap.bgra.size();
-                if (renderer.Upload(image, t.texture, nullptr)) {
-                    t.width = bitmap.width;
-                    t.height = bitmap.height;
-                }
-            }
+        if (!t.rendered) {  // size 0 fits the box: its height shared by the lines
+            const float lines = float(1 + std::count(t.utf8.begin(), t.utf8.end(), '\n'));
+            Render(renderer, t, *style, style->size > 0 ? style->size : (b[3] - b[1]) / lines);
         }
         if (!t.texture.gpu) continue;
         const float w = float(t.width), h = float(t.height);
@@ -266,13 +306,19 @@ void UiScreen::DrawTexts(Renderer& renderer, const std::string& part, const Mat4
 
 void UiScreen::Release(Renderer& renderer) {
     for (auto& [key, t] : texts_) renderer.Release(t.texture);
+    for (auto& [key, t] : instance_texts_) renderer.Release(t.texture);
     texts_.clear();
+    instance_texts_.clear();
     renderer.Release(unit_quad_);
     for (auto& [name, part] : parts_) part.model->Release(renderer);
     parts_.clear();
     layouts_.clear();
     playing_.clear();
     held_.clear();
+    instance_hidden_.clear();
+    instance_textures_.clear();
+    for (auto& [path, t] : loaded_textures_) renderer.Release(t);
+    loaded_textures_.clear();
     play_all_ = {};
 }
 
@@ -312,8 +358,17 @@ void UiScreen::DrawPartAt(Renderer& renderer, const std::string& key, const Mat4
             layers.push_back({&hc->second.second, frame});
         }
     }
-    part.model->DrawUi(renderer, to_clip, alpha, layers, &hidden_nodes_);
-    DrawTexts(renderer, key, to_clip, alpha);
+    const std::set<std::string>* hidden = &hidden_nodes_;
+    std::set<std::string> merged;
+    if (const auto own = instance_hidden_.find(path); own != instance_hidden_.end() && !own->second.empty()) {
+        merged = hidden_nodes_;
+        merged.insert(own->second.begin(), own->second.end());
+        hidden = &merged;
+    }
+    const auto textures = instance_textures_.find(path);
+    part.model->DrawUi(renderer, to_clip, alpha, layers, hidden,
+                       textures != instance_textures_.end() ? &textures->second : nullptr);
+    DrawTexts(renderer, key, path, to_clip, alpha);
 }
 
 void UiScreen::DrawLayoutAt(Renderer& renderer, const std::string& key, const Mat4& to_clip, const std::string& path,

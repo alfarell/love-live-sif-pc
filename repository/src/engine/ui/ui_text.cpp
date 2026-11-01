@@ -121,39 +121,55 @@ bool UiText::Render(const TextStyle& style, std::string_view utf8, float px, Tex
     int ascent, descent, gap;
     stbtt_GetFontVMetrics(&info, &ascent, &descent, &gap);
     const int pad = style.outline ? 3 : 1;
-    const std::vector<int> cps = Decode(utf8);
-    // width: sum of advances, kerning and spacing
-    float pen = 0;
-    for (size_t i = 0; i < cps.size(); ++i) {
-        int advance, lsb;
-        stbtt_GetCodepointHMetrics(&info, cps[i], &advance, &lsb);
-        pen += float(advance) * scale + style.spacing;
-        if (i + 1 < cps.size()) pen += float(stbtt_GetCodepointKernAdvance(&info, cps[i], cps[i + 1])) * scale;
+    // lines split at '\n'; each line's width is the sum of advances, kerning and spacing
+    std::vector<std::vector<int>> lines(1);
+    for (const int cp : Decode(utf8)) {
+        if (cp == '\n') {
+            lines.emplace_back();
+        } else {
+            lines.back().push_back(cp);
+        }
     }
-    const int width = std::max(1, int(std::ceil(pen)) + 2 * pad);
-    const int height = int(std::ceil(float(ascent - descent) * scale)) + 2 * pad;
-    const int baseline = pad + int(std::round(float(ascent) * scale));
+    const auto line_width = [&](const std::vector<int>& cps) {
+        float pen = 0;
+        for (size_t i = 0; i < cps.size(); ++i) {
+            int advance, lsb;
+            stbtt_GetCodepointHMetrics(&info, cps[i], &advance, &lsb);
+            pen += float(advance) * scale + style.spacing;
+            if (i + 1 < cps.size()) pen += float(stbtt_GetCodepointKernAdvance(&info, cps[i], cps[i + 1])) * scale;
+        }
+        return pen;
+    };
+    float widest = 0;
+    for (const auto& l : lines) widest = std::max(widest, line_width(l));
+    const int line_height = int(std::ceil(float(ascent - descent) * scale));
+    const int width = std::max(1, int(std::ceil(widest)) + 2 * pad);
+    const int height = line_height * int(lines.size()) + 2 * pad;
     std::vector<uint8_t> cover(size_t(width) * size_t(height), 0);
-    pen = float(pad);
-    for (size_t i = 0; i < cps.size(); ++i) {
-        int advance, lsb, x0, y0, x1, y1;
-        stbtt_GetCodepointHMetrics(&info, cps[i], &advance, &lsb);
-        stbtt_GetCodepointBitmapBox(&info, cps[i], scale, scale, &x0, &y0, &x1, &y1);
-        const int gx = int(std::round(pen)) + x0, gy = baseline + y0, gw = x1 - x0, gh = y1 - y0;
-        if (gw > 0 && gh > 0) {
-            std::vector<uint8_t> glyph(size_t(gw) * size_t(gh));
-            stbtt_MakeCodepointBitmap(&info, glyph.data(), gw, gh, gw, scale, scale, cps[i]);
-            for (int y = 0; y < gh; ++y) {
-                for (int x = 0; x < gw; ++x) {
-                    const int tx = gx + x, ty = gy + y;
-                    if (tx < 0 || ty < 0 || tx >= width || ty >= height) continue;
-                    uint8_t& c = cover[size_t(ty) * size_t(width) + size_t(tx)];
-                    c = std::max(c, glyph[size_t(y) * size_t(gw) + size_t(x)]);
+    for (size_t l = 0; l < lines.size(); ++l) {
+        const std::vector<int>& cps = lines[l];
+        const int baseline = pad + line_height * int(l) + int(std::round(float(ascent) * scale));
+        float pen = float(pad);
+        for (size_t i = 0; i < cps.size(); ++i) {
+            int advance, lsb, x0, y0, x1, y1;
+            stbtt_GetCodepointHMetrics(&info, cps[i], &advance, &lsb);
+            stbtt_GetCodepointBitmapBox(&info, cps[i], scale, scale, &x0, &y0, &x1, &y1);
+            const int gx = int(std::round(pen)) + x0, gy = baseline + y0, gw = x1 - x0, gh = y1 - y0;
+            if (gw > 0 && gh > 0) {
+                std::vector<uint8_t> glyph(size_t(gw) * size_t(gh));
+                stbtt_MakeCodepointBitmap(&info, glyph.data(), gw, gh, gw, scale, scale, cps[i]);
+                for (int y = 0; y < gh; ++y) {
+                    for (int x = 0; x < gw; ++x) {
+                        const int tx = gx + x, ty = gy + y;
+                        if (tx < 0 || ty < 0 || tx >= width || ty >= height) continue;
+                        uint8_t& c = cover[size_t(ty) * size_t(width) + size_t(tx)];
+                        c = std::max(c, glyph[size_t(y) * size_t(gw) + size_t(x)]);
+                    }
                 }
             }
+            pen += float(advance) * scale + style.spacing;
+            if (i + 1 < cps.size()) pen += float(stbtt_GetCodepointKernAdvance(&info, cps[i], cps[i + 1])) * scale;
         }
-        pen += float(advance) * scale + style.spacing;
-        if (i + 1 < cps.size()) pen += float(stbtt_GetCodepointKernAdvance(&info, cps[i], cps[i + 1])) * scale;
     }
     // outline: the coverage dilated by `pad - 1` pixels, drawn under the fill
     std::vector<uint8_t> edge;

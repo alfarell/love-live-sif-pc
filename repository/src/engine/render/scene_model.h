@@ -3,6 +3,7 @@
 // archive, skinned meshes posed on the CPU (8 influences, MTXP palette). Positions stay in the model's Z-up space.
 
 #include <array>
+#include <map>
 #include <set>
 #include <string>
 #include <vector>
@@ -26,8 +27,10 @@ public:
     // plays several per instance, e.g. an animation on layer 0 and the "switch" label clip on layer 1) apply their
     // node, visibility (ANVS) and material (ANMT: colour, UV offset) tracks; later layers win per node or material.
     // `hidden` (optional): node names hidden with their children, like the game's per-node visibility flag.
+    // `textures` (optional): material name -> texture replacing the material's own (e.g. a song's cover).
     void DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha, std::span<const bmar::Layer> clips = {},
-                const std::set<std::string>* hidden = nullptr) const;
+                const std::set<std::string>* hidden = nullptr,
+                const std::map<std::string, const Texture*>* textures = nullptr) const;
     void Release(Renderer& renderer);
     const bmar::Model& Data() const { return model_; }
     // UI text boxes: the untextured meshes in draw order, as (x0, y0, x1, y1) after their node transform

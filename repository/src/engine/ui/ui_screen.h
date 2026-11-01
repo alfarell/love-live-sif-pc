@@ -33,6 +33,8 @@ public:
               const UiText* text = nullptr);
     // Replaces the default string of a part's text box (e.g. with message.pac text).
     void SetText(const std::string& part, int box, const std::string& utf8);
+    // The same for one placed instance (its part's text style is kept), e.g. each song plate's title.
+    void SetInstanceText(const std::string& instance, int box, const std::string& utf8);
     void Release(Renderer& renderer);
 
     // Canvas -> clip space for the current window (letterboxed, aspect kept).
@@ -56,6 +58,11 @@ public:
     // Hides a node by name inside every placed part (the game: FUN_0024b8e0 + FUN_004739c0, e.g. "new00"), or a
     // whole placed instance by its path ("uil0001_TopMenu00/uil0004_SubMenuList01").
     void HideNode(const std::string& node, bool hide);
+    // The same for one placed instance only (e.g. the focused plate's highlight).
+    void HideNode(const std::string& instance, const std::string& node, bool hide);
+    // Replaces a material's texture in one placed instance with a btx from the dump (cached), e.g. a song cover:
+    // the game's FUN_0024B850(instance, material) + texture assignment. False if the texture cannot be loaded.
+    bool SetMaterialTexture(const std::string& instance, const std::string& material, const std::string& vfs_path);
     void HideInstance(const std::string& path, bool hide);
     void Update(double seconds);
     std::vector<std::string> Layouts() const;
@@ -95,7 +102,9 @@ private:
                       float alpha, const std::map<std::string, float>* part_alpha) const;
     void DrawPartAt(Renderer& renderer, const std::string& key, const Mat4& to_clip, const std::string& path,
                     float alpha) const;
-    void DrawTexts(Renderer& renderer, const std::string& part, const Mat4& to_clip, float alpha) const;
+    void DrawTexts(Renderer& renderer, const std::string& part, const std::string& path, const Mat4& to_clip,
+                   float alpha) const;
+    void Render(Renderer& renderer, TextEntry& t, const TextStyle& style, float px) const;
 
     std::string package_, lang_;
     std::map<std::string, std::vector<std::string>> stems_;  // package -> its uip/uil entry stems
@@ -109,8 +118,13 @@ private:
     std::map<std::pair<std::string, int>, Held> held_;     // (instance path, layer >= 1) -> clip at a fixed frame
     Playing play_all_;  // "*": this clip on every instance whose part has it (empty clip = none)
     std::set<std::string> hidden_nodes_, hidden_paths_;
+    std::map<std::string, std::set<std::string>> instance_hidden_;                      // instance -> node names
+    std::map<std::string, std::map<std::string, const Texture*>> instance_textures_;  // instance -> material -> texture
+    std::map<std::string, Texture> loaded_textures_;                                  // vfs path -> texture
+    const Vfs* vfs_ = nullptr;
     const UiText* text_ = nullptr;
-    mutable std::map<std::pair<std::string, int>, TextEntry> texts_;  // (part, box) -> string
+    mutable std::map<std::pair<std::string, int>, TextEntry> texts_;           // (part, box) -> string
+    mutable std::map<std::pair<std::string, int>, TextEntry> instance_texts_;  // (instance path, box) -> string
     GpuMesh unit_quad_;  // (0,0)-(1,-1), for text bitmaps
     Renderer* renderer_ = nullptr;
 };

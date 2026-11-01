@@ -186,8 +186,9 @@ void SceneModel::Draw(Renderer& renderer, const Mat4& placement) const {
 }
 
 void SceneModel::DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha, std::span<const bmar::Layer> clips,
-                        const std::set<std::string>* hidden) const {
-    if (clips.empty() && (!hidden || hidden->empty())) {
+                        const std::set<std::string>* hidden,
+                        const std::map<std::string, const Texture*>* textures) const {
+    if (clips.empty() && (!hidden || hidden->empty()) && (!textures || textures->empty())) {
         for (const Part& part : parts_) {
             if (part.texture < 0) continue;  // text boxes and untextured helpers
             renderer.DrawUiMesh(part.gpu, &textures_[size_t(part.texture)], to_clip * world_[part.node], alpha);
@@ -226,7 +227,11 @@ void SceneModel::DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha, st
                 }
             }
         }
-        renderer.DrawUiMesh(part.gpu, &textures_[size_t(part.texture)], to_clip * world[part.node], tint, uv);
+        const Texture* texture = &textures_[size_t(part.texture)];
+        if (textures) {
+            if (const auto t = textures->find(material); t != textures->end() && t->second) texture = t->second;
+        }
+        renderer.DrawUiMesh(part.gpu, texture, to_clip * world[part.node], tint, uv);
     }
 }
 
