@@ -1,6 +1,7 @@
 // SIF port entry point: settings, game-folder check and Vfs mount, renderer, audio; then one of
 //   - the M6 boot flow: --title (logos, notice, title screen; confirming starts the --live song, default 10:4),
 //     with --lang en|cn|tw|jp (UI language, default en);
+//   - a developer view of one UI layout: --ui SCREEN:LAYOUT[:CLIP] (e.g. 10_top_menu:uil0001_TopMenu00:a003);
 //   - the M4 live slice: --live ID:VARIANT (e.g. 10:4 = song 0010, ac_challenge), with --autoplay;
 //   - calibration: --calibrate (tap Space to a click track; stores timing.audio_offset_ms);
 //   - the M3 check: one game texture (--show PATH) and one cue (--play SHEET:CUE, or "none").
@@ -18,6 +19,7 @@
 
 #include "app/live_screen.h"
 #include "app/title_screen.h"
+#include "app/ui_viewer.h"
 #include "engine/audio/audio_output.h"
 #include "engine/audio/sound_bank.h"
 #include "engine/core/crash_report.h"
@@ -47,6 +49,7 @@ struct Options {
     std::string show = kDefaultTexture;
     std::string play = kDefaultCue;
     bool live = false, calibrate = false, title = false;
+    std::string ui;
     std::string lang = "en";
     sif::LiveOptions live_options;
 };
@@ -63,6 +66,7 @@ Options ParseOptions(int argc, char** argv) {
         else if (!std::strcmp(argv[i], "--autoplay")) o.live_options.autoplay = true;
         else if (!std::strcmp(argv[i], "--calibrate")) o.calibrate = true;
         else if (!std::strcmp(argv[i], "--title")) o.title = true;
+        else if (!std::strcmp(argv[i], "--ui") && i + 1 < argc) o.ui = argv[++i];
         else if (!std::strcmp(argv[i], "--lang") && i + 1 < argc) o.lang = argv[++i];
         else if (!std::strcmp(argv[i], "--stage") && i + 1 < argc) o.live_options.stage = argv[++i];
         else if (!std::strcmp(argv[i], "--member") && i + 1 < argc) o.live_options.member = int(std::strtol(argv[++i], nullptr, 10));
@@ -138,6 +142,14 @@ int main(int argc, char** argv) {
     const bool audio_ok = audio.Open(settings.audio.buffer_frames, settings.audio.volume, &why);
     if (!audio_ok) sif::LogError("audio: {}", why);  // keep running without sound
 
+    if (!options.ui.empty()) {
+        const int code = sif::RunUiViewer(window, renderer, vfs, options.ui, options.lang == "jp" ? "" : options.lang,
+                                          options.frames);
+        audio.Close();
+        renderer.Shutdown();
+        SDL_DestroyWindow(window);
+        return Quit(code, code ? "ui viewer failed" : "normal end");
+    }
     if (options.calibrate || options.live || options.title) {
         int code = 0;
         // shortcut: confirming the title goes straight to the live song until the top menu and song select exist
