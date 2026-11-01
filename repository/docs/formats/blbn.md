@@ -1,0 +1,39 @@
+# SIF data tables: `BLBN` (`.bin` entries)
+
+Status: container read by `src/engine/formats/blbn.cpp` (M4). 1,698 `bin` entries use it (e.g. everything in `common/common.pac`: `live_params.bin`, `live_datas.bin`, `skill_card_datas.bin`, `mission_*.bin`, `dlc_music_data.bin`). Little-endian.
+
+## Layout
+
+| Offset | Content |
+|---|---|
+| 0x00 | `BLBN`, then 8 bytes (`00 00 00 00 00 00 04 00`) |
+| 0x0C | `SYM\0` chunks, one per exported symbol, until the first other chunk |
+| … | `DATA` chunks: the symbols' data and their names |
+
+SYM chunk: char[4] `SYM\0`, u32 0x18, u32 flags (`0x00040000`), u64 data offset, u64 name offset, u32 name hash, u32 data size.
+
+Offsets are from the file start. Names are the C++ symbols of the game's static tables (`s_CommonParam`, `ll3::s_SKILL_LEVEL_MAX`); the eboot carries the same names (`work/eboot-strings.txt` around 0x5EB95E). The table contents are plain arrays; pointers inside them (if any) are not decoded yet.
+
+## `common/common.pac/live_common.pac/live_params.bin`
+
+| Symbol | Size | Content |
+|---|---|---|
+| `s_CommonParam` | 500 | Per-difficulty integer groups (2,300 … 650; *Hypothesis:* note approach times in ms) and float tables (0.1/0.2/0.7/1.0; 1.0–3.0; 0.8–1.0; *Hypothesis:* score weights, combo multipliers). Not decoded |
+| **`s_EvaluateRangeDatas`** | 128 | **Judgement windows in ms**, 4 groups × (early row, late row) × {Perfect, Great, Good, Miss} (see below). Early rows are stored Miss-first, late rows Perfect-first |
+| `s_CalibrationData` | 8 | 32, 16 (*Hypothesis:* calibration range and step) |
+| `s_UserCalibrationData` | 44 | −80 … +80 in steps of 16: the user-selectable timing offsets in ms (11 values) |
+| `s_SkillAdjustDatas`, `s_LedControlParam`, `s_Camera*`, `s_liveView*`, `s_skill*` | | Skills, LEDs (arcade cabinet), cameras, live-view, skill voices and effects |
+| `ll3::s_SKILL_LEVEL_*`, `s_INVALID_SKILL_ID`, `live::s_skillVoiceCallNum` | 4 each | Constants |
+
+### Judgement windows (`s_EvaluateRangeDatas`)
+
+| Group | Perfect | Great | Good | Bad | Use |
+|---|---|---|---|---|---|
+| 0 | ±40 | ±133 | ±200 | ±267 | presses |
+| 1 | ±133 | ±200 | ±267 | ±333 | *Hypothesis:* hold releases |
+| 2 | ±60 | ±153 | ±220 | ±287 | group 0 + 20 (*Hypothesis:* skill `extendEvaluation`) |
+| 3 | ±153 | ±220 | ±287 | ±353 | group 1 + 20 |
+
+133, 200, 267 and 333 are 8, 12, 16 and 20 frames at 60 fps, which supports ms as the unit. Early and late bounds are equal in all groups.
+
+**Correction (M4, shadPS4 sweep):** the four bounds are **Perfect, Great, Good, Bad**. The game's result screen has five grades (Perfect, Great, Good, BAD, Miss), and a note not hit inside the Bad bound is a Miss. A judgement sweep in shadPS4 put each lane's hits into exactly the grade these bounds predict. The column headers above read Perfect / Great / Good / Bad accordingly.
