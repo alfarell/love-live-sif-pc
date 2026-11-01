@@ -434,6 +434,14 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                 hud.SetMaterialUv("uil0001_Ingame00/uip0004_IngameScore", "M_IngameScore_0" + std::to_string(d),
                                   0.125f * float(g % 8), 0.5f * float(g / 8));
             }
+            // uip0002_Ingame00Topscgage: ingame_score_gage00 has the bar in 5 colour rows of 1/8 height; the bar spans
+            // U 0.039-0.961 and its C/B/A/S dividers sit at clear rates 0.45/0.65/0.825/0.925 of a full bar = 1.2 (the
+            // top threshold). shortcut: row per rank (blue below C, then green, yellow, orange, pink) is a guess
+            const double full = song.rules.rank_rates.back();
+            const float fill = 0.039f + 0.922f * float(std::clamp(judge.ClearRate() / full, 0.0, 1.0));
+            const std::string gauge = "uil0001_Ingame00/uip0002_Ingame00Topscgage";
+            hud.SetMaterialClip(gauge, "M_Ingame00Topscgage", fill);
+            hud.SetMaterialUv(gauge, "M_Ingame00Topscgage", 0, 0.125f * float(std::min(judge.Rank(), 4)));
         }
         if (field.loaded) field.SetGauge(renderer, float(now / audio_ms));
         if (renderer.BeginFrame()) {
