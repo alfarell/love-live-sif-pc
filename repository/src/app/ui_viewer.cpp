@@ -13,7 +13,7 @@
 namespace sif {
 
 int RunUiViewer(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& spec, const std::string& lang,
-                long max_frames) {
+                long max_frames, const std::string& hide_nodes, const std::string& hide_paths) {
     const size_t a = spec.find(':'), b = a == std::string::npos ? a : spec.find(':', a + 1);
     const std::string screen = "ui2/" + spec.substr(0, a);
     const std::string layout = a == std::string::npos ? "" : spec.substr(a + 1, b == std::string::npos ? b : b - a - 1);
@@ -30,6 +30,16 @@ int RunUiViewer(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const st
     for (const std::string& l : ui.Layouts()) layouts += " " + l;
     LogInfo("ui viewer: {} layouts:{}", screen, layouts);
     if (!clip.empty()) ui.Play("*", clip, true);
+    const auto each = [](const std::string& list, auto&& f) {
+        for (size_t start = 0; start < list.size();) {
+            const size_t comma = list.find(',', start);
+            const std::string item = list.substr(start, comma == std::string::npos ? std::string::npos : comma - start);
+            if (!item.empty()) f(item);
+            start = comma == std::string::npos ? list.size() : comma + 1;
+        }
+    };
+    each(hide_nodes, [&](const std::string& n) { ui.HideNode(n, true); });
+    each(hide_paths, [&](const std::string& p) { ui.HideInstance(p, true); });
     SDL_SetWindowTitle(window, ("SIF port - ui " + spec).c_str());
     uint64_t last = SDL_GetTicksNS();
     for (long frame = 0; max_frames < 0 || frame < max_frames; ++frame) {

@@ -1,7 +1,8 @@
 // SIF port entry point: settings, game-folder check and Vfs mount, renderer, audio; then one of
 //   - the M6 boot flow: --title (logos, notice, title screen; confirming starts the --live song, default 10:4),
 //     with --lang en|cn|tw|jp (UI language, default en);
-//   - a developer view of one UI layout: --ui SCREEN:LAYOUT[:CLIP] (e.g. 10_top_menu:uil0001_TopMenu00:a003);
+//   - a developer view of one UI layout: --ui SCREEN:LAYOUT[:CLIP] (e.g. 10_top_menu:uil0001_TopMenu00:a003), with
+//     --ui-hide NODE,... (nodes hidden in every part) and --ui-hide-path PATH,... (placed instances hidden);
 //   - the M4 live slice: --live ID:VARIANT (e.g. 10:4 = song 0010, ac_challenge), with --autoplay;
 //   - calibration: --calibrate (tap Space to a click track; stores timing.audio_offset_ms);
 //   - the M3 check: one game texture (--show PATH) and one cue (--play SHEET:CUE, or "none").
@@ -49,7 +50,7 @@ struct Options {
     std::string show = kDefaultTexture;
     std::string play = kDefaultCue;
     bool live = false, calibrate = false, title = false;
-    std::string ui;
+    std::string ui, ui_hide, ui_hide_path;
     std::string lang = "en";
     sif::LiveOptions live_options;
 };
@@ -67,6 +68,8 @@ Options ParseOptions(int argc, char** argv) {
         else if (!std::strcmp(argv[i], "--calibrate")) o.calibrate = true;
         else if (!std::strcmp(argv[i], "--title")) o.title = true;
         else if (!std::strcmp(argv[i], "--ui") && i + 1 < argc) o.ui = argv[++i];
+        else if (!std::strcmp(argv[i], "--ui-hide") && i + 1 < argc) o.ui_hide = argv[++i];
+        else if (!std::strcmp(argv[i], "--ui-hide-path") && i + 1 < argc) o.ui_hide_path = argv[++i];
         else if (!std::strcmp(argv[i], "--lang") && i + 1 < argc) o.lang = argv[++i];
         else if (!std::strcmp(argv[i], "--stage") && i + 1 < argc) o.live_options.stage = argv[++i];
         else if (!std::strcmp(argv[i], "--member") && i + 1 < argc) o.live_options.member = int(std::strtol(argv[++i], nullptr, 10));
@@ -144,7 +147,7 @@ int main(int argc, char** argv) {
 
     if (!options.ui.empty()) {
         const int code = sif::RunUiViewer(window, renderer, vfs, options.ui, options.lang == "jp" ? "" : options.lang,
-                                          options.frames);
+                                          options.frames, options.ui_hide, options.ui_hide_path);
         audio.Close();
         renderer.Shutdown();
         SDL_DestroyWindow(window);
