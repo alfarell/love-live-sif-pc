@@ -106,6 +106,7 @@ std::array<float, 4> Sample(const std::vector<Key>& keys, float frame, bool quat
     const auto hi = std::upper_bound(keys.begin(), keys.end(), frame, [](float f, const Key& k) { return f < k.frame; });
     const Key& a = *(hi - 1);
     const Key& b = *hi;
+    if (a.step) return a.v;
     const float t = b.frame > a.frame ? (frame - a.frame) / (b.frame - a.frame) : 0.0f;
     std::array<float, 4> v{};
     // shortcut: all keys are linear (normalized lerp for rotations); flags 1/2 are in 10 channels of 319 files
@@ -218,6 +219,44 @@ bool Parse(std::span<const uint8_t> file, Model& out, std::string* error) {
     return true;
 }
 
+namespace {
+
+// ANMT / ANVS: u64 table*, u16 count; records (name*, channel table*, u32 hash, u32 channel count) of 24 bytes;
+// channels as in ANSK (keys*, values*, u32 key count, u32 type); values are f32 x 1 (ANVS) or x 3 (ANMT)
+void ParseProperties(Reader& r, uint64_t body, int default_width, std::vector<PropertyTrack>& out) {
+    const uint64_t table = r.At<uint64_t>(body);
+    const uint16_t count = r.At<uint16_t>(body + 8);
+    for (uint32_t i = 0; i < count && r.ok; ++i) {
+        const uint64_t t = table + 24 * uint64_t(i);
+        const std::string name = r.Str(r.At<uint64_t>(t));
+        const uint64_t chans = r.At<uint64_t>(t + 8);
+        const uint32_t nchan = r.At<uint32_t>(t + 20);
+        for (uint32_t j = 0; j < nchan && r.ok; ++j) {
+            const uint64_t c = chans + 24 * uint64_t(j);
+            const uint64_t keys = r.At<uint64_t>(c), values = r.At<uint64_t>(c + 8);
+            const uint32_t nkeys = r.At<uint32_t>(c + 16);
+            PropertyTrack track{name, r.At<uint32_t>(c + 20), std::vector<Key>(nkeys)};
+            // the value width follows from the key offsets (a few ANMT channels store one float, replicated here)
+            int width = default_width;
+            if (nkeys > 1) width = std::clamp(int(r.At<uint32_t>(keys + 16) - r.At<uint32_t>(keys + 4)) / 4, 1, 4);
+            for (uint32_t k = 0; k < nkeys; ++k) {
+                Key& key = track.keys[k];
+                key.frame = r.At<float>(keys + 12 * uint64_t(k));
+                const uint32_t off = r.At<uint32_t>(keys + 12 * uint64_t(k) + 4);
+                key.step = r.At<uint32_t>(keys + 12 * uint64_t(k) + 8) == 2;
+                for (int v = 0; v < 4; ++v) key.v[size_t(v)] = r.At<float>(values + off + 4 * uint64_t(std::min(v, width - 1)));
+            }
+            if (nkeys) out.push_back(std::move(track));
+        }
+    }
+}
+
+}
+
+std::array<float, 4> SampleKeys(const std::vector<Key>& keys, float frame) {
+    return keys.empty() ? std::array<float, 4>{} : Sample(keys, frame, false);
+}
+
 bool ParseMotion(std::span<const uint8_t> file, Motion& out, std::string* error) {
     out = {};
     std::unordered_map<std::string, std::span<const uint8_t>> parts;
@@ -233,6 +272,10 @@ bool ParseMotion(std::span<const uint8_t> file, Motion& out, std::string* error)
         } else if (c.tag == "ANSK") {
             table = r.At<uint64_t>(c.body);
             count = r.At<uint16_t>(c.body + 8);
+        } else if (c.tag == "ANMT") {
+            ParseProperties(r, c.body, 3, out.materials);
+        } else if (c.tag == "ANVS") {
+            ParseProperties(r, c.body, 1, out.visibility);
         }
     }
     for (uint32_t i = 0; i < count && r.ok; ++i) {

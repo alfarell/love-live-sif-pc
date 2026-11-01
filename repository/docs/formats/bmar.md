@@ -114,7 +114,9 @@ Most common formats:
 |---|---|
 | `ANHD` (12 bytes) | char[4] version `103`, f32 frame rate (60), f32 frame count (e.g. 210 = 3.5 s for `mot_11_chika_010_idle`; 9,060 = 151 s for the song 0010 dance) |
 | `ANSK` (16 bytes) | track table*, u16 track count (91), u16 ? |
-| `ANMS`, `ANMT`, `ANVS` | in some files; not decoded (*Hypothesis:* morph, material, visibility tracks) |
+| `ANMT` | Material tracks (M6): u64 table*, u16 count; see below |
+| `ANVS` | Visibility tracks (M6): same layout |
+| `ANMS` | In 95 files; not decoded (*Hypothesis:* morph tracks) |
 
 - **Track (24 bytes):** node name*, channel table*, u32 node name hash (= `NODE` +0x5C), u32 channel count (3).
 - **Channel (24 bytes):** key table*, value array*, u32 key count, u32 channel type: 0 translate, 3 rotate, 2 scale.
@@ -127,4 +129,21 @@ Most common formats:
   - 0 in all but 10 channels;
   - 1 and 2 also occur, and channels with flag 2 can have 36-byte values (*Hypothesis:* value + in/out tangents).
   - The port treats every key as linear (normalized lerp for quaternions).
-- `ANMS` (95 files) and `ANMT` (12 files): not decoded.
+- `ANMS` (95 files): not decoded.
+
+### `ANMT` and `ANVS` (M6, decoded on the ui2 clips)
+
+- **Record (24 bytes):** name*, channel table*, u32 name hash, u32 channel count. The name is a material name for `ANMT` and a node name for `ANVS`.
+- **Channels:** as in `ANSK` (keys*, values*, u32 key count, u32 type). Keys are 12 bytes (f32 frame, u32 byte offset into the values, u32 flag).
+- **Key flags:** 1 and 0 are linear; 2 is step (hold until the next key). `ANVS` uses 2 throughout (*Hypothesis* from the 0/1 values).
+- **Channel types** (survey of the 282 extracted ui2 clips):
+
+| Type | Chunk | Values | Meaning |
+|---|---|---|---|
+| 6 | `ANMT` | RGB 0–255 (22 channels) | Material colour (e.g. a banner fading in from black over frames 10–15) |
+| 4 | `ANMT` | RGB 0–0.75 (15) | *Hypothesis:* transparency (0 = opaque), as Maya's material attribute |
+| 5 | `ANMT` | RGB 0–0.62 (15) | *Hypothesis:* incandescence; not applied |
+| 11 | `ANVS` | 0 / 1 (120) | Node visible |
+
+- **Value width:** usually 12 bytes per `ANMT` key, but a few channels store one float (the port replicates it); `ANVS` keys are 4 bytes.
+- No UV channel exists in any clip. Menu labels that pick a cell of a label atlas are set by game code.

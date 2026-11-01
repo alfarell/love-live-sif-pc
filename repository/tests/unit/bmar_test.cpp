@@ -106,6 +106,24 @@ int main(int argc, char** argv) {
         Check(v.z < 0 && off_axis < 0.01f, "camera looks at Camera_Interest at frame " + std::to_string(int(frame)));
     }
 
+    // UI clip with material (ANMT) and visibility (ANVS) tracks: the top menu's list part, clip a004 (15 frames)
+    std::vector<uint8_t> clip_file;
+    bmar::Motion clip;
+    Check(vfs.Read("ui2/10_top_menu_en.pac/uip0004_MenuList00.pac/animation.pac/uip0004_MenuList00_a004.bmarc",
+                   clip_file, &error) && bmar::ParseMotion(clip_file, clip, &error),
+          "parse top menu clip: " + error);
+    Check(clip.frames == 15 && clip.materials.size() == 4 && clip.visibility.size() == 8, "clip a004: 4 material, 8 visibility channels");
+    if (clip.materials.size() == 4 && clip.visibility.size() == 8) {
+        const bmar::PropertyTrack& banner = clip.materials[0];  // colour 0 -> 255 over frames 0-15
+        Check(banner.name == "top_mode_main_banner00" && banner.type == 6 && bmar::SampleKeys(banner.keys, 15)[0] == 255 &&
+                  std::abs(bmar::SampleKeys(banner.keys, 12.5f)[0] - 127.5f) < 1,
+              "ANMT colour track: linear 0 -> 255");
+        const bmar::PropertyTrack& icon = clip.visibility[0];  // shown, then hidden from frame 15 (step keys)
+        Check(icon.name == "menu_icon00" && icon.type == 11 && bmar::SampleKeys(icon.keys, 14.9f)[0] == 1 &&
+                  bmar::SampleKeys(icon.keys, 15)[0] == 0,
+              "ANVS visibility track: step 1 -> 0 at frame 15");
+    }
+
     Check(bmar::HalfToFloat(0x3C00) == 1.0f && bmar::HalfToFloat(0xC000) == -2.0f && bmar::HalfToFloat(0x3555) > 0.333f,
           "half floats");
     std::printf("%s\n", failures ? "bmar_test FAILED" : "bmar_test ok");

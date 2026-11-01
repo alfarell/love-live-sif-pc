@@ -63,6 +63,7 @@ bool Parse(std::span<const uint8_t> file, Model& out, std::string* error = nullp
 struct Key {
     float frame = 0;
     std::array<float, 4> v{};  // translate/scale: x, y, z; rotate: quaternion x, y, z, w
+    bool step = false;         // key flag 2: hold this value until the next key (Hypothesis; ANVS uses it throughout)
 };
 
 struct Track {
@@ -70,10 +71,23 @@ struct Track {
     std::array<std::vector<Key>, 3> channels;  // translate, rotate, scale (empty = keep the bind value)
 };
 
+// ANMT (material tracks, by material name) and ANVS (visibility, by node name); one channel per entry.
+// Types: ANMT 6 colour RGB 0-255, 4 transparency RGB 0-1 (0 = opaque), 5 RGB 0-1 (Hypothesis: incandescence);
+// ANVS 11 visible 0/1 (docs/formats/bmar.md).
+struct PropertyTrack {
+    std::string name;
+    uint32_t type = 0;
+    std::vector<Key> keys;
+};
+
 struct Motion {
     float fps = 60, frames = 0;
     std::vector<Track> tracks;
+    std::vector<PropertyTrack> materials, visibility;
 };
+
+// A channel's value at `frame` (linear between keys, held after step keys, clamped at both ends).
+std::array<float, 4> SampleKeys(const std::vector<Key>& keys, float frame);
 
 bool ParseMotion(std::span<const uint8_t> file, Motion& out, std::string* error = nullptr);
 
