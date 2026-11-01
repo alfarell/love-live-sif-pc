@@ -281,8 +281,9 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
     Layout layout;
     Playfield field;
     field.Load(renderer, vfs);
-    // the game's top HUD bar (ui2/90_ingame, layout uil0001_Ingame00); shortcut: score digits, gauges and the
-    // FULL COMBO marks stay at their defaults until the HUD logic is traced
+    // the game's top HUD bar (ui2/90_ingame, layout uil0001_Ingame00); shortcut: gauges and the FULL COMBO marks
+    // stay at their defaults until the HUD logic is traced
+    long hud_score = -1;
     UiText hud_text;
     UiScreen hud;
     bool has_hud = hud_text.Load(vfs, opt.lang, &error) && hud.Load(renderer, vfs, "ui2/90_ingame", opt.lang, &error, &hud_text);
@@ -352,6 +353,17 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
             flash_grade[size_t(lane)] = j.grade;
         }
 
+        if (has_hud && long(judge.score) != hud_score) {
+            // uip0004_IngameScore: 7 digit meshes, M_IngameScore_00 the ones; each shows one cell of the 8 x 2 digit
+            // grid (ui_ingame_top_score00: 0-7 over 8-9) by its UV offset
+            hud_score = long(judge.score);
+            long v = std::clamp(hud_score, 0L, 9999999L);
+            for (int d = 0; d < 7; ++d, v /= 10) {
+                const int g = int(v % 10);
+                hud.SetMaterialUv("uil0001_Ingame00/uip0004_IngameScore", "M_IngameScore_0" + std::to_string(d),
+                                  0.125f * float(g % 8), 0.5f * float(g / 8));
+            }
+        }
         if (renderer.BeginFrame()) {
             const uint64_t draw_start = SDL_GetTicksNS();
             scene.Draw(renderer, now, song.dance_start_frame);
