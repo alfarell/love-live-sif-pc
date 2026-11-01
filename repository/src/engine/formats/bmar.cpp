@@ -263,9 +263,15 @@ bool ParseMotion(std::span<const uint8_t> file, Motion& out, std::string* error)
 }
 
 void Pose(const Model& model, const Motion* motion, float frame, std::vector<Mat4>& world) {
-    std::unordered_map<std::string_view, const Track*> by_node;
-    if (motion) {
-        for (const Track& t : motion->tracks) by_node[t.node] = &t;
+    const Layer layer{motion, frame};
+    Pose(model, motion ? std::span<const Layer>(&layer, 1) : std::span<const Layer>(), world);
+}
+
+void Pose(const Model& model, std::span<const Layer> layers, std::vector<Mat4>& world) {
+    std::unordered_map<std::string_view, std::pair<const Track*, float>> by_node;  // track and its frame
+    for (const Layer& l : layers) {
+        if (!l.motion) continue;
+        for (const Track& t : l.motion->tracks) by_node[t.node] = {&t, l.frame};
     }
     world.resize(model.nodes.size());
     for (size_t i = 0; i < model.nodes.size(); ++i) {
@@ -273,7 +279,8 @@ void Pose(const Model& model, const Motion* motion, float frame, std::vector<Mat
         float t[3] = {n.t[0], n.t[1], n.t[2]}, s[3] = {n.s[0], n.s[1], n.s[2]};
         Mat4 rot = RotationEuler(n.r[0], n.r[1], n.r[2]);
         if (const auto it = by_node.find(n.name); it != by_node.end()) {
-            const Track& tr = *it->second;
+            const Track& tr = *it->second.first;
+            const float frame = it->second.second;
             if (!tr.channels[0].empty()) std::copy_n(Sample(tr.channels[0], frame, false).begin(), 3, t);
             if (!tr.channels[1].empty()) rot = RotationQuat(Sample(tr.channels[1], frame, true).data());
             if (!tr.channels[2].empty()) std::copy_n(Sample(tr.channels[2], frame, false).begin(), 3, s);

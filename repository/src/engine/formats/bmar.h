@@ -80,4 +80,11 @@ bool ParseMotion(std::span<const uint8_t> file, Motion& out, std::string* error 
 // World matrices of all nodes (model space, Z-up) in the bind pose or posed by `motion` at `frame`.
 void Pose(const Model& model, const Motion* motion, float frame, std::vector<Mat4>& world);
 
+// Several motions at their own frames; for a node animated by more than one, the last layer wins.
+struct Layer {
+    const Motion* motion = nullptr;
+    float frame = 0;
+};
+void Pose(const Model& model, std::span<const Layer> layers, std::vector<Mat4>& world);
+
 }

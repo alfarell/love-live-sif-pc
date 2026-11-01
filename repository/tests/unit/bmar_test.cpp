@@ -67,6 +67,23 @@ int main(int argc, char** argv) {
           "parse 017_livehall: " + error);
     Check(stage.nodes.size() == 98 && stage.meshes.size() == 66 && stage.materials.size() == 35 && stage.palette.empty(),
           "017_livehall: 98 nodes, 66 meshes, 35 materials, no skin");
+    // a stage loop layered over the bind pose moves its node (floor light pillar, up to 0.78 m in yukalight_A1)
+    std::vector<uint8_t> loop_file;
+    bmar::Motion loop;
+    Check(vfs.Read("stage/st017.pac/motion.pac/017_yukalight_A1.bmarc", loop_file, &error) &&
+              bmar::ParseMotion(loop_file, loop, &error) && loop.frames == 120,
+          "parse yukalight_A1 loop: " + error);
+    size_t pillar = 0;
+    while (pillar < stage.nodes.size() && stage.nodes[pillar].name != "Cylinder004") ++pillar;
+    std::vector<Mat4> bind_world, moved;
+    bmar::Pose(stage, nullptr, 0, bind_world);
+    float most = 0;
+    for (float f = 0; f < loop.frames; f += 10) {
+        const bmar::Layer layer{&loop, f};
+        bmar::Pose(stage, std::span<const bmar::Layer>(&layer, 1), moved);
+        if (pillar < moved.size()) most = std::max(most, std::abs(moved[pillar](2, 3) - bind_world[pillar](2, 3)));
+    }
+    Check(pillar < stage.nodes.size() && most > 0.3f, "yukalight_A1 lifts Cylinder004 (" + std::to_string(most) + " m)");
 
     // song 0010 camera: BSCM keys (Y-up) and the BMAR look-at node (Z-up) must agree through ViewMatrix
     const std::string cam = "live/0010/0010.pac/scene.pac/camera_anim_0010_00_main";

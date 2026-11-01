@@ -19,6 +19,7 @@ public:
     bool Load(Renderer& renderer, const Vfs& vfs, const std::string& path, std::string* error);
     // Bind pose when `motion` is null.
     void Pose(Renderer& renderer, const bmar::Motion* motion, float frame);
+    void Pose(Renderer& renderer, std::span<const bmar::Layer> layers);
     void Draw(Renderer& renderer, const Mat4& placement) const;
     void Release(Renderer& renderer);
     const bmar::Model& Data() const { return model_; }

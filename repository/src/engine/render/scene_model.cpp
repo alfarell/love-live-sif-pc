@@ -135,7 +135,12 @@ bool SceneModel::Load(Renderer& renderer, const Vfs& vfs, const std::string& pat
 }
 
 void SceneModel::Pose(Renderer& renderer, const bmar::Motion* motion, float frame) {
-    bmar::Pose(model_, motion, frame, world_);
+    const bmar::Layer layer{motion, frame};
+    Pose(renderer, motion ? std::span<const bmar::Layer>(&layer, 1) : std::span<const bmar::Layer>());
+}
+
+void SceneModel::Pose(Renderer& renderer, std::span<const bmar::Layer> layers) {
+    bmar::Pose(model_, layers, world_);
     skin_.resize(model_.palette.size());
     for (size_t k = 0; k < skin_.size(); ++k) skin_[k] = world_[model_.palette[k].node] * model_.palette[k].inverse_bind;
     for (Part& part : parts_) {
