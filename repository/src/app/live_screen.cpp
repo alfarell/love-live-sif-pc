@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 
+#include "app/result_screen.h"
 #include "engine/audio/audio_output.h"
 #include "engine/core/log.h"
 #include "engine/platform/settings.h"
@@ -257,7 +258,7 @@ const float kGradeColor[live::kGrades][4] = {
 }
 
 int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vfs& vfs, const AppSettings& settings,
-            const LiveOptions& opt) {
+            const LiveOptions& opt, LiveResult* result) {
     live::Song song;
     cri::Pcm music;
     std::string error;
@@ -478,6 +479,10 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
             "press offset mean {:+.1f} ms, sd {:.1f} ms over {} hits",
             judge.counts[0], judge.counts[1], judge.counts[2], judge.counts[3], judge.counts[4], judge.max_combo,
             judge.score, mean, sd, n);
+    if (result) {
+        *result = {opt.song, opt.variant, {}, judge.max_combo, judge.score, judge.Finished()};
+        std::copy(judge.counts.begin(), judge.counts.end(), result->counts.begin());
+    }
     return 0;
 }
 

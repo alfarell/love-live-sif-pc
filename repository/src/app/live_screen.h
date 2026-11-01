@@ -27,9 +27,11 @@ struct LiveOptions {
     std::string lang = "en";  // UI language of the in-game HUD (ui2/90_ingame_<lang>): en, cn, tw or "" (Japanese)
 };
 
-// Returns 0 when the song ends or the window is closed, 1 on a load error.
+struct LiveResult;
+
+// Returns 0 when the song ends or the window is closed, 1 on a load error. `result` (optional) gets the counts.
 int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vfs& vfs, const AppSettings& settings,
-            const LiveOptions& options);
+            const LiveOptions& options, LiveResult* result = nullptr);
 
 // Plays a click track and measures the mean tap offset; stores it in settings.timing.audio_offset_ms.
 // Returns true if a value was measured.

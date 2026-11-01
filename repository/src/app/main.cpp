@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "app/live_screen.h"
+#include "app/result_screen.h"
 #include "app/song_select.h"
 #include "app/title_screen.h"
 #include "app/top_menu.h"
@@ -51,7 +52,7 @@ struct Options {
     std::string game;
     std::string show = kDefaultTexture;
     std::string play = kDefaultCue;
-    bool live = false, calibrate = false, title = false, menu = false, select = false;
+    bool live = false, calibrate = false, title = false, menu = false, select = false, result_demo = false;
     std::string ui, ui_hide, ui_hide_path;
     std::string lang = "en";
     sif::LiveOptions live_options;
@@ -71,6 +72,7 @@ Options ParseOptions(int argc, char** argv) {
         else if (!std::strcmp(argv[i], "--title")) o.title = true;
         else if (!std::strcmp(argv[i], "--menu")) o.menu = true;
         else if (!std::strcmp(argv[i], "--select")) o.select = true;
+        else if (!std::strcmp(argv[i], "--result-demo")) o.result_demo = true;
         else if (!std::strcmp(argv[i], "--ui") && i + 1 < argc) o.ui = argv[++i];
         else if (!std::strcmp(argv[i], "--ui-hide") && i + 1 < argc) o.ui_hide = argv[++i];
         else if (!std::strcmp(argv[i], "--ui-hide-path") && i + 1 < argc) o.ui_hide_path = argv[++i];
@@ -150,6 +152,14 @@ int main(int argc, char** argv) {
     const bool audio_ok = audio.Open(settings.audio.buffer_frames, settings.audio.volume, &why);
     if (!audio_ok) sif::LogError("audio: {}", why);  // keep running without sound
 
+    if (options.result_demo) {  // developer: the result screen with song 0010/04's autoplay values
+        sif::LiveResult demo{10, 4, {583, 0, 0, 0, 0}, 583, 199220, true};
+        sif::RunResult(window, renderer, vfs, options.lang == "jp" ? "" : options.lang, demo, options.frames);
+        audio.Close();
+        renderer.Shutdown();
+        SDL_DestroyWindow(window);
+        return Quit(0, "normal end");
+    }
     if (!options.ui.empty()) {
         const int code = sif::RunUiViewer(window, renderer, vfs, options.ui, options.lang == "jp" ? "" : options.lang,
                                           options.frames, options.ui_hide, options.ui_hide_path);
@@ -185,7 +195,13 @@ int main(int argc, char** argv) {
                 sif::LogWarn("settings: cannot write {}", sif::os::PathToUtf8(settings_path));
             }
         } else {
-            code = sif::RunLive(window, renderer, audio, vfs, settings, options.live_options);
+            sif::LiveResult result;
+            code = sif::RunLive(window, renderer, audio, vfs, settings, options.live_options, &result);
+            // after a song started from the menus, the result screen (shortcut: then the app ends; no return to
+            // the song select yet)
+            if (code == 0 && boot && result.finished) {
+                sif::RunResult(window, renderer, vfs, options.live_options.lang, result, options.frames);
+            }
         }
         audio.Close();
         renderer.Shutdown();
