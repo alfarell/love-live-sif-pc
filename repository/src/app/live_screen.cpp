@@ -87,9 +87,13 @@ struct LiveScene {
                 member_path, motion_path, has_dance ? dance.frames : 0.0f);
     }
 
-    // `now_ms`: audio time. shortcut: dance frame 0 = audio 0 (Hypothesis, M5 step 3 checks it)
-    void Draw(Renderer& renderer, double now_ms) {
-        if (has_member) member.Pose(renderer, has_dance ? &dance : nullptr, float(std::max(0.0, now_ms) / 1000.0 * dance.fps));
+    // `now_ms`: audio time. The dance (and camera) clock runs `start_frame` ahead of the music: frames before it are
+    // the stage intro, which the port skips (shortcut: the music starts at once; play the intro first when the
+    // pre-music flow is built)
+    void Draw(Renderer& renderer, double now_ms, float start_frame) {
+        if (has_member) {
+            member.Pose(renderer, has_dance ? &dance : nullptr, float(std::max(0.0, now_ms) / 1000.0 * dance.fps) + start_frame);
+        }
         // shortcut: fixed front camera until the song's camera track is decoded (M5 step 4); Z-up world, model faces -Y
         const float aspect = float(renderer.Width()) / float(std::max(1, renderer.Height()));
         renderer.SetCamera(Perspective(0.70f, aspect, 0.1f, 500.0f) * LookAt({0, -6.0f, 1.4f}, {0, 0, 1.0f}, {0, 0, 1}));
@@ -174,7 +178,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
         }
 
         if (renderer.BeginFrame()) {
-            scene.Draw(renderer, now);
+            scene.Draw(renderer, now, song.dance_start_frame);
             layout.Fit(renderer.Width(), renderer.Height());
             const float ring[4] = {0.85f, 0.85f, 0.95f, 0.9f};
             for (int l = 0; l < kLanes; ++l) {

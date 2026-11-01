@@ -18,12 +18,15 @@ struct Song {
     Chart chart;
     WindowSet windows;
     ScoreRules rules;
+    float dance_start_frame = 0;  // motion/camera frame (60 fps) at audio time 0 (s_music_datas +0x104)
 };
 
 bool LoadSong(const Vfs& vfs, int id, int variant, Song& out, std::string* error = nullptr);
 bool LoadWindows(const Vfs& vfs, WindowSet& out, std::string* error = nullptr);
 // Score multiplier and hold-tick values for one chart (s_live_datas in live_datas.bin, s_CommonParam in live_params.bin).
 bool LoadScoreRules(const Vfs& vfs, int id, int variant, ScoreRules& out, std::string* error = nullptr);
+// The song's dance/camera clock: frame = audio ms / 1000 x 60 + this value.
+bool LoadDanceStart(const Vfs& vfs, int id, float& out, std::string* error = nullptr);
 // Music: the music.acb cue whose CueId equals the song id.
 bool LoadSongMusic(const Vfs& vfs, Song& song, cri::Pcm& out, std::string* error = nullptr);
 

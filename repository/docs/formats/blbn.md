@@ -29,6 +29,8 @@ Offsets are from the file start. Names are the C++ symbols of the game's static 
 
 `s_live_datas`: 1,125 records of 904 bytes, one per chart (eboot 0x945B0 searches it by id). +0x00 id = song × 1000 + variant, +0x04 song, +0x08 variant, +0x0C 100, +0x14 difficulty index 0–8 (indexes `s_CommonParam` +0xD0), +0x18 *Hypothesis:* star level. The rest is not decoded.
 
+`s_music_datas`: 125 records of 832 bytes, one per song. +0x00 song id, +0x18 member count (9), +0x1C member slots (song 0010: 4 6 2 7 1 3 8 9 5; *Hypothesis:* formation order), +0x48…+0xE8 string pointers (titles in 4 languages, phonetic, singers, composer, arranger, lyricist), **+0x104 f32 the dance/camera frame at which the music starts** (972 for 0010; M5, `analysis/202611011121-m5-live-presentation/202611011509-analysis.md`).
+
 ### Judgement windows (`s_EvaluateRangeDatas`)
 
 | Group | Perfect | Great | Good | Bad | Use |

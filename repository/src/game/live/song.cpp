@@ -66,6 +66,21 @@ bool LoadScoreRules(const Vfs& vfs, int id, int variant, ScoreRules& out, std::s
     return Fail(error, "no s_live_datas record for this chart");
 }
 
+bool LoadDanceStart(const Vfs& vfs, int id, float& out, std::string* error) {
+    std::vector<uint8_t> file;
+    std::span<const uint8_t> music;
+    if (!ReadTable(vfs, "common/common.pac/live_common.pac/live_datas.bin", "s_music_datas", file, music, error)) return false;
+    // s_music_datas: 832-byte records keyed by song id; +0x104 f32 = the motion frame where the music starts
+    // (972 for 0010, 864 for 0020; analysis/202611011121-m5-live-presentation/)
+    constexpr size_t kRecord = 832;
+    for (size_t r = 0; r + kRecord <= music.size(); r += kRecord) {
+        if (At<int32_t>(music, r) != id) continue;
+        out = At<float>(music, r + 0x104);
+        return true;
+    }
+    return Fail(error, "no s_music_datas record for this song");
+}
+
 bool LoadSong(const Vfs& vfs, int id, int variant, Song& out, std::string* error) {
     out = {};
     out.id = id;
@@ -81,7 +96,8 @@ bool LoadSong(const Vfs& vfs, int id, int variant, Song& out, std::string* error
     if (out.chart_name.empty()) return Fail(error, "no chart " + prefix + "*_ch1.scd in " + folder);
     std::vector<uint8_t> scor;
     if (!vfs.Read(std::string(folder) + "/" + out.chart_name, scor, error) || !ParseChart(scor, out.chart, error)) return false;
-    return LoadWindows(vfs, out.windows, error) && LoadScoreRules(vfs, id, variant, out.rules, error);
+    return LoadWindows(vfs, out.windows, error) && LoadScoreRules(vfs, id, variant, out.rules, error) &&
+           LoadDanceStart(vfs, id, out.dance_start_frame, error);
 }
 
 bool LoadSongMusic(const Vfs& vfs, Song& song, cri::Pcm& out, std::string* error) {

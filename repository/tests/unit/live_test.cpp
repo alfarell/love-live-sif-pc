@@ -92,6 +92,7 @@ static void Real(const char* root) {
     const Judge p = Autoplay(song.chart, w, 0, 0, song.rules);
     Check(p.counts[1] + p.counts[2] + p.counts[3] + p.counts[4] == 0, "song 0010 autoplay: all Perfect");
     Check(song.rules.multiplier == 3.0f && song.rules.tick_ms == 41, "song 0010/04 (ac_challenge): multiplier 3.0");
+    Check(song.dance_start_frame == 972, "song 0010: music starts at dance frame 972 (s_music_datas +0x104)");
     std::printf("song 0010/04 all Perfect: score %.0f\n", p.score);
     // song 0340 ac_easy: the chart measured on the game's result screens in shadPS4
     Song easy;
