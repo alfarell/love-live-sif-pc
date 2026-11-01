@@ -92,7 +92,20 @@ bool Vfs::Read(std::string_view path, std::vector<uint8_t>& out, std::string* er
     std::vector<uint8_t> magic;
     if (rest.empty() || !ReadAt(f.get(), 0, 4, magic) || std::memcmp(magic.data(), "ARC\0", 4) != 0) {
         // a plain file, or a cmp-wrapped archive: read it whole
+        if (!rest.empty()) {  // entries of a cmp-wrapped archive: the unpacked archive may be cached
+            std::lock_guard lock(cache_->mutex);
+            if (cache_->data && cache_->disk == disk) {
+                out = *cache_->data;
+                return Descend(out, rest, error);
+            }
+        }
         if (!ReadAt(f.get(), 0, size_t(file_size), out)) return Fail(error, "read failed: " + os::PathToUtf8(disk));
+        if (!rest.empty()) {
+            if (!pac::UnpackCmp(out, error)) return false;
+            std::lock_guard lock(cache_->mutex);
+            cache_->disk = disk;
+            cache_->data = std::make_shared<const std::vector<uint8_t>>(out);
+        }
         return Descend(out, rest, error);  // unpacks a cmp\0 file even when no entry path follows
     }
     std::vector<pac::ArcEntry> entries;

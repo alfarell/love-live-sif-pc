@@ -7,6 +7,8 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <memory>
+#include <mutex>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -29,7 +31,15 @@ public:
     bool Exists(std::string_view path) const;
 
 private:
+    // The last cmp-wrapped top-level file read with an entry path, unpacked: ui2 screens are single cmp files, and
+    // loading one reads dozens of entries from it.
+    struct Cache {
+        std::mutex mutex;
+        std::filesystem::path disk;
+        std::shared_ptr<const std::vector<uint8_t>> data;
+    };
     std::filesystem::path root_;
+    std::shared_ptr<Cache> cache_ = std::make_shared<Cache>();
 };
 
 // True if `folder` looks like the user's CUSA24620 dump: sce_sys/param.sfo names CUSA24620 and the core archives
