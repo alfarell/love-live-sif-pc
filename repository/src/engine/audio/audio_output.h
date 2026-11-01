@@ -27,7 +27,7 @@ public:
     double DeviceLatencyMs() const { return device_rate_ ? 1000.0 * device_frames_ / device_rate_ : 0.0; }
 
     // Master clock: the voice position (ms) audible at `ticks_ns` (SDL_GetTicksNS time base, as in SDL event
-    // timestamps). Built from the last callback: frames fed before it, minus one device buffer still to play out,
+    // timestamps). Built from the last callback: frames fed before it, minus two device periods still to play out,
     // plus the time since the callback. The remaining constant (mixer, driver, speaker) is the user's calibration.
     // Negative before playback starts.
     double PlayheadMs(uint64_t ticks_ns) const;

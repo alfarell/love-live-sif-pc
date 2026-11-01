@@ -52,7 +52,9 @@ double AudioOutput::PlayheadMs(uint64_t ticks_ns) const {
     if (at == 0) return -1000.0 * device_frames_ / std::max(1, device_rate_);
     const double rate = clock_rate_.load();
     const double since_ms = (double(int64_t(ticks_ns - at))) / 1e6;
-    return 1000.0 * double(clock_frames_.load()) / rate - DeviceLatencyMs() + since_ms;
+    // two device periods in flight at a callback (the one playing + the one being filled): measured with sif_sweep,
+    // presses on the beat in the system mix read +18 ms with one period subtracted (analysis 202611010048)
+    return 1000.0 * double(clock_frames_.load()) / rate - 2 * DeviceLatencyMs() + since_ms;
 }
 
 bool AudioOutput::Playing() const {
