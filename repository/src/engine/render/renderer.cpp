@@ -28,6 +28,9 @@ const uint32_t kMeshVert[] =
 const uint32_t kMeshFrag[] =
 #include "mesh.frag.inc"
     ;
+const uint32_t kUiFrag[] =
+#include "ui.frag.inc"
+    ;
 
 bool Fail(std::string* error, const char* what) {
     if (error) *error = std::string(what) + ": " + SDL_GetError();
@@ -127,9 +130,17 @@ bool Renderer::Init(SDL_Window* window, bool vsync, std::string* error) {
     mesh.target_info.has_depth_stencil_target = true;
     mesh.target_info.depth_stencil_format = SDL_GPUTextureFormat(depth_format_);
     mesh_ = SDL_CreateGPUGraphicsPipeline(device_, &mesh);
+    // UI quads: same vertices, blended like the 2D shapes, in the overlay pass (no depth target)
+    SDL_GPUShader* ui_fs = MakeShader(device_, kUiFrag, sizeof(kUiFrag), SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 1);
+    mesh.fragment_shader = ui_fs;
+    mesh.depth_stencil_state = {};
+    mesh.target_info.color_target_descriptions = &target;  // blending set up for the shape pipeline above
+    mesh.target_info.has_depth_stencil_target = false;
+    ui_ = ui_fs ? SDL_CreateGPUGraphicsPipeline(device_, &mesh) : nullptr;
     SDL_ReleaseGPUShader(device_, mesh_vs);
     SDL_ReleaseGPUShader(device_, mesh_fs);
-    if (!mesh_) return Fail(error, "SDL_CreateGPUGraphicsPipeline (mesh)");
+    if (ui_fs) SDL_ReleaseGPUShader(device_, ui_fs);
+    if (!mesh_ || !ui_) return Fail(error, "SDL_CreateGPUGraphicsPipeline (mesh/ui)");
 
     SDL_GPUSamplerCreateInfo s{};
     s.min_filter = s.mag_filter = SDL_GPU_FILTER_LINEAR;
@@ -160,6 +171,7 @@ void Renderer::Shutdown() {
     if (blit_) SDL_ReleaseGPUGraphicsPipeline(device_, blit_);
     if (shape_) SDL_ReleaseGPUGraphicsPipeline(device_, shape_);
     if (mesh_) SDL_ReleaseGPUGraphicsPipeline(device_, mesh_);
+    if (ui_) SDL_ReleaseGPUGraphicsPipeline(device_, ui_);
     SDL_ReleaseWindowFromGPUDevice(device_, window_);
     SDL_DestroyGPUDevice(device_);
     device_ = nullptr;
@@ -366,6 +378,24 @@ void Renderer::PushRect(float x, float y, float w, float h) {
     const float rect[4] = {2 * x / float(width_) - 1, 1 - 2 * y / float(height_), 2 * (x + w) / float(width_) - 1,
                            1 - 2 * (y + h) / float(height_)};
     SDL_PushGPUVertexUniformData(cmd_, 0, rect, sizeof(rect));
+}
+
+void Renderer::DrawUiMesh(const GpuMesh& mesh, const Texture* texture, const Mat4& to_clip, float alpha) {
+    if (!pass_ || !mesh.vertices || alpha <= 0) return;
+    Use2D();
+    SDL_BindGPUGraphicsPipeline(pass_, ui_);
+    struct {
+        Mat4 mvp, model;
+    } transform{to_clip, Mat4{}};
+    SDL_PushGPUVertexUniformData(cmd_, 0, &transform, sizeof(transform));
+    const float tint[4] = {1, 1, 1, alpha};
+    SDL_PushGPUFragmentUniformData(cmd_, 0, tint, sizeof(tint));
+    SDL_GPUTextureSamplerBinding binding{(texture && texture->gpu ? texture : &white_)->gpu, sampler_};
+    SDL_BindGPUFragmentSamplers(pass_, 0, &binding, 1);
+    SDL_GPUBufferBinding vb{mesh.vertices, 0}, ib{mesh.indices, 0};
+    SDL_BindGPUVertexBuffers(pass_, 0, &vb, 1);
+    SDL_BindGPUIndexBuffer(pass_, &ib, SDL_GPU_INDEXELEMENTSIZE_16BIT);
+    SDL_DrawGPUIndexedPrimitives(pass_, mesh.index_count, 1, 0, 0, 0);
 }
 
 void Renderer::DrawTexture(const Texture& texture, float x, float y, float w, float h) {

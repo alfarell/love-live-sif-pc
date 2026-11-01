@@ -1,0 +1,13 @@
+#version 450
+// UI quads (ui2 layouts): the texture with straight alpha, times a tint (fades).
+layout(set = 2, binding = 0) uniform sampler2D tex;
+layout(set = 3, binding = 0) uniform Tint {
+    vec4 tint;
+};
+layout(location = 0) in vec3 world_normal;
+layout(location = 1) in vec2 tex_uv;
+layout(location = 0) out vec4 color;
+
+void main() {
+    color = texture(tex, tex_uv) * tint;
+}

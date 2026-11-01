@@ -68,6 +68,8 @@ public:
     // 3D: `view_proj` for the following DrawMesh calls; `texture` null = white. Ignored after the first 2D draw.
     void SetCamera(const Mat4& view_proj) { view_proj_ = view_proj; }
     void DrawMesh(const GpuMesh& mesh, const Texture* texture, const Mat4& model);
+    // 2D overlay: a mesh in canvas space, alpha-blended (straight alpha), no depth; `to_clip` maps it to clip space.
+    void DrawUiMesh(const GpuMesh& mesh, const Texture* texture, const Mat4& to_clip, float alpha);
 
     // Clears the window and draws `texture` (if any) fitted to the window. Returns false if nothing was presented.
     bool DrawFrame(const Texture* texture);
@@ -85,6 +87,7 @@ private:
     SDL_GPUGraphicsPipeline* blit_ = nullptr;
     SDL_GPUGraphicsPipeline* shape_ = nullptr;
     SDL_GPUGraphicsPipeline* mesh_ = nullptr;
+    SDL_GPUGraphicsPipeline* ui_ = nullptr;
     SDL_GPUSampler* sampler_ = nullptr;
     SDL_GPUSampler* repeat_sampler_ = nullptr;  // 3D textures tile
     SDL_GPUTexture* depth_ = nullptr;

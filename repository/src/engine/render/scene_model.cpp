@@ -52,6 +52,7 @@ bool SceneModel::Load(Renderer& renderer, const Vfs& vfs, const std::string& pat
     std::vector<int> material_texture(model_.materials.size(), -1);
     for (size_t m = 0; m < model_.materials.size(); ++m) {
         const std::string key = TextureKey(model_.materials[m].texture);
+        if (key.empty()) continue;  // no texture (UI text boxes, helpers)
         if (const auto it = loaded.find(key); it != loaded.end()) {
             material_texture[m] = it->second;
             continue;
@@ -170,6 +171,13 @@ void SceneModel::Draw(Renderer& renderer, const Mat4& placement) const {
         // skinned vertices are already in model space; rigid meshes are stored relative to their node
         const Mat4 model = part.skinned ? placement : placement * world_[part.node];
         renderer.DrawMesh(part.gpu, part.texture >= 0 ? &textures_[size_t(part.texture)] : nullptr, model);
+    }
+}
+
+void SceneModel::DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha) const {
+    for (const Part& part : parts_) {
+        if (part.texture < 0) continue;  // text boxes and untextured helpers
+        renderer.DrawUiMesh(part.gpu, &textures_[size_t(part.texture)], to_clip * world_[part.node], alpha);
     }
 }
 

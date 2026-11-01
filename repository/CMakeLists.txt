@@ -30,7 +30,7 @@ target_include_directories(lzmadec PUBLIC third_party/lzma)
 find_program(GLSLC glslc HINTS "$ENV{VULKAN_SDK}/Bin" "C:/VulkanSDK/1.4.363.0/Bin" REQUIRED)
 set(SHADER_OUT ${CMAKE_BINARY_DIR}/shaders)
 set(SHADER_INCS)
-foreach(shader blit.vert blit.frag shape.frag mesh.vert mesh.frag)
+foreach(shader blit.vert blit.frag shape.frag mesh.vert mesh.frag ui.frag)
   add_custom_command(OUTPUT ${SHADER_OUT}/${shader}.inc
     COMMAND ${CMAKE_COMMAND} -E make_directory ${SHADER_OUT}
     COMMAND ${GLSLC} -mfmt=c -O -o ${SHADER_OUT}/${shader}.inc ${CMAKE_SOURCE_DIR}/shaders/${shader}
@@ -64,6 +64,7 @@ add_library(sif_engine STATIC
   src/engine/platform/settings.cpp
   src/engine/render/renderer.cpp
   src/engine/render/scene_model.cpp
+  src/engine/ui/ui_screen.cpp
   ${SHADER_INCS})
 target_include_directories(sif_engine PUBLIC src PRIVATE ${SHADER_OUT})
 target_link_libraries(sif_engine PUBLIC SDL3::SDL3-static zlibstatic lzmadec clhca)

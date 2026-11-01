@@ -21,6 +21,8 @@ public:
     void Pose(Renderer& renderer, const bmar::Motion* motion, float frame);
     void Pose(Renderer& renderer, std::span<const bmar::Layer> layers);
     void Draw(Renderer& renderer, const Mat4& placement) const;
+    // UI: every textured mesh blended in the 2D pass; `to_clip` maps the model to clip space
+    void DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha) const;
     void Release(Renderer& renderer);
     const bmar::Model& Data() const { return model_; }
 
