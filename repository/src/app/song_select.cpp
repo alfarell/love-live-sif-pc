@@ -112,7 +112,8 @@ void Apply(UiScreen& ui, const std::vector<SongInfo>& songs, int current, bool d
 
 }
 
-SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, long max_frames) {
+SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, long max_frames,
+                         const SongChoice& previous) {
     std::vector<SongInfo> songs;
     std::string error;
     const int language = lang == "en" ? 1 : lang == "cn" ? 2 : lang == "tw" ? 3 : 0;
@@ -131,6 +132,9 @@ SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs,
     ui.HideNode("complete00", true);
     LogInfo("song select: {} songs", songs.size());
     int current = 0, difficulty = kDifficulties - 1;
+    for (size_t i = 0; i < songs.size(); ++i) {
+        if (songs[i].id == previous.song) current = int(i), difficulty = previous.variant;
+    }
     bool difficulty_step = false;
     SongChoice choice;
     bool running = true, done = false;
@@ -139,7 +143,7 @@ SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs,
     for (long frame = 0; running && !done && (max_frames < 0 || frame < max_frames); ++frame) {
         SDL_Event e;
         while (SDL_PollEvent(&e)) {
-            if (e.type == SDL_EVENT_QUIT) running = false;
+            if (e.type == SDL_EVENT_QUIT) running = false, choice.closed = true;
             if (e.type != SDL_EVENT_KEY_DOWN || e.key.repeat) continue;
             const int n = int(songs.size());
             switch (e.key.scancode) {

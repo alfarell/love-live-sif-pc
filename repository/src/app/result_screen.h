@@ -17,6 +17,7 @@ struct LiveResult {
     int max_combo = 0;
     double score = 0;
     bool finished = false;  // the song played to its end (not quit)
+    bool closed = false;    // the window was closed
 };
 
 // Shows the result until a key or pad button (or `max_frames`); false if the window was closed.

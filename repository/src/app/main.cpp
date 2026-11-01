@@ -170,23 +170,30 @@ int main(int argc, char** argv) {
     }
     if (options.calibrate || options.live || options.title || options.menu || options.select) {
         int code = 0;
-        // title -> top menu -> song select -> live; shortcut: every top-menu entry leads to the song select
+        // title -> top menu -> song select -> live -> result -> song select ...; Esc in the song select goes back to the
+        // top menu, Esc there or closing the window ends. shortcut: every top-menu entry leads to the song select
         const std::string lang = options.lang == "jp" ? "" : options.lang;
         const bool boot = options.title || options.menu || options.select;
-        if (boot) {
-            options.live = false;
-            if ((!options.title || sif::RunTitle(window, renderer, vfs, lang, options.frames)) &&
-                (options.select || sif::RunTopMenu(window, renderer, vfs, lang, options.frames) >= 0)) {
-                const sif::SongChoice choice = sif::RunSongSelect(window, renderer, vfs, lang, options.frames);
-                if (choice.song >= 0) {
-                    options.live = true;
-                    options.live_options.song = choice.song;
-                    options.live_options.variant = choice.variant;
-                }
+        if (boot && audio_ok && (!options.title || sif::RunTitle(window, renderer, vfs, lang, options.frames))) {
+            bool open = true;
+            sif::SongChoice last;
+            for (bool menu = !options.select; open;) {
+                if (menu && sif::RunTopMenu(window, renderer, vfs, lang, options.frames) < 0) break;
+                const sif::SongChoice choice = sif::RunSongSelect(window, renderer, vfs, lang, options.frames, last);
+                if (choice.closed || (choice.song < 0 && options.select)) break;
+                menu = choice.song < 0;
+                if (menu) continue;
+                last = choice;
+                options.live_options.song = choice.song;
+                options.live_options.variant = choice.variant;
+                sif::LiveResult result;
+                code = sif::RunLive(window, renderer, audio, vfs, settings, options.live_options, &result);
+                open = code == 0 && !result.closed &&
+                       (!result.finished || sif::RunResult(window, renderer, vfs, options.live_options.lang, result,
+                                                           options.frames));
             }
-        }
-        if (boot && !options.live) {
-            code = 0;
+        } else if (boot) {
+            code = audio_ok ? 0 : 1;
         } else if (!audio_ok) {
             code = 1;  // both modes need the audio clock
         } else if (options.calibrate) {
@@ -195,13 +202,7 @@ int main(int argc, char** argv) {
                 sif::LogWarn("settings: cannot write {}", sif::os::PathToUtf8(settings_path));
             }
         } else {
-            sif::LiveResult result;
-            code = sif::RunLive(window, renderer, audio, vfs, settings, options.live_options, &result);
-            // after a song started from the menus, the result screen (shortcut: then the app ends; no return to
-            // the song select yet)
-            if (code == 0 && boot && result.finished) {
-                sif::RunResult(window, renderer, vfs, options.live_options.lang, result, options.frames);
-            }
+            code = sif::RunLive(window, renderer, audio, vfs, settings, options.live_options);
         }
         audio.Close();
         renderer.Shutdown();

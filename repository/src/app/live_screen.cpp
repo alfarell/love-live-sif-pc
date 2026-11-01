@@ -311,6 +311,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
     size_t log_seen = 0, auto_next = 0;
     std::vector<std::pair<double, int>> auto_releases;  // autoplay: (time, lane)
     double end_at = -1;
+    bool closed = false;
     std::vector<double> frame_cpu_ms;
     long frame = 0;
     for (bool running = true; running && (opt.max_frames < 0 || frame < opt.max_frames); ++frame) {
@@ -318,6 +319,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
         while (SDL_PollEvent(&e)) {
             if (e.type == SDL_EVENT_QUIT || (e.type == SDL_EVENT_KEY_DOWN && e.key.scancode == SDL_SCANCODE_ESCAPE)) {
                 running = false;
+                closed = closed || e.type == SDL_EVENT_QUIT;
             } else if ((e.type == SDL_EVENT_KEY_DOWN || e.type == SDL_EVENT_KEY_UP) && !e.key.repeat && !opt.autoplay) {
                 const int lane = LaneOf(e.key.scancode);
                 if (lane < 0) continue;
@@ -480,7 +482,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
             judge.counts[0], judge.counts[1], judge.counts[2], judge.counts[3], judge.counts[4], judge.max_combo,
             judge.score, mean, sd, n);
     if (result) {
-        *result = {opt.song, opt.variant, {}, judge.max_combo, judge.score, judge.Finished()};
+        *result = {opt.song, opt.variant, {}, judge.max_combo, judge.score, judge.Finished(), closed};
         std::copy(judge.counts.begin(), judge.counts.end(), result->counts.begin());
     }
     return 0;

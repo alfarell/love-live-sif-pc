@@ -14,8 +14,11 @@ class Vfs;
 struct SongChoice {
     int song = -1;     // -1: backed out
     int variant = 4;   // chart variant 00-04 (arcade difficulties)
+    bool closed = false;  // the window was closed
 };
 
-SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, long max_frames);
+// `previous`: the last choice, focused again (song and difficulty) when coming back from a live.
+SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, long max_frames,
+                         const SongChoice& previous = {});
 
 }
