@@ -68,6 +68,8 @@ public:
     bool SetMaterialTexture(const std::string& instance, const std::string& material, const std::string& vfs_path);
     // Shifts a material's UVs in one placed instance (e.g. the row of a label atlas), in texture units.
     void SetMaterialUv(const std::string& instance, const std::string& material, float u, float v);
+    // Draws a material in one placed instance only where its mesh U is at most `u_max` (a gauge filled to a fraction).
+    void SetMaterialClip(const std::string& instance, const std::string& material, float u_max);
     void HideInstance(const std::string& path, bool hide);
     void Update(double seconds);
     std::vector<std::string> Layouts() const;
@@ -128,7 +130,7 @@ private:
     std::set<std::string> hidden_nodes_, hidden_paths_;
     std::map<std::string, std::set<std::string>> instance_hidden_;                      // instance -> node names
     std::map<std::string, std::map<std::string, const Texture*>> instance_textures_;  // instance -> material -> texture
-    std::map<std::string, std::map<std::string, std::array<float, 2>>> instance_uvs_;  // instance -> material -> offset
+    std::map<std::string, std::map<std::string, std::array<float, 3>>> instance_uvs_;  // instance -> material -> u, v, u_max
     std::map<std::string, Texture> loaded_textures_;                                  // vfs path -> texture
     const Vfs* vfs_ = nullptr;
     const UiText* text_ = nullptr;

@@ -28,11 +28,12 @@ public:
     // node, visibility (ANVS) and material (ANMT: colour, UV offset) tracks; later layers win per node or material.
     // `hidden` (optional): node names hidden with their children, like the game's per-node visibility flag.
     // `textures` (optional): material name -> texture replacing the material's own (e.g. a song's cover).
-    // `uv_offsets` (optional): material name -> UV offset set by code (e.g. a label atlas row); clips win over it.
+    // `uv_offsets` (optional): material name -> (U offset, V offset, U cut-off) set by code (e.g. a label atlas row, a
+    // fill gauge); clip offsets win over the offset.
     void DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha, std::span<const bmar::Layer> clips = {},
                 const std::set<std::string>* hidden = nullptr,
                 const std::map<std::string, const Texture*>* textures = nullptr,
-                const std::map<std::string, std::array<float, 2>>* uv_offsets = nullptr) const;
+                const std::map<std::string, std::array<float, 3>>* uv_offsets = nullptr) const;
     void Release(Renderer& renderer);
     const bmar::Model& Data() const { return model_; }
     // UI text boxes: the untextured meshes in draw order, as (x0, y0, x1, y1) after their node transform

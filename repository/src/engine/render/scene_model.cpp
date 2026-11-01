@@ -188,7 +188,7 @@ void SceneModel::Draw(Renderer& renderer, const Mat4& placement) const {
 void SceneModel::DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha, std::span<const bmar::Layer> clips,
                         const std::set<std::string>* hidden,
                         const std::map<std::string, const Texture*>* textures,
-                        const std::map<std::string, std::array<float, 2>>* uv_offsets) const {
+                        const std::map<std::string, std::array<float, 3>>* uv_offsets) const {
     if (clips.empty() && (!hidden || hidden->empty()) && (!textures || textures->empty()) &&
         (!uv_offsets || uv_offsets->empty())) {
         for (const Part& part : parts_) {
@@ -215,9 +215,13 @@ void SceneModel::DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha, st
         if (part.texture < 0 || !visible[part.node]) continue;
         std::array<float, 4> tint{1, 1, 1, alpha};
         std::array<float, 2> uv{0, 0};
+        float u_max = 1e9f;
         const std::string& material = model_.materials[part.material].name;
         if (uv_offsets) {
-            if (const auto o = uv_offsets->find(material); o != uv_offsets->end()) uv = o->second;
+            if (const auto o = uv_offsets->find(material); o != uv_offsets->end()) {
+                uv = {o->second[0], o->second[1]};
+                u_max = o->second[2];
+            }
         }
         for (const bmar::Layer& l : clips) {
             for (const bmar::PropertyTrack& t : l.motion->materials) {
@@ -236,7 +240,7 @@ void SceneModel::DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha, st
         if (textures) {
             if (const auto t = textures->find(material); t != textures->end() && t->second) texture = t->second;
         }
-        renderer.DrawUiMesh(part.gpu, texture, to_clip * world[part.node], tint, uv);
+        renderer.DrawUiMesh(part.gpu, texture, to_clip * world[part.node], tint, uv, u_max);
     }
 }
 

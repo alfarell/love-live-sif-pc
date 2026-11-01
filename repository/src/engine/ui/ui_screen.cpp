@@ -303,7 +303,13 @@ bool UiScreen::SetMaterialTexture(const std::string& instance, const std::string
 }
 
 void UiScreen::SetMaterialUv(const std::string& instance, const std::string& material, float u, float v) {
-    instance_uvs_[instance][material] = {u, v};
+    const auto it = instance_uvs_[instance].try_emplace(material, std::array<float, 3>{0, 0, 1e9f}).first;
+    it->second[0] = u;
+    it->second[1] = v;
+}
+
+void UiScreen::SetMaterialClip(const std::string& instance, const std::string& material, float u_max) {
+    instance_uvs_[instance].try_emplace(material, std::array<float, 3>{0, 0, 1e9f}).first->second[2] = u_max;
 }
 
 void UiScreen::SetInstanceNumber(const std::string& instance, int box, const std::string& digits) {
