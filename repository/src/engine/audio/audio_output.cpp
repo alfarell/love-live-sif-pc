@@ -38,10 +38,21 @@ void AudioOutput::Play(cri::Pcm pcm) {
     const SDL_AudioSpec spec{SDL_AUDIO_S16, pcm.channels, pcm.rate};
     SDL_SetAudioStreamFormat(stream_, &spec, nullptr);  // input format follows the voice
     SDL_ClearAudioStream(stream_);
+    clock_rate_ = pcm.rate > 0 ? pcm.rate : 48000;
     voice_ = std::move(pcm);
     cursor_ = 0;
     fed_frames_ = 0;
+    clock_frames_ = 0;
+    clock_ns_ = 0;  // no callback yet: PlayheadMs counts from the first one
     SDL_UnlockAudioStream(stream_);
+}
+
+double AudioOutput::PlayheadMs(uint64_t ticks_ns) const {
+    const uint64_t at = clock_ns_.load();
+    if (at == 0) return -1000.0 * device_frames_ / std::max(1, device_rate_);
+    const double rate = clock_rate_.load();
+    const double since_ms = (double(int64_t(ticks_ns - at))) / 1e6;
+    return 1000.0 * double(clock_frames_.load()) / rate - DeviceLatencyMs() + since_ms;
 }
 
 bool AudioOutput::Playing() const {
@@ -59,6 +70,9 @@ void AudioOutput::Callback(void* self, SDL_AudioStream* stream, int additional, 
     const size_t want = size_t(additional) / sizeof(int16_t);
     const size_t left = out->voice_.samples.size() - std::min(out->cursor_, out->voice_.samples.size());
     const size_t n = std::min(want, left) / size_t(channels) * size_t(channels);
+    // clock sample: what was fed before this callback starts playing once the device buffer drains
+    out->clock_frames_ = out->fed_frames_.load();
+    out->clock_ns_ = SDL_GetTicksNS();
     if (n > 0) {
         SDL_PutAudioStreamData(stream, out->voice_.samples.data() + out->cursor_, int(n * sizeof(int16_t)));
         out->cursor_ += n;

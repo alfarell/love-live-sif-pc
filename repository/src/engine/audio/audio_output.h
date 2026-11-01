@@ -26,6 +26,12 @@ public:
     int DeviceBufferFrames() const { return device_frames_; }
     double DeviceLatencyMs() const { return device_rate_ ? 1000.0 * device_frames_ / device_rate_ : 0.0; }
 
+    // Master clock: the voice position (ms) audible at `ticks_ns` (SDL_GetTicksNS time base, as in SDL event
+    // timestamps). Built from the last callback: frames fed before it, minus one device buffer still to play out,
+    // plus the time since the callback. The remaining constant (mixer, driver, speaker) is the user's calibration.
+    // Negative before playback starts.
+    double PlayheadMs(uint64_t ticks_ns) const;
+
 private:
     static void Callback(void* self, SDL_AudioStream* stream, int additional, int total);
 
@@ -33,6 +39,10 @@ private:
     cri::Pcm voice_;
     size_t cursor_ = 0;  // in samples (interleaved)
     std::atomic<int64_t> fed_frames_{0};
+    // written by the callback, read by PlayheadMs: frames fed before the last callback and its time
+    std::atomic<int64_t> clock_frames_{0};
+    std::atomic<uint64_t> clock_ns_{0};
+    std::atomic<int> clock_rate_{48000};
     int device_rate_ = 0, device_frames_ = 0;
 };
 
