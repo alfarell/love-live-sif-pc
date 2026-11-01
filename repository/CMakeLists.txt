@@ -94,7 +94,7 @@ if(MSVC)
   target_compile_options(sif_game PRIVATE /W3 /utf-8 /EHsc)
 endif()
 
-add_executable(sif WIN32 src/app/main.cpp src/app/live_screen.cpp src/app/title_screen.cpp src/app/ui_viewer.cpp)
+add_executable(sif WIN32 src/app/main.cpp src/app/live_screen.cpp src/app/title_screen.cpp src/app/top_menu.cpp src/app/ui_viewer.cpp)
 target_link_libraries(sif PRIVATE sif_game)
 if(MSVC)
   target_compile_options(sif PRIVATE /utf-8 /EHsc)
