@@ -18,6 +18,9 @@ const uint32_t kBlitVert[] =
 const uint32_t kBlitFrag[] =
 #include "blit.frag.inc"
     ;
+const uint32_t kShapeFrag[] =
+#include "shape.frag.inc"
+    ;
 
 bool Fail(std::string* error, const char* what) {
     if (error) *error = std::string(what) + ": " + SDL_GetError();
@@ -57,7 +60,8 @@ bool Renderer::Init(SDL_Window* window, bool vsync, std::string* error) {
 
     SDL_GPUShader* vs = MakeShader(device_, kBlitVert, sizeof(kBlitVert), SDL_GPU_SHADERSTAGE_VERTEX, 0, 1);
     SDL_GPUShader* fs = MakeShader(device_, kBlitFrag, sizeof(kBlitFrag), SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 0);
-    if (!vs || !fs) return Fail(error, "SDL_CreateGPUShader");
+    SDL_GPUShader* shape_fs = MakeShader(device_, kShapeFrag, sizeof(kShapeFrag), SDL_GPU_SHADERSTAGE_FRAGMENT, 0, 1);
+    if (!vs || !fs || !shape_fs) return Fail(error, "SDL_CreateGPUShader");
     SDL_GPUColorTargetDescription target{};
     target.format = SDL_GetGPUSwapchainTextureFormat(device_, window_);
     SDL_GPUGraphicsPipelineCreateInfo pipe{};
@@ -68,9 +72,21 @@ bool Renderer::Init(SDL_Window* window, bool vsync, std::string* error) {
     pipe.target_info.color_target_descriptions = &target;
     pipe.target_info.num_color_targets = 1;
     blit_ = SDL_CreateGPUGraphicsPipeline(device_, &pipe);
+    // shapes: straight-alpha blending over what is already drawn
+    SDL_GPUColorTargetBlendState& blend = target.blend_state;
+    blend.enable_blend = true;
+    blend.src_color_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA;
+    blend.dst_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+    blend.color_blend_op = SDL_GPU_BLENDOP_ADD;
+    blend.src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE;
+    blend.dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+    blend.alpha_blend_op = SDL_GPU_BLENDOP_ADD;
+    pipe.fragment_shader = shape_fs;
+    shape_ = SDL_CreateGPUGraphicsPipeline(device_, &pipe);
     SDL_ReleaseGPUShader(device_, vs);
     SDL_ReleaseGPUShader(device_, fs);
-    if (!blit_) return Fail(error, "SDL_CreateGPUGraphicsPipeline");
+    SDL_ReleaseGPUShader(device_, shape_fs);
+    if (!blit_ || !shape_) return Fail(error, "SDL_CreateGPUGraphicsPipeline");
 
     SDL_GPUSamplerCreateInfo s{};
     s.min_filter = s.mag_filter = SDL_GPU_FILTER_LINEAR;
@@ -87,6 +103,7 @@ void Renderer::Shutdown() {
     SDL_WaitForGPUIdle(device_);
     if (sampler_) SDL_ReleaseGPUSampler(device_, sampler_);
     if (blit_) SDL_ReleaseGPUGraphicsPipeline(device_, blit_);
+    if (shape_) SDL_ReleaseGPUGraphicsPipeline(device_, shape_);
     SDL_ReleaseWindowFromGPUDevice(device_, window_);
     SDL_DestroyGPUDevice(device_);
     device_ = nullptr;
@@ -157,13 +174,13 @@ void Renderer::Release(Texture& texture) {
     texture = {};
 }
 
-bool Renderer::DrawFrame(const Texture* texture) {
-    SDL_GPUCommandBuffer* cmd = SDL_AcquireGPUCommandBuffer(device_);
-    if (!cmd) return false;
+bool Renderer::BeginFrame() {
+    cmd_ = SDL_AcquireGPUCommandBuffer(device_);
+    if (!cmd_) return false;
     SDL_GPUTexture* swap = nullptr;
-    Uint32 w = 0, h = 0;
-    if (!SDL_WaitAndAcquireGPUSwapchainTexture(cmd, window_, &swap, &w, &h) || !swap) {
-        SDL_SubmitGPUCommandBuffer(cmd);
+    if (!SDL_WaitAndAcquireGPUSwapchainTexture(cmd_, window_, &swap, &width_, &height_) || !swap) {
+        SDL_SubmitGPUCommandBuffer(cmd_);
+        cmd_ = nullptr;
         return false;
     }
     SDL_GPUColorTargetInfo target{};
@@ -171,19 +188,55 @@ bool Renderer::DrawFrame(const Texture* texture) {
     target.clear_color = {0.05f, 0.05f, 0.07f, 1.0f};
     target.load_op = SDL_GPU_LOADOP_CLEAR;
     target.store_op = SDL_GPU_STOREOP_STORE;
-    SDL_GPURenderPass* pass = SDL_BeginGPURenderPass(cmd, &target, 1, nullptr);
-    if (texture && texture->gpu) {
-        const float scale = std::min(float(w) / float(texture->width), float(h) / float(texture->height));
-        const float sx = float(texture->width) * scale / float(w), sy = float(texture->height) * scale / float(h);
-        const float rect[4] = {-sx, sy, sx, -sy};  // top-left, bottom-right in NDC (+y up)
-        SDL_BindGPUGraphicsPipeline(pass, blit_);
-        SDL_PushGPUVertexUniformData(cmd, 0, rect, sizeof(rect));
-        SDL_GPUTextureSamplerBinding binding{texture->gpu, sampler_};
-        SDL_BindGPUFragmentSamplers(pass, 0, &binding, 1);
-        SDL_DrawGPUPrimitives(pass, 4, 1, 0, 0);
-    }
-    SDL_EndGPURenderPass(pass);
-    return SDL_SubmitGPUCommandBuffer(cmd);
+    pass_ = SDL_BeginGPURenderPass(cmd_, &target, 1, nullptr);
+    return true;
+}
+
+void Renderer::EndFrame() {
+    if (!cmd_) return;
+    SDL_EndGPURenderPass(pass_);
+    SDL_SubmitGPUCommandBuffer(cmd_);
+    cmd_ = nullptr;
+    pass_ = nullptr;
+}
+
+void Renderer::PushRect(float x, float y, float w, float h) {
+    // window pixels -> NDC (+y up): top-left, bottom-right
+    const float rect[4] = {2 * x / float(width_) - 1, 1 - 2 * y / float(height_), 2 * (x + w) / float(width_) - 1,
+                           1 - 2 * (y + h) / float(height_)};
+    SDL_PushGPUVertexUniformData(cmd_, 0, rect, sizeof(rect));
+}
+
+void Renderer::DrawTexture(const Texture& texture, float x, float y, float w, float h) {
+    if (!pass_ || !texture.gpu) return;
+    SDL_BindGPUGraphicsPipeline(pass_, blit_);
+    PushRect(x, y, w, h);
+    SDL_GPUTextureSamplerBinding binding{texture.gpu, sampler_};
+    SDL_BindGPUFragmentSamplers(pass_, 0, &binding, 1);
+    SDL_DrawGPUPrimitives(pass_, 4, 1, 0, 0);
+}
+
+void Renderer::DrawTextureFitted(const Texture& texture) {
+    if (!texture.gpu) return;
+    const float scale = std::min(float(width_) / float(texture.width), float(height_) / float(texture.height));
+    const float w = float(texture.width) * scale, h = float(texture.height) * scale;
+    DrawTexture(texture, (float(width_) - w) / 2, (float(height_) - h) / 2, w, h);
+}
+
+void Renderer::DrawCircle(float cx, float cy, float radius, float inner, const float color[4]) {
+    if (!pass_ || radius <= 0) return;
+    SDL_BindGPUGraphicsPipeline(pass_, shape_);
+    PushRect(cx - radius, cy - radius, 2 * radius, 2 * radius);
+    const float shape[8] = {color[0], color[1], color[2], color[3], inner, 1.5f / radius, 0, 0};
+    SDL_PushGPUFragmentUniformData(cmd_, 0, shape, sizeof(shape));
+    SDL_DrawGPUPrimitives(pass_, 4, 1, 0, 0);
+}
+
+bool Renderer::DrawFrame(const Texture* texture) {
+    if (!BeginFrame()) return false;
+    if (texture) DrawTextureFitted(*texture);
+    EndFrame();
+    return true;
 }
 
 }
