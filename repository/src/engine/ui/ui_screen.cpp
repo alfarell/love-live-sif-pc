@@ -82,6 +82,66 @@ bool UiScreen::Load(Renderer& renderer, const Vfs& vfs, const std::string& scree
                                 {{1, -1, 0}, {0, 0, 1}, {1, 1}}, {{0, -1, 0}, {0, 0, 1}, {0, 1}}};
     const uint16_t indices[6] = {0, 1, 2, 0, 2, 3};
     if (!renderer.CreateMesh(quad, indices, false, unit_quad_, error)) return false;
+    {
+        // ll3::ui::s_ui_number_info_table: 24-byte records (u32 part id, u32 box | numtex id << 16,
+        // u32 digit count << 16, u32 alignment, u64 default string*); s_ui_numtex_datas: 200-byte records (u32 id,
+        // u32 0, u64 texture name*, f32 x0, y0, cell w, h, u64 0, 20 x (f32 advance, u32 0))
+        std::vector<uint8_t> nfile, tfile;
+        std::vector<blbn::Symbol> nsym, tsym;
+        const blbn::Symbol* ntab = nullptr;
+        const blbn::Symbol* ttab = nullptr;
+        if (vfs.Read(package_ + "/ui_number.bin", nfile) && blbn::Parse(nfile, nsym) &&
+            (ntab = blbn::Find(nsym, "ll3::ui::s_ui_number_info_table")) && vfs.Read(package_ + "/numtex_datas.bin", tfile) &&
+            blbn::Parse(tfile, tsym) && (ttab = blbn::Find(tsym, "ll3::ui::s_ui_numtex_datas"))) {
+            const auto u32 = [](const std::vector<uint8_t>& f, size_t off) {
+                uint32_t v = 0;
+                if (off + 4 <= f.size()) std::memcpy(&v, &f[off], 4);
+                return v;
+            };
+            const auto f32 = [&](const std::vector<uint8_t>& f, size_t off) {
+                const uint32_t v = u32(f, off);
+                float x;
+                std::memcpy(&x, &v, 4);
+                return x;
+            };
+            const auto str = [](const std::vector<uint8_t>& f, uint64_t off) {
+                if (off >= f.size()) return std::string();
+                const char* s = reinterpret_cast<const char*>(&f[size_t(off)]);
+                return std::string(s, strnlen(s, f.size() - size_t(off)));
+            };
+            const size_t nbase = size_t(ntab->data.data() - nfile.data());
+            for (size_t r = 0; r + 24 <= ntab->data.size(); r += 24) {
+                const uint32_t id = u32(nfile, nbase + r), packed = u32(nfile, nbase + r + 4);
+                const uint64_t def = uint64_t(u32(nfile, nbase + r + 16)) | uint64_t(u32(nfile, nbase + r + 20)) << 32;
+                char prefix[16];
+                std::snprintf(prefix, sizeof(prefix), "uip%04u_", id);
+                for (const auto& [name, part] : parts_) {
+                    if (!name.starts_with(prefix)) continue;
+                    numbers_[{name, int(packed & 0xFFFF)}] = {int(packed >> 16), int(u32(nfile, nbase + r + 8) >> 16),
+                                                             int(u32(nfile, nbase + r + 12)), str(nfile, def)};
+                }
+            }
+            const size_t tbase = size_t(ttab->data.data() - tfile.data());
+            for (size_t r = 0; r + 200 <= ttab->data.size(); r += 200) {
+                NumTex t;
+                const uint64_t name = uint64_t(u32(tfile, tbase + r + 8)) | uint64_t(u32(tfile, tbase + r + 12)) << 32;
+                std::string tex = str(tfile, name);
+                // entries are named "x.btx" (or "x" with tag btx): "x.btx" matches both
+                if (tex.ends_with(".png")) tex.resize(tex.size() - 4);
+                t.texture = GetTexture(package_ + "/texture.pac/" + tex + ".btx");
+                t.x0 = f32(tfile, tbase + r + 16);
+                t.y0 = f32(tfile, tbase + r + 20);
+                t.w = f32(tfile, tbase + r + 24);
+                t.h = f32(tfile, tbase + r + 28);
+                for (size_t g = 0; g < 20; ++g) t.advance[g] = f32(tfile, tbase + r + 40 + 8 * g);
+                if (!t.texture || !t.texture->width || !t.texture->height) continue;
+                const float u = t.w / float(t.texture->width), v = t.h / float(t.texture->height);
+                const MeshVertex cell[4] = {{{0, 0, 0}, {0, 0, 1}, {0, 0}}, {{1, 0, 0}, {0, 0, 1}, {u, 0}},
+                                            {{1, -1, 0}, {0, 0, 1}, {u, v}}, {{0, -1, 0}, {0, 0, 1}, {0, v}}};
+                if (renderer.CreateMesh(cell, indices, false, t.glyph, nullptr)) numtex_[int(u32(tfile, tbase + r))] = t;
+            }
+        }
+    }
     size_t clips = 0;
     for (const auto& [name, part] : parts_) clips += part.clips.size();
     LogInfo("ui {}: {} parts, {} layouts, {} clips, {} texts", package_, parts_.size(), layouts_.size(), clips,
@@ -219,7 +279,7 @@ void UiScreen::HideNode(const std::string& instance, const std::string& node, bo
     }
 }
 
-bool UiScreen::SetMaterialTexture(const std::string& instance, const std::string& material, const std::string& vfs_path) {
+const Texture* UiScreen::GetTexture(const std::string& vfs_path) {
     auto it = loaded_textures_.find(vfs_path);
     if (it == loaded_textures_.end()) {
         std::vector<uint8_t> file;
@@ -229,12 +289,66 @@ bool UiScreen::SetMaterialTexture(const std::string& instance, const std::string
         if (!vfs_ || !renderer_ || !vfs_->Read(vfs_path, file, &why) || !btx::Parse(file, image, &why) ||
             !renderer_->Upload(image, texture, &why)) {
             LogWarn("ui: texture {}: {}", vfs_path, why);
-            return false;
+            return nullptr;
         }
         it = loaded_textures_.emplace(vfs_path, texture).first;
     }
-    instance_textures_[instance][material] = &it->second;
-    return true;
+    return &it->second;
+}
+
+bool UiScreen::SetMaterialTexture(const std::string& instance, const std::string& material, const std::string& vfs_path) {
+    const Texture* t = GetTexture(vfs_path);
+    if (t) instance_textures_[instance][material] = t;
+    return t != nullptr;
+}
+
+void UiScreen::SetMaterialUv(const std::string& instance, const std::string& material, float u, float v) {
+    instance_uvs_[instance][material] = {u, v};
+}
+
+void UiScreen::SetInstanceNumber(const std::string& instance, int box, const std::string& digits) {
+    instance_numbers_[{instance, box}] = digits;
+}
+
+void UiScreen::DrawNumbers(Renderer& renderer, const std::string& part, const std::string& path, const Mat4& to_clip,
+                           float alpha) const {
+    const auto model = parts_.find(part);
+    if (model == parts_.end()) return;
+    std::vector<std::array<float, 4>> boxes;
+    for (auto it = numbers_.lower_bound({part, 0}); it != numbers_.end() && it->first.first == part; ++it) {
+        if (boxes.empty()) boxes = model->second.model->TextBoxes();
+        const int box = it->first.second;
+        const NumberBox& spec = it->second;
+        const auto tex = numtex_.find(spec.numtex);
+        if (tex == numtex_.end() || box >= int(boxes.size())) continue;
+        const NumTex& nt = tex->second;
+        const auto own = instance_numbers_.find({path, box});
+        const std::string& value = own != instance_numbers_.end() ? own->second : spec.value;
+        const auto& b = boxes[size_t(box)];  // x0, y0, x1, y1 (y up)
+        const float scale = (b[3] - b[1]) / nt.h;
+        float width = 0;
+        for (const char c : value) {
+            if (c >= '0' && c <= '9') width += nt.advance[size_t(c - '0')] * scale;
+        }
+        float x = spec.align == 0 ? b[0] : spec.align == 1 ? (b[0] + b[2] - width) / 2 : b[2] - width;
+        for (const char c : value) {
+            if (c < '0' || c > '9') continue;
+            const int d = c - '0';
+            const float advance = nt.advance[size_t(d)] * scale;
+            // the glyph cell is centred on its advance
+            Mat4 place;
+            place(0, 0) = nt.w * scale;
+            place(1, 1) = nt.h * scale;
+            place(0, 3) = x + (advance - nt.w * scale) / 2;
+            place(1, 3) = b[3];
+            // glyphs run left to right and wrap at the texture's width (res_judge_num00: 0-4 over 5-9)
+            const int cols = std::max(1, int((float(nt.texture->width) - nt.x0) / nt.w));
+            const std::array<float, 2> uv{(nt.x0 + float(d % cols) * nt.w) / float(nt.texture->width),
+                                          (nt.y0 + float(d / cols) * nt.h) / float(nt.texture->height)};
+            renderer.DrawUiMesh(nt.glyph, nt.texture, to_clip * place, {1, 1, 1, alpha}, uv);
+            x += advance;
+        }
+    }
 }
 
 void UiScreen::HideInstance(const std::string& path, bool hide) {
@@ -309,6 +423,10 @@ void UiScreen::Release(Renderer& renderer) {
     for (auto& [key, t] : instance_texts_) renderer.Release(t.texture);
     texts_.clear();
     instance_texts_.clear();
+    for (auto& [id, t] : numtex_) renderer.Release(t.glyph);
+    numtex_.clear();
+    numbers_.clear();
+    instance_numbers_.clear();
     renderer.Release(unit_quad_);
     for (auto& [name, part] : parts_) part.model->Release(renderer);
     parts_.clear();
@@ -317,6 +435,7 @@ void UiScreen::Release(Renderer& renderer) {
     held_.clear();
     instance_hidden_.clear();
     instance_textures_.clear();
+    instance_uvs_.clear();
     for (auto& [path, t] : loaded_textures_) renderer.Release(t);
     loaded_textures_.clear();
     play_all_ = {};
@@ -366,9 +485,12 @@ void UiScreen::DrawPartAt(Renderer& renderer, const std::string& key, const Mat4
         hidden = &merged;
     }
     const auto textures = instance_textures_.find(path);
+    const auto uvs = instance_uvs_.find(path);
     part.model->DrawUi(renderer, to_clip, alpha, layers, hidden,
-                       textures != instance_textures_.end() ? &textures->second : nullptr);
+                       textures != instance_textures_.end() ? &textures->second : nullptr,
+                       uvs != instance_uvs_.end() ? &uvs->second : nullptr);
     DrawTexts(renderer, key, path, to_clip, alpha);
+    DrawNumbers(renderer, key, path, to_clip, alpha);
 }
 
 void UiScreen::DrawLayoutAt(Renderer& renderer, const std::string& key, const Mat4& to_clip, const std::string& path,

@@ -187,8 +187,10 @@ void SceneModel::Draw(Renderer& renderer, const Mat4& placement) const {
 
 void SceneModel::DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha, std::span<const bmar::Layer> clips,
                         const std::set<std::string>* hidden,
-                        const std::map<std::string, const Texture*>* textures) const {
-    if (clips.empty() && (!hidden || hidden->empty()) && (!textures || textures->empty())) {
+                        const std::map<std::string, const Texture*>* textures,
+                        const std::map<std::string, std::array<float, 2>>* uv_offsets) const {
+    if (clips.empty() && (!hidden || hidden->empty()) && (!textures || textures->empty()) &&
+        (!uv_offsets || uv_offsets->empty())) {
         for (const Part& part : parts_) {
             if (part.texture < 0) continue;  // text boxes and untextured helpers
             renderer.DrawUiMesh(part.gpu, &textures_[size_t(part.texture)], to_clip * world_[part.node], alpha);
@@ -214,6 +216,9 @@ void SceneModel::DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha, st
         std::array<float, 4> tint{1, 1, 1, alpha};
         std::array<float, 2> uv{0, 0};
         const std::string& material = model_.materials[part.material].name;
+        if (uv_offsets) {
+            if (const auto o = uv_offsets->find(material); o != uv_offsets->end()) uv = o->second;
+        }
         for (const bmar::Layer& l : clips) {
             for (const bmar::PropertyTrack& t : l.motion->materials) {
                 if (t.name != material) continue;

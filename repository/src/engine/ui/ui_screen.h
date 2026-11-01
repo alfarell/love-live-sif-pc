@@ -35,6 +35,9 @@ public:
     void SetText(const std::string& part, int box, const std::string& utf8);
     // The same for one placed instance (its part's text style is kept), e.g. each song plate's title.
     void SetInstanceText(const std::string& instance, int box, const std::string& utf8);
+    // Number boxes (ui_number.bin + numtex_datas.bin: digit glyphs from a number texture, e.g. a score): the string
+    // shown in one placed instance's number box (digits only; the table's default otherwise).
+    void SetInstanceNumber(const std::string& instance, int box, const std::string& digits);
     void Release(Renderer& renderer);
 
     // Canvas -> clip space for the current window (letterboxed, aspect kept).
@@ -63,6 +66,8 @@ public:
     // Replaces a material's texture in one placed instance with a btx from the dump (cached), e.g. a song cover:
     // the game's FUN_0024B850(instance, material) + texture assignment. False if the texture cannot be loaded.
     bool SetMaterialTexture(const std::string& instance, const std::string& material, const std::string& vfs_path);
+    // Shifts a material's UVs in one placed instance (e.g. the row of a label atlas), in texture units.
+    void SetMaterialUv(const std::string& instance, const std::string& material, float u, float v);
     void HideInstance(const std::string& path, bool hide);
     void Update(double seconds);
     std::vector<std::string> Layouts() const;
@@ -105,6 +110,9 @@ private:
     void DrawTexts(Renderer& renderer, const std::string& part, const std::string& path, const Mat4& to_clip,
                    float alpha) const;
     void Render(Renderer& renderer, TextEntry& t, const TextStyle& style, float px) const;
+    void DrawNumbers(Renderer& renderer, const std::string& part, const std::string& path, const Mat4& to_clip,
+                     float alpha) const;
+    const Texture* GetTexture(const std::string& vfs_path);
 
     std::string package_, lang_;
     std::map<std::string, std::vector<std::string>> stems_;  // package -> its uip/uil entry stems
@@ -120,11 +128,25 @@ private:
     std::set<std::string> hidden_nodes_, hidden_paths_;
     std::map<std::string, std::set<std::string>> instance_hidden_;                      // instance -> node names
     std::map<std::string, std::map<std::string, const Texture*>> instance_textures_;  // instance -> material -> texture
+    std::map<std::string, std::map<std::string, std::array<float, 2>>> instance_uvs_;  // instance -> material -> offset
     std::map<std::string, Texture> loaded_textures_;                                  // vfs path -> texture
     const Vfs* vfs_ = nullptr;
     const UiText* text_ = nullptr;
     mutable std::map<std::pair<std::string, int>, TextEntry> texts_;           // (part, box) -> string
     mutable std::map<std::pair<std::string, int>, TextEntry> instance_texts_;  // (instance path, box) -> string
+    struct NumberBox {
+        int numtex = 0, digits = 0, align = 2;  // align: 0 left, 1 centre, 2 right (Hypothesis: 2 everywhere)
+        std::string value;                      // the table's default
+    };
+    struct NumTex {
+        const Texture* texture = nullptr;
+        float x0 = 0, y0 = 0, w = 64, h = 64;  // the row origin and cell size in the texture (pixels)
+        std::array<float, 20> advance{};        // per glyph ('0'-'9' first)
+        GpuMesh glyph;                          // one cell's quad, (0,0)-(1,-1) with the cell's UV span
+    };
+    std::map<std::pair<std::string, int>, NumberBox> numbers_;      // (part, box)
+    std::map<int, NumTex> numtex_;                                  // numtex id
+    std::map<std::pair<std::string, int>, std::string> instance_numbers_;
     GpuMesh unit_quad_;  // (0,0)-(1,-1), for text bitmaps
     Renderer* renderer_ = nullptr;
 };
