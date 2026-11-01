@@ -241,8 +241,8 @@ int main(int argc, char** argv) {
                 next_report = QpcNow() + int64_t(freq * 5);
                 std::printf("  %.0f s captured, best correlation so far %.3f\n", double(sig.size()) / kRate, match);
             }
-            // first hit above 0.8: keep testing 100 ms of later lags, then take the best one (the true peak)
-            if (match > 0.8 && searched > best_lag + kRate / 10) {
+            // first hit above 0.7 (0.78 seen with other sound playing): keep testing 100 ms of later lags, then take the best one (the true peak)
+            if (match > 0.7 && searched > best_lag + kRate / 10) {
                 song_start = sig_qpc[best_lag] - int64_t(double(ref_start) / kRate * freq);
             }
         }
