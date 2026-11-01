@@ -66,7 +66,8 @@ struct Layout {
 struct Playfield {
     static constexpr float kCell = 256, kAtlasW = 1280, kAtlasH = 1536;
     Texture atlas, center_gauge, center_mic, combo_tex;
-    GpuMesh ring, note, trail, combo_label;
+    GpuMesh ring, note, trail, combo_label, gauge_fan;
+    float gauge_progress = 0;
     std::array<GpuMesh, 10> digits;
     std::array<std::array<float, 2>, kLanes> lane{};  // canvas x, y (y down)
     std::array<float, 2> center{958, 146};
@@ -100,6 +101,37 @@ struct Playfield {
         }
         return Quad(r, 0, kLabelY0 / kComboH, kLabelW / kComboW, kLabelY1 / kComboH, combo_label);
     }
+    // The centre circle's ring as a song-progress gauge: a fan from the centre over the first `progress` of a turn,
+    // clockwise from 12 o'clock (shortcut: direction and start are guesses, the game's gauge code is not traced)
+    static constexpr int kFanSegments = 64;
+    static constexpr float kGaugeSize = 188;  // the HUD part's quad, canvas pixels
+    std::array<MeshVertex, kFanSegments + 2> FanVertices(float progress) const {
+        std::array<MeshVertex, kFanSegments + 2> v{};
+        v[0] = {{0, 0, 0}, {0, 0, 1}, {0.5f, 0.5f}};
+        for (int i = 0; i <= kFanSegments; ++i) {
+            const float a = 6.2831853f * std::clamp(progress, 0.0f, 1.0f) * float(i) / kFanSegments;
+            const float x = 0.5f * std::sin(a), y = 0.5f * std::cos(a);  // the inscribed circle covers the ring
+            v[size_t(i) + 1] = {{x, y, 0}, {0, 0, 1}, {0.5f + x, 0.5f - y}};
+        }
+        return v;
+    }
+    bool LoadGauge(Renderer& r) {
+        std::array<uint16_t, kFanSegments * 3> indices{};
+        for (int i = 0; i < kFanSegments; ++i) {
+            indices[size_t(i) * 3] = 0;
+            indices[size_t(i) * 3 + 1] = uint16_t(i + 1);
+            indices[size_t(i) * 3 + 2] = uint16_t(i + 2);
+        }
+        const auto v = FanVertices(0);
+        return r.CreateMesh(v, indices, true, gauge_fan, nullptr);
+    }
+    // Call outside a frame (UpdateMesh)
+    void SetGauge(Renderer& r, float progress) {
+        if (std::abs(progress - gauge_progress) < 1.0f / 2048) return;
+        gauge_progress = progress;
+        const auto v = FanVertices(progress);
+        r.UpdateMesh(gauge_fan, v);
+    }
     bool Load(Renderer& r, const Vfs& vfs) {
         std::vector<uint8_t> file;
         std::vector<blbn::Symbol> symbols;
@@ -125,9 +157,11 @@ struct Playfield {
             }
         }
         loaded = LoadTexture(r, vfs, "ui/ui_ingame.pac/texture.pac/ui_ingame_notes", atlas) &&
-                 LoadTexture(r, vfs, "ui/ui_ingame.pac/texture.pac/ui_ingame_centercircle_gauge_01_aq", center_gauge) &&
+                 // the HUD song gauge's own colour ring (ui2/90_ingame part uip0006_Songgage, 188 px), so the fill
+                 // lines up with the HUD's track
+                 LoadTexture(r, vfs, "ui2/90_ingame.pac/uip0006_Songgage.pac/texture.pac/IngamesonggageCol.btx", center_gauge) &&
                  LoadTexture(r, vfs, "ui/ui_ingame.pac/texture.pac/ui_ingame_centercircle_mic_aq", center_mic) &&
-                 Cell(r, 1, 0, ring) && Cell(r, 0, 1, note) && Cell(r, 2, 0, trail);
+                 Cell(r, 1, 0, ring) && Cell(r, 0, 1, note) && Cell(r, 2, 0, trail) && LoadGauge(r);
         if (!loaded) LogWarn("live: game play field not loaded; drawing the placeholder lanes");
         if (loaded && !LoadCombo(r, vfs)) LogWarn("live: combo digits not loaded");
         return loaded;
@@ -162,7 +196,7 @@ struct Playfield {
     }
     void Release(Renderer& r) {
         for (Texture* t : {&atlas, &center_gauge, &center_mic, &combo_tex}) r.Release(*t);
-        for (GpuMesh* m : {&ring, &note, &trail, &combo_label}) r.Release(*m);
+        for (GpuMesh* m : {&ring, &note, &trail, &combo_label, &gauge_fan}) r.Release(*m);
         for (GpuMesh& m : digits) r.Release(m);
     }
 };
@@ -306,6 +340,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
             song.chart.first_bpm, double(music.Frames()) / music.rate, settings.timing.audio_offset_ms,
             opt.autoplay ? ", autoplay" : "");
     const live::Chart& chart = song.chart;
+    const double audio_ms = std::max(1.0, double(music.Frames()) * 1000.0 / music.rate);
     live::Judge judge;
     judge.Reset(chart, song.windows, song.rules);
     const double offset = settings.timing.audio_offset_ms;
@@ -324,6 +359,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
     bool has_hud = hud_text.Load(vfs, opt.lang, &error) && hud.Load(renderer, vfs, "ui2/90_ingame", opt.lang, &error, &hud_text);
     if (has_hud) {
         hud.HideInstance("uil0001_Ingame00/uip0008_FinaleON00", true);
+        hud.HideNode("IngamesonggageCol", true);  // the play field draws the filled part of this ring
         for (int k = 0; k < 9; ++k) hud.HideInstance("uil0001_Ingame00/uip0007_FFmark_ef_0" + std::to_string(k), true);
         std::vector<live::SongInfo> songs;
         const int language = opt.lang == "en" ? 1 : opt.lang == "cn" ? 2 : opt.lang == "tw" ? 3 : 0;
@@ -399,6 +435,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                                   0.125f * float(g % 8), 0.5f * float(g / 8));
             }
         }
+        if (field.loaded) field.SetGauge(renderer, float(now / audio_ms));
         if (renderer.BeginFrame()) {
             const uint64_t draw_start = SDL_GetTicksNS();
             scene.Draw(renderer, now, song.dance_start_frame);
@@ -408,7 +445,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                     const float* c = kGradeColor[int(flash_grade[size_t(l)])];
                     return std::array<float, 4>{c[0], c[1], c[2], float(1.0 - (now - flash[size_t(l)]) / 150.0)};
                 };
-                field.Draw(renderer, unit_quad, field.center_gauge, field.center[0], field.center[1], field.center_size, {1, 1, 1, 1});
+                field.Draw(renderer, field.gauge_fan, field.center_gauge, field.center[0], field.center[1], Playfield::kGaugeSize, {1, 1, 1, 1});
                 field.Draw(renderer, unit_quad, field.center_mic, field.center[0], field.center[1], field.center_size * 0.55f, {1, 1, 1, 1});
                 for (int l = 0; l < kLanes; ++l) {
                     const auto& p = field.lane[size_t(l)];
