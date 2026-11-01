@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cstdio>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -74,6 +75,12 @@ struct LiveScene {
     };
     SceneModel stage;
     bool has_stage = false;
+    struct Loop {
+        std::string name;
+        std::vector<uint8_t> file;
+        bmar::Motion motion;
+    };
+    std::vector<std::unique_ptr<Loop>> stage_loops;  // stage/stNNN.pac/motion.pac, played looped on the dance clock
     std::vector<std::unique_ptr<Dancer>> dancers;
     std::vector<uint8_t> camera_file;
     bscm::Camera camera;
@@ -84,6 +91,33 @@ struct LiveScene {
         const std::string stage_path = FindEntry(vfs, "stage/" + opt.stage + ".pac/model.pac", "");
         has_stage = !stage_path.empty() && stage.Load(renderer, vfs, stage_path, &error);
         if (!has_stage) LogWarn("live: stage {}: {}", opt.stage, stage_path.empty() ? "not found" : error);
+        // shortcut: every stage loop plays from clock 0; where variants move the same nodes (yukalight A1/A2/B1/B2) the
+        // first in the archive wins. The song's stage timeline (scene_stage_<song>_00.btlb, BTL) that picks them is
+        // not decoded, nor are the material tracks (ANMT) that most loops carry
+        std::vector<pac::ArcEntry> loop_entries;
+        std::set<std::string> claimed;  // stage nodes already moved by an earlier loop
+        if (has_stage && vfs.List("stage/" + opt.stage + ".pac/motion.pac", loop_entries)) {
+            for (const pac::ArcEntry& e : loop_entries) {
+                auto loop = std::make_unique<Loop>();
+                loop->name = e.name;
+                if (!vfs.Read("stage/" + opt.stage + ".pac/motion.pac/" + e.name, loop->file) ||
+                    !bmar::ParseMotion(loop->file, loop->motion) || loop->motion.frames <= 0) {
+                    continue;  // some carry only material tracks (no ANSK)
+                }
+                bool clash = false, moves = false;
+                for (const bmar::Track& t : loop->motion.tracks) {
+                    const bool in_stage = std::any_of(stage.Data().nodes.begin(), stage.Data().nodes.end(),
+                                                      [&](const bmar::Node& n) { return n.name == t.node; });
+                    moves |= in_stage && t.node != "model_root";
+                    clash |= in_stage && t.node != "model_root" && claimed.contains(t.node);
+                }
+                if (!moves || clash) continue;
+                for (const bmar::Track& t : loop->motion.tracks) {
+                    if (t.node != "model_root") claimed.insert(t.node);
+                }
+                stage_loops.push_back(std::move(loop));
+            }
+        }
         for (int m = opt.member ? opt.member : 1; m <= (opt.member ? opt.member : 9); ++m) {
             char chr[64], mot[64], prefix[32];
             std::snprintf(chr, sizeof(chr), "chr/c%02d/c%02d.pac/model.pac", m, m);
@@ -105,8 +139,10 @@ struct LiveScene {
         std::snprintf(cam, sizeof(cam), "live/%04d/%04d.pac/scene.pac/camera_anim_%04d_00_main.bscam", opt.song, opt.song, opt.song);
         has_camera = vfs.Read(cam, camera_file, &error) && bscm::Parse(camera_file, camera, &error);
         if (!has_camera) LogWarn("live: camera {}: {}", cam, error);
-        LogInfo("live scene: stage {} ({}), {} members dancing, camera {}", opt.stage, stage_path, dancers.size(),
-                has_camera ? cam : "fixed");
+        std::string loops;
+        for (const auto& l : stage_loops) loops += (loops.empty() ? "" : ", ") + l->name;
+        LogInfo("live scene: stage {} ({}; loops: {}), {} members dancing, camera {}", opt.stage, stage_path,
+                loops.empty() ? "none" : loops, dancers.size(), has_camera ? cam : "fixed");
     }
 
     // `now_ms`: audio time. The dance (and camera) clock runs `start_frame` ahead of the music: frames before it are
@@ -115,6 +151,11 @@ struct LiveScene {
     void Draw(Renderer& renderer, double now_ms, float start_frame) {
         const float frame = float(std::max(0.0, now_ms) / 1000.0 * 60.0) + start_frame;  // dance and camera clock, 60 fps
         for (auto& d : dancers) d->model.Pose(renderer, d->has_dance ? &d->dance : nullptr, frame);
+        if (has_stage && !stage_loops.empty()) {
+            std::vector<bmar::Layer> layers;
+            for (const auto& l : stage_loops) layers.push_back({&l->motion, std::fmod(frame, l->motion.frames)});
+            stage.Pose(renderer, layers);
+        }
         const float aspect = float(renderer.Width()) / float(std::max(1, renderer.Height()));
         if (has_camera) {
             const bscm::Pose pose = bscm::Sample(camera, frame);
