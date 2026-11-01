@@ -3,6 +3,8 @@
 #include <SDL3/SDL.h>
 
 #include <algorithm>
+#include <array>
+#include <cstring>
 #include <cmath>
 #include <cstdio>
 #include <memory>
@@ -14,7 +16,9 @@
 #include "engine/core/log.h"
 #include "engine/platform/settings.h"
 #include "engine/formats/bscm.h"
+#include "engine/formats/blbn.h"
 #include "engine/fs/vfs.h"
+#include "engine/ui/ui_screen.h"
 #include "engine/render/renderer.h"
 #include "engine/render/scene_model.h"
 #include "game/live/song.h"
@@ -50,6 +54,80 @@ struct Layout {
         const float a = 3.14159265f * (1.0f - float(lane) / float(kLanes - 1));  // pi (left) .. 0 (right), lower arc
         x = cx + radius * std::cos(a);
         y = cy + radius * std::sin(a);
+    }
+};
+
+// The game's play field (ui/ui_ingame.pac): positions from layout.pac/ui_ingame_layout.bin (BLBN "layout_datas",
+// 32-byte records: u32, u32, u64 name*, f32 rect x0 y0 x1 y1 in 1920 x 1080 pixels), sprites from the 5 x 6 atlas
+// texture.pac/ui_ingame_notes (256-pixel cells). shortcut: which atlas cell the game uses for buttons, notes and
+// holds is not traced (the eboot's note drawing and the .fad animations are not decoded); the cells below are
+// picked by eye
+struct Playfield {
+    static constexpr float kCell = 256, kAtlasW = 1280, kAtlasH = 1536;
+    Texture atlas, center_gauge, center_mic;
+    GpuMesh ring, note, trail;
+    std::array<std::array<float, 2>, kLanes> lane{};  // canvas x, y (y down)
+    std::array<float, 2> center{958, 146};
+    float ring_size = 152, center_size = 288;
+    bool loaded = false;
+
+    static bool LoadTexture(Renderer& r, const Vfs& vfs, const std::string& path, Texture& out) {
+        std::vector<uint8_t> file;
+        btx::Image image;
+        return vfs.Read(path, file) && btx::Parse(file, image) && r.Upload(image, out, nullptr);
+    }
+    static bool Cell(Renderer& r, int col, int row, GpuMesh& out) {
+        const float u0 = col * kCell / kAtlasW, u1 = (col + 1) * kCell / kAtlasW;
+        const float v0 = row * kCell / kAtlasH, v1 = (row + 1) * kCell / kAtlasH;
+        const MeshVertex quad[4] = {{{-0.5f, 0.5f, 0}, {0, 0, 1}, {u0, v0}}, {{0.5f, 0.5f, 0}, {0, 0, 1}, {u1, v0}},
+                                    {{0.5f, -0.5f, 0}, {0, 0, 1}, {u1, v1}}, {{-0.5f, -0.5f, 0}, {0, 0, 1}, {u0, v1}}};
+        const uint16_t indices[6] = {0, 1, 2, 0, 2, 3};
+        return r.CreateMesh(quad, indices, false, out, nullptr);
+    }
+    bool Load(Renderer& r, const Vfs& vfs) {
+        std::vector<uint8_t> file;
+        std::vector<blbn::Symbol> symbols;
+        if (!vfs.Read("ui/ui_ingame.pac/layout.pac/ui_ingame_layout.bin", file) || !blbn::Parse(file, symbols)) return false;
+        const blbn::Symbol* table = blbn::Find(symbols, "layout_datas");
+        if (!table) return false;
+        const size_t base = size_t(table->data.data() - file.data());
+        for (size_t o = base; o + 32 <= base + table->data.size(); o += 32) {
+            uint64_t name = 0;
+            float rect[4];
+            std::memcpy(&name, &file[o + 8], 8);
+            std::memcpy(rect, &file[o + 16], 16);
+            if (name >= file.size()) continue;
+            const std::string n(reinterpret_cast<const char*>(&file[size_t(name)]));
+            const float cx = (rect[0] + rect[2]) / 2, cy = (rect[1] + rect[3]) / 2;
+            int ring_no = 0;
+            if (std::sscanf(n.c_str(), "layout_judge_ring%d", &ring_no) == 1 && ring_no >= 1 && ring_no <= kLanes) {
+                lane[size_t(ring_no - 1)] = {cx, cy};  // ring01 .. ring09 = lanes 0 .. 8, left to right
+                ring_size = rect[2] - rect[0];
+            } else if (n == "layout_center_circle") {
+                center = {cx, cy};
+                center_size = rect[2] - rect[0];
+            }
+        }
+        loaded = LoadTexture(r, vfs, "ui/ui_ingame.pac/texture.pac/ui_ingame_notes", atlas) &&
+                 LoadTexture(r, vfs, "ui/ui_ingame.pac/texture.pac/ui_ingame_centercircle_gauge_01_aq", center_gauge) &&
+                 LoadTexture(r, vfs, "ui/ui_ingame.pac/texture.pac/ui_ingame_centercircle_mic_aq", center_mic) &&
+                 Cell(r, 1, 0, ring) && Cell(r, 0, 1, note) && Cell(r, 2, 0, trail);
+        if (!loaded) LogWarn("live: game play field not loaded; drawing the placeholder lanes");
+        return loaded;
+    }
+    // A sprite centred at canvas pixel (x, y), y downwards
+    void Draw(Renderer& r, const GpuMesh& mesh, const Texture& texture, float x, float y, float size,
+              const std::array<float, 4>& tint) const {
+        Mat4 m;
+        m(0, 0) = size;
+        m(1, 1) = size;
+        m(0, 3) = x;
+        m(1, 3) = -y;
+        r.DrawUiMesh(mesh, &texture, UiScreen::CanvasToClip(r.Width(), r.Height()) * m, tint);
+    }
+    void Release(Renderer& r) {
+        for (Texture* t : {&atlas, &center_gauge, &center_mic}) r.Release(*t);
+        for (GpuMesh* m : {&ring, &note, &trail}) r.Release(*m);
     }
 };
 
@@ -200,6 +278,33 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
     audio.Play(std::move(music));
 
     Layout layout;
+    Playfield field;
+    field.Load(renderer, vfs);
+    // the game's top HUD bar (ui2/90_ingame, layout uil0001_Ingame00); shortcut: score digits, gauges and the
+    // FULL COMBO marks stay at their defaults until the HUD logic is traced
+    UiText hud_text;
+    UiScreen hud;
+    bool has_hud = hud_text.Load(vfs, opt.lang, &error) && hud.Load(renderer, vfs, "ui2/90_ingame", opt.lang, &error, &hud_text);
+    if (has_hud) {
+        hud.HideInstance("uil0001_Ingame00/uip0008_FinaleON00", true);
+        for (int k = 0; k < 9; ++k) hud.HideInstance("uil0001_Ingame00/uip0007_FFmark_ef_0" + std::to_string(k), true);
+        std::vector<live::SongInfo> songs;
+        const int language = opt.lang == "en" ? 1 : opt.lang == "cn" ? 2 : opt.lang == "tw" ? 3 : 0;
+        if (live::LoadSongList(vfs, language, songs)) {
+            for (const live::SongInfo& s : songs) {
+                if (s.id == opt.song) hud.SetInstanceText("uil0001_Ingame00/uip0005_Songname", 1, s.title);
+            }
+        }
+    } else {
+        LogWarn("live: HUD: {}", error);
+    }
+    GpuMesh unit_quad;  // (0,0)-(1,-1) for the centre-circle textures
+    {
+        const MeshVertex quad[4] = {{{-0.5f, 0.5f, 0}, {0, 0, 1}, {0, 0}}, {{0.5f, 0.5f, 0}, {0, 0, 1}, {1, 0}},
+                                    {{0.5f, -0.5f, 0}, {0, 0, 1}, {1, 1}}, {{-0.5f, -0.5f, 0}, {0, 0, 1}, {0, 1}}};
+        const uint16_t indices[6] = {0, 1, 2, 0, 2, 3};
+        renderer.CreateMesh(quad, indices, false, unit_quad, nullptr);
+    }
     std::vector<double> flash(kLanes, -1e9);
     std::vector<Grade> flash_grade(kLanes, Grade::Miss);
     size_t log_seen = 0, auto_next = 0;
@@ -247,6 +352,47 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
         if (renderer.BeginFrame()) {
             const uint64_t draw_start = SDL_GetTicksNS();
             scene.Draw(renderer, now, song.dance_start_frame);
+            if (has_hud) hud.DrawLayout(renderer, "uil0001_Ingame00", 1.0f);
+            if (field.loaded) {
+                const auto grade_tint = [&](int l) {
+                    const float* c = kGradeColor[int(flash_grade[size_t(l)])];
+                    return std::array<float, 4>{c[0], c[1], c[2], float(1.0 - (now - flash[size_t(l)]) / 150.0)};
+                };
+                field.Draw(renderer, unit_quad, field.center_gauge, field.center[0], field.center[1], field.center_size, {1, 1, 1, 1});
+                field.Draw(renderer, unit_quad, field.center_mic, field.center[0], field.center[1], field.center_size * 0.55f, {1, 1, 1, 1});
+                for (int l = 0; l < kLanes; ++l) {
+                    const auto& p = field.lane[size_t(l)];
+                    field.Draw(renderer, field.ring, field.atlas, p[0], p[1], field.ring_size * 1.68f, {1, 1, 1, 1});
+                    if (now - flash[size_t(l)] < 150) {
+                        field.Draw(renderer, field.trail, field.atlas, p[0], p[1], field.ring_size * 2.0f, grade_tint(l));
+                    }
+                }
+                // notes fly from the centre circle to their ring, growing (far notes first, nearer ones on top)
+                const auto at = [&](int lane, double t, float& x, float& y, float& size) {
+                    const float k = float(std::clamp(1.0 - (t - now) / opt.approach_ms, 0.0, 1.0));
+                    const auto& p = field.lane[size_t(lane)];
+                    x = field.center[0] + (p[0] - field.center[0]) * k;
+                    y = field.center[1] + (p[1] - field.center[1]) * k;
+                    size = field.ring_size * 1.68f * (0.2f + 0.8f * k);  // the atlas cell has a margin round the art
+                };
+                for (size_t i = chart.notes.size(); i-- > 0;) {
+                    const live::Note& n = chart.notes[i];
+                    if (!judge.Active(i) || n.time_ms - now > opt.approach_ms) continue;
+                    float x, y, size;
+                    if (n.IsHold()) {
+                        const double head = judge.Held(i) ? now : n.time_ms;
+                        for (double t = n.end_ms; t > head; t -= 40) {  // shortcut: trail of discs, not the long-note bar
+                            if (t - now > opt.approach_ms) continue;
+                            at(n.lane, t, x, y, size);
+                            field.Draw(renderer, field.trail, field.atlas, x, y, size * 0.7f, {1, 1, 1, 0.45f});
+                        }
+                        at(n.lane, n.end_ms, x, y, size);
+                        field.Draw(renderer, field.note, field.atlas, x, y, size * 0.8f, {1, 1, 1, 0.8f});
+                    }
+                    at(n.lane, judge.Held(i) ? now : n.time_ms, x, y, size);
+                    field.Draw(renderer, field.note, field.atlas, x, y, size, {1, 1, 1, 1});
+                }
+            } else {  // placeholder lanes when the game's play field cannot be loaded
             layout.Fit(renderer.Width(), renderer.Height());
             const float ring[4] = {0.85f, 0.85f, 0.95f, 0.9f};
             for (int l = 0; l < kLanes; ++l) {
@@ -288,6 +434,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                 const float body[4] = {1.0f, 0.55f, 0.75f, 1.0f};
                 renderer.DrawCircle(x, y, r, 0, body);
             }
+            }
             renderer.EndFrame();
             const double cpu_ms = double(SDL_GetTicksNS() - draw_start) / 1e6;  // CPU cost of one frame, without the vsync wait
             frame_cpu_ms.push_back(cpu_ms);
@@ -307,6 +454,9 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
     }
 
     scene.Release(renderer);
+    field.Release(renderer);
+    hud.Release(renderer);
+    renderer.Release(unit_quad);
     if (!frame_cpu_ms.empty()) {
         std::sort(frame_cpu_ms.begin(), frame_cpu_ms.end());
         double total = 0;

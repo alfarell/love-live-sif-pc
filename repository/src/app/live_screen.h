@@ -24,6 +24,7 @@ struct LiveOptions {
     std::string stage = "st017";
     int member = 0;  // only chr/cNN (1-9 = mu's); 0 = every member who dances the song
     long max_frames = -1;
+    std::string lang = "en";  // UI language of the in-game HUD (ui2/90_ingame_<lang>): en, cn, tw or "" (Japanese)
 };
 
 // Returns 0 when the song ends or the window is closed, 1 on a load error.

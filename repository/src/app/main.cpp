@@ -85,6 +85,7 @@ Options ParseOptions(int argc, char** argv) {
         }
     }
     o.live_options.max_frames = o.frames;
+    o.live_options.lang = o.lang == "jp" ? "" : o.lang;
     if (o.data_dir.empty()) o.data_dir = sif::os::ExecutableFile().parent_path() / "data";
     return o;
 }
