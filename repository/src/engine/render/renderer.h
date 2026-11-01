@@ -1,6 +1,7 @@
 #pragma once
 // Renderer core on SDL3's GPU API (decision M3: Vulkan backend via SPIR-V shaders; D3D12 later needs DXIL builds).
 
+#include <array>
 #include <cstdint>
 #include <span>
 #include <string>
@@ -70,6 +71,8 @@ public:
     void DrawMesh(const GpuMesh& mesh, const Texture* texture, const Mat4& model);
     // 2D overlay: a mesh in canvas space, alpha-blended (straight alpha), no depth; `to_clip` maps it to clip space.
     void DrawUiMesh(const GpuMesh& mesh, const Texture* texture, const Mat4& to_clip, float alpha);
+    // `tint`: RGBA multiplier (0..1), e.g. a UI clip's material colour and transparency
+    void DrawUiMesh(const GpuMesh& mesh, const Texture* texture, const Mat4& to_clip, const std::array<float, 4>& tint);
 
     // Clears the window and draws `texture` (if any) fitted to the window. Returns false if nothing was presented.
     bool DrawFrame(const Texture* texture);

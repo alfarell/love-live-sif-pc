@@ -21,8 +21,10 @@ public:
     void Pose(Renderer& renderer, const bmar::Motion* motion, float frame);
     void Pose(Renderer& renderer, std::span<const bmar::Layer> layers);
     void Draw(Renderer& renderer, const Mat4& placement) const;
-    // UI: every textured mesh blended in the 2D pass; `to_clip` maps the model to clip space
-    void DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha) const;
+    // UI: every textured mesh blended in the 2D pass; `to_clip` maps the model to clip space. With `clip`, its node,
+    // visibility (ANVS) and material (ANMT: colour, transparency) tracks apply at `frame`.
+    void DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha, const bmar::Motion* clip = nullptr,
+                float frame = 0) const;
     void Release(Renderer& renderer);
     const bmar::Model& Data() const { return model_; }
     // UI text boxes: the untextured meshes in draw order, as (x0, y0, x1, y1) after their node transform
@@ -32,6 +34,7 @@ private:
     struct Part {
         uint32_t node = 0;
         int texture = -1;  // index into textures_
+        uint32_t material = 0;
         bool skinned = false;
         float bounds[4]{};  // x0, y0, x1, y1 of the vertices in node space (UI text boxes)
         GpuMesh gpu;

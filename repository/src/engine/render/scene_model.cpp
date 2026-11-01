@@ -89,6 +89,7 @@ bool SceneModel::Load(Renderer& renderer, const Vfs& vfs, const std::string& pat
         Part part;
         part.node = d.node;
         part.texture = material_texture[d.material];
+        part.material = d.material;
         part.skinned = l.skin >= 0 && !model_.palette.empty();
         std::vector<MeshVertex> verts(mesh.vertex_count);
         if (part.skinned) {
@@ -184,10 +185,40 @@ void SceneModel::Draw(Renderer& renderer, const Mat4& placement) const {
     }
 }
 
-void SceneModel::DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha) const {
+void SceneModel::DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha, const bmar::Motion* clip,
+                        float frame) const {
+    if (!clip) {
+        for (const Part& part : parts_) {
+            if (part.texture < 0) continue;  // text boxes and untextured helpers
+            renderer.DrawUiMesh(part.gpu, &textures_[size_t(part.texture)], to_clip * world_[part.node], alpha);
+        }
+        return;
+    }
+    std::vector<Mat4> world;
+    bmar::Pose(model_, clip, frame, world);
+    // a node is hidden when its own ANVS track or an ancestor's says so
+    std::vector<bool> visible(model_.nodes.size(), true);
+    for (size_t i = 0; i < model_.nodes.size(); ++i) {
+        for (const bmar::PropertyTrack& t : clip->visibility) {
+            if (t.name == model_.nodes[i].name && bmar::SampleKeys(t.keys, frame)[0] < 0.5f) visible[i] = false;
+        }
+        const int parent = model_.nodes[i].parent;
+        if (parent >= 0 && !visible[size_t(parent)]) visible[i] = false;
+    }
     for (const Part& part : parts_) {
-        if (part.texture < 0) continue;  // text boxes and untextured helpers
-        renderer.DrawUiMesh(part.gpu, &textures_[size_t(part.texture)], to_clip * world_[part.node], alpha);
+        if (part.texture < 0 || !visible[part.node]) continue;
+        std::array<float, 4> tint{1, 1, 1, alpha};
+        const std::string& material = model_.materials[part.material].name;
+        for (const bmar::PropertyTrack& t : clip->materials) {
+            if (t.name != material) continue;
+            const std::array<float, 4> v = bmar::SampleKeys(t.keys, frame);
+            if (t.type == 6) {  // colour, 0-255
+                for (int c = 0; c < 3; ++c) tint[size_t(c)] = v[size_t(c)] / 255.0f;
+            } else if (t.type == 4) {  // transparency, 0 = opaque (Hypothesis)
+                tint[3] *= 1.0f - std::clamp(v[0], 0.0f, 1.0f);
+            }
+        }
+        renderer.DrawUiMesh(part.gpu, &textures_[size_t(part.texture)], to_clip * world[part.node], tint);
     }
 }
 
