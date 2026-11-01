@@ -65,8 +65,9 @@ struct Layout {
 // picked by eye
 struct Playfield {
     static constexpr float kCell = 256, kAtlasW = 1280, kAtlasH = 1536;
-    Texture atlas, center_gauge, center_mic;
-    GpuMesh ring, note, trail;
+    Texture atlas, center_gauge, center_mic, combo_tex;
+    GpuMesh ring, note, trail, combo_label;
+    std::array<GpuMesh, 10> digits;
     std::array<std::array<float, 2>, kLanes> lane{};  // canvas x, y (y down)
     std::array<float, 2> center{958, 146};
     float ring_size = 152, center_size = 288;
@@ -77,13 +78,27 @@ struct Playfield {
         btx::Image image;
         return vfs.Read(path, file) && btx::Parse(file, image) && r.Upload(image, out, nullptr);
     }
-    static bool Cell(Renderer& r, int col, int row, GpuMesh& out) {
-        const float u0 = col * kCell / kAtlasW, u1 = (col + 1) * kCell / kAtlasW;
-        const float v0 = row * kCell / kAtlasH, v1 = (row + 1) * kCell / kAtlasH;
+    // A unit quad centred on the origin showing the UV rectangle (u0, v0)-(u1, v1)
+    static bool Quad(Renderer& r, float u0, float v0, float u1, float v1, GpuMesh& out) {
         const MeshVertex quad[4] = {{{-0.5f, 0.5f, 0}, {0, 0, 1}, {u0, v0}}, {{0.5f, 0.5f, 0}, {0, 0, 1}, {u1, v0}},
                                     {{0.5f, -0.5f, 0}, {0, 0, 1}, {u1, v1}}, {{-0.5f, -0.5f, 0}, {0, 0, 1}, {u0, v1}}};
         const uint16_t indices[6] = {0, 1, 2, 0, 2, 3};
         return r.CreateMesh(quad, indices, false, out, nullptr);
+    }
+    static bool Cell(Renderer& r, int col, int row, GpuMesh& out) {
+        return Quad(r, col * kCell / kAtlasW, row * kCell / kAtlasH, (col + 1) * kCell / kAtlasW,
+                    (row + 1) * kCell / kAtlasH, out);
+    }
+    // ui_ingame_combo_num (840 x 200): digits 0-9 in 84 x 100 cells on the top row, the "COMBO" label below
+    // (measured from the alpha: about (0, 136)-(184, 196))
+    static constexpr float kComboW = 840, kComboH = 200, kDigitW = 84, kDigitH = 100;
+    static constexpr float kLabelW = 184, kLabelY0 = 136, kLabelY1 = 196;
+    bool LoadCombo(Renderer& r, const Vfs& vfs) {
+        if (!LoadTexture(r, vfs, "ui/ui_ingame.pac/texture.pac/ui_ingame_combo_num", combo_tex)) return false;
+        for (int d = 0; d < 10; ++d) {
+            if (!Quad(r, d * kDigitW / kComboW, 0, (d + 1) * kDigitW / kComboW, kDigitH / kComboH, digits[size_t(d)])) return false;
+        }
+        return Quad(r, 0, kLabelY0 / kComboH, kLabelW / kComboW, kLabelY1 / kComboH, combo_label);
     }
     bool Load(Renderer& r, const Vfs& vfs) {
         std::vector<uint8_t> file;
@@ -114,21 +129,41 @@ struct Playfield {
                  LoadTexture(r, vfs, "ui/ui_ingame.pac/texture.pac/ui_ingame_centercircle_mic_aq", center_mic) &&
                  Cell(r, 1, 0, ring) && Cell(r, 0, 1, note) && Cell(r, 2, 0, trail);
         if (!loaded) LogWarn("live: game play field not loaded; drawing the placeholder lanes");
+        if (loaded && !LoadCombo(r, vfs)) LogWarn("live: combo digits not loaded");
         return loaded;
     }
     // A sprite centred at canvas pixel (x, y), y downwards
     void Draw(Renderer& r, const GpuMesh& mesh, const Texture& texture, float x, float y, float size,
               const std::array<float, 4>& tint) const {
+        Draw(r, mesh, texture, x, y, size, size, tint);
+    }
+    void Draw(Renderer& r, const GpuMesh& mesh, const Texture& texture, float x, float y, float w, float h,
+              const std::array<float, 4>& tint) const {
         Mat4 m;
-        m(0, 0) = size;
-        m(1, 1) = size;
+        m(0, 0) = w;
+        m(1, 1) = h;
         m(0, 3) = x;
         m(1, 3) = -y;
         r.DrawUiMesh(mesh, &texture, UiScreen::CanvasToClip(r.Width(), r.Height()) * m, tint);
     }
+    // The combo count centred at canvas x, digits centred on `y`, the label under them (shortcut: position, glyph
+    // spacing and the "from 2 notes" rule are guesses; the game's combo drawing is not traced)
+    void DrawCombo(Renderer& r, int combo, float x, float y) const {
+        if (!combo_tex.width || combo < 2) return;
+        const std::string text = std::to_string(combo);
+        const float advance = kDigitW * 0.86f;
+        float left = x - advance * float(text.size()) / 2 + advance / 2;
+        for (const char c : text) {
+            Draw(r, digits[size_t(c - '0')], combo_tex, left, y, kDigitW, kDigitH, {1, 1, 1, 1});
+            left += advance;
+        }
+        Draw(r, combo_label, combo_tex, x, y + kDigitH * 0.5f + (kLabelY1 - kLabelY0) * 0.4f, kLabelW,
+             kLabelY1 - kLabelY0, {1, 1, 1, 1});
+    }
     void Release(Renderer& r) {
-        for (Texture* t : {&atlas, &center_gauge, &center_mic}) r.Release(*t);
-        for (GpuMesh* m : {&ring, &note, &trail}) r.Release(*m);
+        for (Texture* t : {&atlas, &center_gauge, &center_mic, &combo_tex}) r.Release(*t);
+        for (GpuMesh* m : {&ring, &note, &trail, &combo_label}) r.Release(*m);
+        for (GpuMesh& m : digits) r.Release(m);
     }
 };
 
@@ -407,6 +442,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                     at(n.lane, judge.Held(i) ? now : n.time_ms, x, y, size);
                     field.Draw(renderer, field.note, field.atlas, x, y, size, {1, 1, 1, 1});
                 }
+                field.DrawCombo(renderer, judge.combo, 960, 470);  // below the centre circle (Hypothesis)
             } else {  // placeholder lanes when the game's play field cannot be loaded
             layout.Fit(renderer.Width(), renderer.Height());
             const float ring[4] = {0.85f, 0.85f, 0.95f, 0.9f};
