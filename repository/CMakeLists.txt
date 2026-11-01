@@ -56,6 +56,7 @@ add_library(sif_engine STATIC
   src/engine/core/parallel_for.cpp
   src/engine/formats/blbn.cpp
   src/engine/formats/bmar.cpp
+  src/engine/formats/bscm.cpp
   src/engine/formats/btx.cpp
   src/engine/fs/pac.cpp
   src/engine/fs/vfs.cpp
