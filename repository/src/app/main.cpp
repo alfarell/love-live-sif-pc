@@ -1,6 +1,6 @@
 // SIF port entry point: settings, game-folder check and Vfs mount, renderer, audio; then one of
 //   - the M6 boot flow: --title (logos, notice, title screen; confirming starts the --live song, default 10:4),
-//     with --lang en|cn|tw|jp (UI language, default en); --menu starts at the top menu;
+//     with --lang en|cn|tw|jp (UI language, default en); --menu starts at the top menu, --select at the song select;
 //   - a developer view of one UI layout: --ui SCREEN:LAYOUT[:CLIP] (e.g. 10_top_menu:uil0001_TopMenu00:a003), with
 //     --ui-hide NODE,... (nodes hidden in every part) and --ui-hide-path PATH,... (placed instances hidden);
 //   - the M4 live slice: --live ID:VARIANT (e.g. 10:4 = song 0010, ac_challenge), with --autoplay;
@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "app/live_screen.h"
+#include "app/song_select.h"
 #include "app/title_screen.h"
 #include "app/top_menu.h"
 #include "app/ui_viewer.h"
@@ -50,7 +51,7 @@ struct Options {
     std::string game;
     std::string show = kDefaultTexture;
     std::string play = kDefaultCue;
-    bool live = false, calibrate = false, title = false, menu = false;
+    bool live = false, calibrate = false, title = false, menu = false, select = false;
     std::string ui, ui_hide, ui_hide_path;
     std::string lang = "en";
     sif::LiveOptions live_options;
@@ -69,6 +70,7 @@ Options ParseOptions(int argc, char** argv) {
         else if (!std::strcmp(argv[i], "--calibrate")) o.calibrate = true;
         else if (!std::strcmp(argv[i], "--title")) o.title = true;
         else if (!std::strcmp(argv[i], "--menu")) o.menu = true;
+        else if (!std::strcmp(argv[i], "--select")) o.select = true;
         else if (!std::strcmp(argv[i], "--ui") && i + 1 < argc) o.ui = argv[++i];
         else if (!std::strcmp(argv[i], "--ui-hide") && i + 1 < argc) o.ui_hide = argv[++i];
         else if (!std::strcmp(argv[i], "--ui-hide-path") && i + 1 < argc) o.ui_hide_path = argv[++i];
@@ -155,16 +157,22 @@ int main(int argc, char** argv) {
         SDL_DestroyWindow(window);
         return Quit(code, code ? "ui viewer failed" : "normal end");
     }
-    if (options.calibrate || options.live || options.title || options.menu) {
+    if (options.calibrate || options.live || options.title || options.menu || options.select) {
         int code = 0;
-        // title -> top menu; shortcut: any confirmed top-menu entry starts the --live song until song select exists
+        // title -> top menu -> song select -> live; shortcut: every top-menu entry leads to the song select
         const std::string lang = options.lang == "jp" ? "" : options.lang;
-        const bool boot = options.title || options.menu;
-        if (boot && ((options.title && !sif::RunTitle(window, renderer, vfs, lang, options.frames)) ||
-                     sif::RunTopMenu(window, renderer, vfs, lang, options.frames) < 0)) {
+        const bool boot = options.title || options.menu || options.select;
+        if (boot) {
             options.live = false;
-        } else if (boot) {
-            options.live = true;
+            if ((!options.title || sif::RunTitle(window, renderer, vfs, lang, options.frames)) &&
+                (options.select || sif::RunTopMenu(window, renderer, vfs, lang, options.frames) >= 0)) {
+                const sif::SongChoice choice = sif::RunSongSelect(window, renderer, vfs, lang, options.frames);
+                if (choice.song >= 0) {
+                    options.live = true;
+                    options.live_options.song = choice.song;
+                    options.live_options.variant = choice.variant;
+                }
+            }
         }
         if (boot && !options.live) {
             code = 0;
