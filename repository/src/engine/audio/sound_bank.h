@@ -13,5 +13,6 @@ namespace sif::cri {
 
 bool LoadCueSheet(const Vfs& vfs, std::string_view name, CueSheet& out, std::string* error = nullptr);
 bool LoadCue(const Vfs& vfs, const CueSheet& sheet, std::string_view cue, Pcm& out, std::string* error = nullptr);
+bool LoadWave(const Vfs& vfs, const CueSheet& sheet, const Wave& wave, Pcm& out, std::string* error = nullptr);
 
 }

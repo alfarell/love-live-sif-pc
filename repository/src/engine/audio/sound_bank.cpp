@@ -32,23 +32,26 @@ bool LoadCueSheet(const Vfs& vfs, std::string_view name, CueSheet& out, std::str
     return vfs.Read("sound/sound.pac/" + std::string(name) + ".acb", acb, error) && out.Load(std::move(acb), error);
 }
 
-bool LoadCue(const Vfs& vfs, const CueSheet& sheet, std::string_view cue, Pcm& out, std::string* error) {
-    Wave wave;
-    if (!sheet.FindWave(cue, wave, error)) return false;
+bool LoadWave(const Vfs& vfs, const CueSheet& sheet, const Wave& wave, Pcm& out, std::string* error) {
     std::vector<uint8_t> data;
     if (wave.streaming) {
         const std::string bank(sheet.StreamBankName(wave.port));
-        if (bank.empty()) return Fail(error, "cue '" + std::string(cue) + "': no stream bank for port " + std::to_string(wave.port));
+        if (bank.empty()) return Fail(error, "no stream bank for port " + std::to_string(wave.port));
         std::string path = "sound/" + bank + ".awb";
         if (!vfs.Exists(path)) path = "sound/dlc/" + bank + ".awb";
         if (!vfs.Exists(path)) return Fail(error, "song add-on not installed: " + bank + ".awb");
         if (!ReadStreamWave(vfs, path, uint32_t(wave.stream_id), data, error)) return false;
     } else {
         const auto w = FindAfs2Wave(sheet.MemoryBank(), uint32_t(wave.memory_id));
-        if (w.empty()) return Fail(error, "cue '" + std::string(cue) + "': wave not in the embedded bank");
+        if (w.empty()) return Fail(error, "wave not in the embedded bank");
         data.assign(w.begin(), w.end());
     }
     return DecodeWave(data, out, error);
+}
+
+bool LoadCue(const Vfs& vfs, const CueSheet& sheet, std::string_view cue, Pcm& out, std::string* error) {
+    Wave wave;
+    return sheet.FindWave(cue, wave, error) && LoadWave(vfs, sheet, wave, out, error);
 }
 
 }

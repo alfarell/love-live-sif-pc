@@ -46,6 +46,9 @@ public:
     std::string_view Name() const { return name_; }
     std::vector<std::string> CueNames() const;
     bool FindWave(std::string_view cue, Wave& out, std::string* error = nullptr) const;
+    // By CueTable.CueId. In music.acb the CueId of a song cue equals its live/<id> folder number (all songs, M4).
+    bool FindWaveById(int64_t cue_id, Wave& out, std::string* error = nullptr) const;
+    std::string_view CueNameById(int64_t cue_id) const;
     std::string_view StreamBankName(int port) const;
     std::span<const uint8_t> MemoryBank() const { return memory_bank_; }
 

@@ -124,6 +124,25 @@ bool CueSheet::WaveFromReference(int type, int64_t index, Wave& out, int depth) 
     return false;
 }
 
+bool CueSheet::FindWaveById(int64_t cue_id, Wave& out, std::string* error) const {
+    for (size_t c = 0; c < cues_.Rows(); ++c) {
+        if (cues_.Int(c, "CueId") != cue_id) continue;
+        if (WaveFromReference(int(cues_.Int(c, "ReferenceType")), cues_.Int(c, "ReferenceIndex"), out, 0)) return true;
+        return Fail(error, "cue id " + std::to_string(cue_id) + " has no waveform reference");
+    }
+    return Fail(error, "no cue id " + std::to_string(cue_id) + " in " + name_);
+}
+
+std::string_view CueSheet::CueNameById(int64_t cue_id) const {
+    for (size_t c = 0; c < cues_.Rows(); ++c) {
+        if (cues_.Int(c, "CueId") != cue_id) continue;
+        for (size_t r = 0; r < names_.Rows(); ++r) {
+            if (names_.Int(r, "CueIndex") == int64_t(c)) return names_.Str(r, "CueName");
+        }
+    }
+    return {};
+}
+
 bool CueSheet::FindWave(std::string_view cue, Wave& out, std::string* error) const {
     for (size_t r = 0; r < names_.Rows(); ++r) {
         if (names_.Str(r, "CueName") != cue) continue;
