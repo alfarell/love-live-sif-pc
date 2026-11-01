@@ -30,7 +30,7 @@ target_include_directories(lzmadec PUBLIC third_party/lzma)
 find_program(GLSLC glslc HINTS "$ENV{VULKAN_SDK}/Bin" "C:/VulkanSDK/1.4.363.0/Bin" REQUIRED)
 set(SHADER_OUT ${CMAKE_BINARY_DIR}/shaders)
 set(SHADER_INCS)
-foreach(shader blit.vert blit.frag)
+foreach(shader blit.vert blit.frag shape.frag)
   add_custom_command(OUTPUT ${SHADER_OUT}/${shader}.inc
     COMMAND ${CMAKE_COMMAND} -E make_directory ${SHADER_OUT}
     COMMAND ${GLSLC} -mfmt=c -O -o ${SHADER_OUT}/${shader}.inc ${CMAKE_SOURCE_DIR}/shaders/${shader}
@@ -54,6 +54,7 @@ add_library(sif_engine STATIC
   src/engine/core/log.cpp
   src/engine/core/crash_report.cpp
   src/engine/core/parallel_for.cpp
+  src/engine/formats/blbn.cpp
   src/engine/formats/btx.cpp
   src/engine/fs/pac.cpp
   src/engine/fs/vfs.cpp
@@ -71,8 +72,18 @@ if(MSVC)
   target_compile_options(sif_engine PRIVATE /W3 /utf-8 /EHsc)
 endif()
 
-add_executable(sif WIN32 src/app/main.cpp)
-target_link_libraries(sif PRIVATE sif_engine)
+# SIF game rules (live play), kept apart from the generic engine
+add_library(sif_game STATIC
+  src/game/live/chart.cpp
+  src/game/live/judge.cpp
+  src/game/live/song.cpp)
+target_link_libraries(sif_game PUBLIC sif_engine)
+if(MSVC)
+  target_compile_options(sif_game PRIVATE /W3 /utf-8 /EHsc)
+endif()
+
+add_executable(sif WIN32 src/app/main.cpp src/app/live_screen.cpp)
+target_link_libraries(sif PRIVATE sif_game)
 if(MSVC)
   target_compile_options(sif PRIVATE /utf-8 /EHsc)
 endif()
@@ -86,10 +97,25 @@ if(MSVC)
   target_compile_options(sif_vfs_test PRIVATE /utf-8 /EHsc)
 endif()
 
+add_executable(sif_live_test tests/unit/live_test.cpp)
+target_link_libraries(sif_live_test PRIVATE sif_game)
+if(MSVC)
+  target_compile_options(sif_live_test PRIVATE /utf-8 /EHsc)
+endif()
+
 add_executable(sif_audio_test tests/unit/audio_test.cpp)
 target_link_libraries(sif_audio_test PRIVATE sif_engine)
 if(MSVC)
   target_compile_options(sif_audio_test PRIVATE /utf-8 /EHsc)
+endif()
+
+if(WIN32)
+  # judgement-timing probe: WASAPI loopback sync + scripted key presses (M4 timing parity)
+  add_executable(sif_sweep src/tools/sweep.cpp)
+  target_link_libraries(sif_sweep PRIVATE sif_game ole32 winmm)
+  if(MSVC)
+    target_compile_options(sif_sweep PRIVATE /W3 /utf-8 /EHsc)
+  endif()
 endif()
 
 add_executable(sif_hca2wav src/tools/hca2wav.cpp)
