@@ -66,6 +66,8 @@ static void Synthetic() {
     const Judge late = Autoplay(c, w, 250);
     Check(late.counts[3] == 11 && late.max_combo == 0, "+250 ms: 11 Bad, a Bad hold press ends the hold, combo broken");
     Check(late.score == 11 * 10, "Bad scores 10 points (weight 0.1), no ticks");
+    Check(perfect.MaxScore() == perfect.score, "maximum score = an all-Perfect play (judgements + every tick)");
+    Check(perfect.Rank() == 4 && late.Rank() == 0, "rank: clear rate 1.0 is the 4th threshold (0.925), 0.09 below the 1st");
     const Judge none = Autoplay(c, w, 400);  // outside every window: inputs ignored, all notes time out
     Check(none.counts[4] == 11, "no hit: 11 Misses (an unpressed hold is one Miss)");
     Check(Autoplay(c, w, 0, 150).counts[1] == 1, "hold released 150 ms late: Great release");
@@ -92,6 +94,8 @@ static void Real(const char* root) {
     const Judge p = Autoplay(song.chart, w, 0, 0, song.rules);
     Check(p.counts[1] + p.counts[2] + p.counts[3] + p.counts[4] == 0, "song 0010 autoplay: all Perfect");
     Check(song.rules.multiplier == 3.0f && song.rules.tick_ms == 41, "song 0010/04 (ac_challenge): multiplier 3.0");
+    Check(song.rules.rank_rates[0] == 0.45f && song.rules.rank_rates[5] == 1.2f, "rank thresholds read (+0x138..+0x14C)");
+    Check(p.MaxScore() == p.score, "song 0010/04: all Perfect = maximum score");
     Check(song.dance_start_frame == 972, "song 0010: music starts at dance frame 972 (s_music_datas +0x104)");
     std::printf("song 0010/04 all Perfect: score %.0f\n", p.score);
     // song 0340 ac_easy: the chart measured on the game's result screens in shadPS4

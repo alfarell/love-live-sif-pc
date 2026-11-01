@@ -145,6 +145,30 @@ void Judge::Update(double now) {
     }
 }
 
+double Judge::MaxScore() const {
+    if (!chart_) return 0;
+    const double note = std::round(rules_.multiplier * kBasePoints);
+    const double tick = std::round(rules_.multiplier * rules_.tick_rate * kBasePoints);
+    double total = 0;
+    for (const Note& n : chart_->notes) {
+        total += note;
+        if (n.IsHold()) total += note + tick * std::round((n.end_ms - n.time_ms) / rules_.tick_ms);
+    }
+    return std::min(kMaxScore, total);
+}
+
+double Judge::ClearRate() const {
+    const double max = MaxScore();
+    return max > 0 ? score / max + 1e-5 : 0;
+}
+
+int Judge::Rank() const {
+    const double rate = ClearRate();
+    int rank = 0;
+    while (rank < int(rules_.rank_rates.size()) && rate >= rules_.rank_rates[size_t(rank)]) ++rank;
+    return rank;
+}
+
 bool Judge::Finished() const {
     for (State s : state_) {
         if (s != State::Done) return false;

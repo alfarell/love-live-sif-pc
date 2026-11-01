@@ -52,7 +52,7 @@ bool LoadScoreRules(const Vfs& vfs, int id, int variant, ScoreRules& out, std::s
         !ReadTable(vfs, "common/common.pac/live_common.pac/live_datas.bin", "s_live_datas", datas_file, datas, error)) {
         return false;
     }
-    if (param.size() < 0x134) return Fail(error, "s_CommonParam too short");
+    if (param.size() < 0x150) return Fail(error, "s_CommonParam too short");
     // s_live_datas: 904-byte records keyed by id = song x 1000 + variant; +0x14 = difficulty index 0-8 (eboot 0x945B0)
     constexpr size_t kRecord = 904;
     for (size_t r = 0; r + kRecord <= datas.size(); r += kRecord) {
@@ -61,6 +61,7 @@ bool LoadScoreRules(const Vfs& vfs, int id, int variant, ScoreRules& out, std::s
         out.multiplier = At<float>(param, 0xD0 + size_t(level) * 4);
         out.tick_rate = At<float>(param, 0x128);
         out.tick_ms = int(At<float>(param, 0x130) * 1000.0f);
+        for (size_t k = 0; k < out.rank_rates.size(); ++k) out.rank_rates[k] = At<float>(param, 0x138 + k * 4);
         return true;
     }
     return Fail(error, "no s_live_datas record for this chart");

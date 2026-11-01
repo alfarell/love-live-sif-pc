@@ -39,6 +39,9 @@ struct ScoreRules {
     double multiplier = 1.0;  // +0xD0[s_live_datas +0x14 difficulty index]: 1.0 (ac_easy) .. 3.0 (ac_challenge, cs_master)
     double tick_rate = 0.033; // +0x128: a hold tick is worth this fraction of a note
     double tick_ms = 41;      // (int)(+0x130 x 1000) = (int)41.67
+    // +0x138..+0x14C: clear-rate thresholds (score / maximum score) of the ranks above the lowest (eboot 0xAAC50);
+    // the letters (C, B, A, S, then two above S) are a Hypothesis
+    std::array<double, 6> rank_rates{0.45, 0.65, 0.825, 0.925, 1.025, 1.2};
 };
 
 struct Judgement {
@@ -57,6 +60,12 @@ public:
     // Misses notes whose late Miss bound has passed and holds not released in time.
     void Update(double now_ms);
     bool Finished() const;
+    // The score of an all-Perfect play: every judgement (a hold's press and release) and every hold tick at Perfect,
+    // capped like the score (eboot 0xA94F0)
+    double MaxScore() const;
+    // score / MaxScore() (+1e-5, as eboot 0xAAC50) and the rank index: 0 below rank_rates[0], k above rank_rates[k-1]
+    double ClearRate() const;
+    int Rank() const;
     bool Active(size_t note) const { return note < state_.size() && state_[note] != State::Done; }  // still drawn
     bool Held(size_t note) const { return note < state_.size() && state_[note] == State::Holding; }
 
