@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "app/fade.h"
 #include "app/input.h"
 #include "engine/core/log.h"
 #include "engine/render/renderer.h"
@@ -81,22 +82,25 @@ bool RunResult(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
     SDL_SetWindowTitle(window, "SIF port - result");
     LogInfo("result: song {:04d}/{:02d}, score {:.0f}, max combo {}, clear rate {}, rank {}", r.song, r.variant, r.score,
             r.max_combo, rate, r.rank);
-    bool open = true, done = false;
+    bool open = true;
+    ScreenFade fade;
     uint64_t last = SDL_GetTicksNS();
-    for (long frame = 0; open && !done && (max_frames < 0 || frame < max_frames); ++frame) {
+    for (long frame = 0; open && !fade.Left() && (max_frames < 0 || frame < max_frames); ++frame) {
         SDL_Event e;
         while (PollEvent(e)) {
             if (e.type == SDL_EVENT_QUIT) open = false;
-            if ((e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat) || e.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN) done = true;
+            if ((e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat) || e.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN) fade.Leave(ui);
         }
         const uint64_t now = SDL_GetTicksNS();
         ui.Update(double(now - last) / 1e9);
+        fade.Update(double(now - last) / 1e9);
         last = now;
         if (!renderer.BeginFrame()) {
             SDL_Delay(5);
             continue;
         }
         ui.DrawLayout(renderer, kRoot, 1.0f);
+        fade.Draw(renderer);
         renderer.EndFrame();
     }
     ui.Release(renderer);

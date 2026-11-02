@@ -7,6 +7,7 @@
 #include <map>
 #include <string>
 
+#include "app/fade.h"
 #include "app/input.h"
 #include "engine/core/log.h"
 #include "engine/render/renderer.h"
@@ -50,16 +51,22 @@ bool RunTitle(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std:
     size_t stage = 0;
     uint64_t stage_start = SDL_GetTicksNS();
     bool confirmed = false, running = true;
-    for (long frame = 0; running && !confirmed && (max_frames < 0 || frame < max_frames); ++frame) {
+    ScreenFade fade;  // only its fade-out is used: the stages fade in by themselves
+    uint64_t last = SDL_GetTicksNS();
+    for (long frame = 0; running && !fade.Left() && (max_frames < 0 || frame < max_frames); ++frame) {
+        const uint64_t now = SDL_GetTicksNS();
+        fade.Update(double(now - last) / 1e9);
+        last = now;
         const double t = double(SDL_GetTicksNS() - stage_start) / 1e9;
         const bool on_title = stage >= std::size(kStages);
         SDL_Event e;
         while (PollEvent(e)) {
             if (e.type == SDL_EVENT_QUIT || (e.type == SDL_EVENT_KEY_DOWN && e.key.scancode == SDL_SCANCODE_ESCAPE)) {
                 running = false;
-            } else if (IsConfirm(e)) {
+            } else if (IsConfirm(e) && !fade.leaving) {
                 if (on_title) {
                     confirmed = true;
+                    fade.Leave(ui);
                 } else {  // skip to the next stage
                     ++stage;
                     stage_start = SDL_GetTicksNS();
@@ -88,6 +95,7 @@ bool RunTitle(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std:
             show[s.part] = float(std::clamp(std::min(t / kFade, (s.seconds - t) / kFade), 0.0, 1.0));
             ui.DrawLayout(renderer, "uil0001_Advertise00", 1.0f, show);
         }
+        if (fade.leaving) fade.Draw(renderer);
         renderer.EndFrame();
     }
     ui.Release(renderer);

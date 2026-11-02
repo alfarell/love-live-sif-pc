@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "app/fade.h"
 #include "app/input.h"
 #include "engine/core/log.h"
 #include "engine/render/renderer.h"
@@ -138,14 +139,15 @@ SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs,
     }
     bool difficulty_step = false;
     SongChoice choice;
-    bool running = true, done = false;
+    bool running = true;
+    ScreenFade fade;
     Apply(ui, songs, current, difficulty_step, difficulty);
     uint64_t last = SDL_GetTicksNS();
-    for (long frame = 0; running && !done && (max_frames < 0 || frame < max_frames); ++frame) {
+    for (long frame = 0; running && !fade.Left() && (max_frames < 0 || frame < max_frames); ++frame) {
         SDL_Event e;
         while (PollEvent(e)) {
             if (e.type == SDL_EVENT_QUIT) running = false, choice.closed = true;
-            if (e.type != SDL_EVENT_KEY_DOWN || e.key.repeat) continue;
+            if (e.type != SDL_EVENT_KEY_DOWN || e.key.repeat || fade.leaving) continue;
             const int n = int(songs.size());
             switch (e.key.scancode) {
                 case SDL_SCANCODE_LEFT:
@@ -160,7 +162,7 @@ SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs,
                 case SDL_SCANCODE_SPACE:
                     if (difficulty_step) {
                         choice = {songs[size_t(current)].id, difficulty};
-                        done = true;
+                        fade.Leave(ui);
                     } else {
                         difficulty_step = true;
                     }
@@ -168,7 +170,7 @@ SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs,
                 case SDL_SCANCODE_ESCAPE:
                 case SDL_SCANCODE_BACKSPACE:
                     if (difficulty_step) difficulty_step = false;
-                    else running = false;
+                    else fade.Leave(ui);
                     break;
                 default: break;
             }
@@ -181,12 +183,14 @@ SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs,
         }
         const uint64_t now = SDL_GetTicksNS();
         ui.Update(double(now - last) / 1e9);
+        fade.Update(double(now - last) / 1e9);
         last = now;
         if (!renderer.BeginFrame()) {
             SDL_Delay(5);
             continue;
         }
         ui.DrawLayout(renderer, kRoot, 1.0f);
+        fade.Draw(renderer);
         renderer.EndFrame();
     }
     ui.Release(renderer);

@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "app/fade.h"
 #include "app/input.h"
 #include "engine/core/log.h"
 #include "engine/render/renderer.h"
@@ -82,22 +83,23 @@ int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
     SDL_SetWindowTitle(window, "SIF port - top menu");
     int chosen = -1;
     bool running = true;
+    ScreenFade fade;
     uint64_t last = SDL_GetTicksNS();
-    for (long frame = 0; running && chosen < 0 && (max_frames < 0 || frame < max_frames); ++frame) {
+    for (long frame = 0; running && !fade.Left() && (max_frames < 0 || frame < max_frames); ++frame) {
         SDL_Event e;
         while (PollEvent(e)) {
             if (e.type == SDL_EVENT_QUIT) running = false;
-            if (e.type != SDL_EVENT_KEY_DOWN || e.key.repeat) continue;
+            if (e.type != SDL_EVENT_KEY_DOWN || e.key.repeat || fade.leaving) continue;
             const std::vector<int>& ids = kEntriesOfMode[size_t(mode)];
             switch (e.key.scancode) {
-                case SDL_SCANCODE_ESCAPE: running = false; break;
+                case SDL_SCANCODE_ESCAPE: fade.Leave(ui); break;
                 case SDL_SCANCODE_LEFT: mode = (mode + kModes - 1) % kModes, entry = 0; break;
                 case SDL_SCANCODE_RIGHT: mode = (mode + 1) % kModes, entry = 0; break;
                 case SDL_SCANCODE_UP: entry = ids.empty() ? 0 : (entry + int(ids.size()) - 1) % int(ids.size()); break;
                 case SDL_SCANCODE_DOWN: entry = ids.empty() ? 0 : (entry + 1) % int(ids.size()); break;
                 case SDL_SCANCODE_RETURN:
                 case SDL_SCANCODE_SPACE:
-                    if (!ids.empty()) chosen = ids[size_t(entry)];
+                    if (!ids.empty()) chosen = ids[size_t(entry)], fade.Leave(ui);
                     break;
                 default: break;
             }
@@ -106,12 +108,14 @@ int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
         }
         const uint64_t now = SDL_GetTicksNS();
         ui.Update(double(now - last) / 1e9);
+        fade.Update(double(now - last) / 1e9);
         last = now;
         if (!renderer.BeginFrame()) {
             SDL_Delay(5);
             continue;
         }
         ui.DrawLayout(renderer, kRoot, 1.0f);
+        fade.Draw(renderer);
         renderer.EndFrame();
     }
     ui.Release(renderer);
