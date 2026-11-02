@@ -30,6 +30,7 @@ namespace sif {
 namespace {
 
 using live::Grade;
+using live::kGrades;
 using live::kLanes;
 
 // lanes left to right (lane 0 = note number 55, Hypothesis): A S D F Space J K L ;
@@ -71,6 +72,8 @@ struct Playfield {
     GpuMesh ring, note, trail, combo_label, gauge_fan;
     float gauge_progress = 0;
     std::array<GpuMesh, 10> digits;
+    std::array<Texture, kGrades> judge_text;  // ui_ingame_judge_text_perfect .. _miss
+    GpuMesh full;                              // a unit quad over the whole texture
     std::array<std::array<float, 2>, kLanes> lane{};  // canvas x, y (y down)
     std::array<float, 2> center{958, 146};
     float ring_size = 152, center_size = 288;
@@ -166,6 +169,7 @@ struct Playfield {
                  Cell(r, 1, 0, ring) && Cell(r, 0, 1, note) && Cell(r, 2, 0, trail) && LoadGauge(r);
         if (!loaded) LogWarn("live: game play field not loaded; drawing the placeholder lanes");
         if (loaded && !LoadCombo(r, vfs)) LogWarn("live: combo digits not loaded");
+        if (loaded && !LoadJudgeTexts(r, vfs)) LogWarn("live: judgement texts not loaded");
         return loaded;
     }
     // A sprite centred at canvas pixel (x, y), y downwards
@@ -184,6 +188,27 @@ struct Playfield {
     }
     // The combo count centred at canvas x, digits centred on `y`, the label under them (shortcut: position, glyph
     // spacing and the "from 2 notes" rule are guesses; the game's combo drawing is not traced)
+    bool LoadJudgeTexts(Renderer& r, const Vfs& vfs) {
+        static constexpr const char* kNames[kGrades] = {"perfect", "great", "good", "bad", "miss"};
+        for (int g = 0; g < kGrades; ++g) {
+            if (!LoadTexture(r, vfs, std::string("ui/ui_ingame.pac/texture.pac/ui_ingame_judge_text_") + kNames[g],
+                             judge_text[size_t(g)])) {
+                return false;
+            }
+        }
+        return Quad(r, 0, 0, 1, 1, full);
+    }
+    // The latest judgement's text, `ms` after it, centred at canvas (x, y): it pops in over 100 ms, holds and fades
+    // over its last 200 ms; 1050 ms is the length of its .fad animation (63 frames at 60 fps, header of
+    // ui_ingame_judge_text_*.fad). shortcut: the .fad (rings, stars, real motion and anchor) is not decoded, so the
+    // pop, fade and position are guesses
+    void DrawJudgeText(Renderer& r, Grade grade, double ms, float x, float y) const {
+        const Texture& t = judge_text[size_t(grade)];
+        if (!t.width || ms < 0 || ms > 1050) return;
+        const float scale = ms < 100 ? float(1.25 - 0.25 * ms / 100) : 1.0f;
+        const float alpha = ms > 850 ? float(1 - (ms - 850) / 200) : 1.0f;
+        Draw(r, full, t, x, y, float(t.width) * scale, float(t.height) * scale, {1, 1, 1, alpha});
+    }
     void DrawCombo(Renderer& r, int combo, float x, float y) const {
         if (!combo_tex.width || combo < 2) return;
         const std::string text = std::to_string(combo);
@@ -198,6 +223,8 @@ struct Playfield {
     }
     void Release(Renderer& r) {
         for (Texture* t : {&atlas, &center_gauge, &center_mic, &combo_tex}) r.Release(*t);
+        for (Texture& t : judge_text) r.Release(t);
+        r.Release(full);
         for (GpuMesh* m : {&ring, &note, &trail, &combo_label, &gauge_fan}) r.Release(*m);
         for (GpuMesh& m : digits) r.Release(m);
     }
@@ -382,6 +409,8 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
     }
     std::vector<double> flash(kLanes, -1e9);
     std::vector<Grade> flash_grade(kLanes, Grade::Miss);
+    double judged_at = -1e9;  // the latest judgement, for its text
+    Grade judged = Grade::Miss;
     size_t log_seen = 0, auto_next = 0;
     std::vector<std::pair<double, int>> auto_releases;  // autoplay: (time, lane)
     double end_at = -1;
@@ -432,6 +461,8 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
             const int lane = chart.notes[size_t(j.note)].lane;
             flash[size_t(lane)] = now;
             flash_grade[size_t(lane)] = j.grade;
+            judged_at = now;
+            judged = j.grade;
         }
 
         if (has_hud && long(judge.score) != hud_score) {
@@ -497,6 +528,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                     at(n.lane, judge.Held(i) ? now : n.time_ms, x, y, size);
                     field.Draw(renderer, field.note, field.atlas, x, y, size, {1, 1, 1, 1});
                 }
+                field.DrawJudgeText(renderer, judged, now - judged_at, 960, 350);  // above the combo (Hypothesis)
                 field.DrawCombo(renderer, judge.combo, 960, 470);  // below the centre circle (Hypothesis)
             } else {  // placeholder lanes when the game's play field cannot be loaded
             layout.Fit(renderer.Width(), renderer.Height());
