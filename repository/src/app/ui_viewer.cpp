@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "app/input.h"
 #include "engine/core/log.h"
 #include "engine/render/renderer.h"
 #include "engine/ui/ui_screen.h"
@@ -45,7 +46,7 @@ int RunUiViewer(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const st
     for (long frame = 0; max_frames < 0 || frame < max_frames; ++frame) {
         SDL_Event e;
         bool quit = false;
-        while (SDL_PollEvent(&e)) {
+        while (PollEvent(e)) {
             quit |= e.type == SDL_EVENT_QUIT || (e.type == SDL_EVENT_KEY_DOWN && e.key.scancode == SDL_SCANCODE_ESCAPE);
         }
         if (quit) break;

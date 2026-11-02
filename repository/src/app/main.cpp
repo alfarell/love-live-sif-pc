@@ -18,6 +18,7 @@
 #include <string>
 #include <vector>
 
+#include "app/input.h"
 #include "app/live_screen.h"
 #include "app/result_screen.h"
 #include "app/song_select.h"
@@ -128,7 +129,7 @@ int main(int argc, char** argv) {
     sif::LogInfo("game folder: {}", settings.game.folder);
     if (!sif::SaveAppSettings(settings_path, settings)) sif::LogWarn("settings: cannot write {}", sif::os::PathToUtf8(settings_path));
 
-    if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO)) {
+    if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMEPAD)) {
         sif::LogError("SDL_Init: {}", SDL_GetError());
         sif::LogExit(1, "SDL_Init failed");
         return 1;
@@ -250,7 +251,7 @@ int main(int argc, char** argv) {
     auto next_report = start + std::chrono::seconds(5);
     for (; running && (options.frames < 0 || frame < options.frames); ++frame) {
         SDL_Event event;
-        while (SDL_PollEvent(&event)) {
+        while (sif::PollEvent(event)) {
             if (event.type == SDL_EVENT_QUIT) running = false;
         }
         if (!renderer.DrawFrame(&texture)) SDL_Delay(10);  // minimized: nothing to present

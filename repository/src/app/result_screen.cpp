@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "app/input.h"
 #include "engine/core/log.h"
 #include "engine/render/renderer.h"
 #include "engine/ui/ui_screen.h"
@@ -84,7 +85,7 @@ bool RunResult(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
     uint64_t last = SDL_GetTicksNS();
     for (long frame = 0; open && !done && (max_frames < 0 || frame < max_frames); ++frame) {
         SDL_Event e;
-        while (SDL_PollEvent(&e)) {
+        while (PollEvent(e)) {
             if (e.type == SDL_EVENT_QUIT) open = false;
             if ((e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat) || e.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN) done = true;
         }

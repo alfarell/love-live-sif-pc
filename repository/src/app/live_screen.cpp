@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 
+#include "app/input.h"
 #include "app/result_screen.h"
 #include "engine/audio/audio_output.h"
 #include "engine/core/log.h"
@@ -386,9 +387,10 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
     bool closed = false;
     std::vector<double> frame_cpu_ms;
     long frame = 0;
+    SetPadLayout(PadLayout::Live);
     for (bool running = true; running && (opt.max_frames < 0 || frame < opt.max_frames); ++frame) {
         SDL_Event e;
-        while (SDL_PollEvent(&e)) {
+        while (PollEvent(e)) {
             if (e.type == SDL_EVENT_QUIT || (e.type == SDL_EVENT_KEY_DOWN && e.key.scancode == SDL_SCANCODE_ESCAPE)) {
                 running = false;
                 closed = closed || e.type == SDL_EVENT_QUIT;
@@ -570,6 +572,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
         ++n;
     }
     const double mean = n ? sum / n : 0, sd = n ? std::sqrt(std::max(0.0, sum2 / n - mean * mean)) : 0;
+    SetPadLayout(PadLayout::Menu);
     LogInfo("live result: Perfect {} Great {} Good {} Bad {} Miss {}, max combo {}, provisional score {:.0f}; "
             "press offset mean {:+.1f} ms, sd {:.1f} ms over {} hits",
             judge.counts[0], judge.counts[1], judge.counts[2], judge.counts[3], judge.counts[4], judge.max_combo,
@@ -603,7 +606,7 @@ bool RunCalibration(SDL_Window* window, Renderer& renderer, AudioOutput& audio, 
     long frame = 0;
     for (bool running = true; running && (max_frames < 0 || frame < max_frames); ++frame) {
         SDL_Event e;
-        while (SDL_PollEvent(&e)) {
+        while (PollEvent(e)) {
             if (e.type == SDL_EVENT_QUIT || (e.type == SDL_EVENT_KEY_DOWN && e.key.scancode == SDL_SCANCODE_ESCAPE)) {
                 running = false;
             } else if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat && e.key.scancode == SDL_SCANCODE_SPACE) {

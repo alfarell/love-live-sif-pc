@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "app/input.h"
 #include "engine/core/log.h"
 #include "engine/render/renderer.h"
 #include "engine/ui/ui_screen.h"
@@ -84,7 +85,7 @@ int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
     uint64_t last = SDL_GetTicksNS();
     for (long frame = 0; running && chosen < 0 && (max_frames < 0 || frame < max_frames); ++frame) {
         SDL_Event e;
-        while (SDL_PollEvent(&e)) {
+        while (PollEvent(e)) {
             if (e.type == SDL_EVENT_QUIT) running = false;
             if (e.type != SDL_EVENT_KEY_DOWN || e.key.repeat) continue;
             const std::vector<int>& ids = kEntriesOfMode[size_t(mode)];

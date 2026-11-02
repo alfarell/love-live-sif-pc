@@ -7,6 +7,7 @@
 #include <map>
 #include <string>
 
+#include "app/input.h"
 #include "engine/core/log.h"
 #include "engine/render/renderer.h"
 #include "engine/ui/ui_screen.h"
@@ -53,7 +54,7 @@ bool RunTitle(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std:
         const double t = double(SDL_GetTicksNS() - stage_start) / 1e9;
         const bool on_title = stage >= std::size(kStages);
         SDL_Event e;
-        while (SDL_PollEvent(&e)) {
+        while (PollEvent(e)) {
             if (e.type == SDL_EVENT_QUIT || (e.type == SDL_EVENT_KEY_DOWN && e.key.scancode == SDL_SCANCODE_ESCAPE)) {
                 running = false;
             } else if (IsConfirm(e)) {
