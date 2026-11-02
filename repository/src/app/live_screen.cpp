@@ -7,6 +7,7 @@
 #include <cstring>
 #include <cmath>
 #include <cstdio>
+#include <map>
 #include <memory>
 #include <set>
 #include <string>
@@ -20,6 +21,7 @@
 #include "engine/platform/settings.h"
 #include "engine/formats/bscm.h"
 #include "engine/formats/blbn.h"
+#include "engine/formats/fad.h"
 #include "engine/fs/vfs.h"
 #include "engine/ui/ui_screen.h"
 #include "engine/render/renderer.h"
@@ -72,8 +74,9 @@ struct Playfield {
     GpuMesh ring, note, trail, combo_label, gauge_fan;
     float gauge_progress = 0;
     std::array<GpuMesh, 10> digits;
-    std::array<Texture, kGrades> judge_text;  // ui_ingame_judge_text_perfect .. _miss
-    GpuMesh full;                              // a unit quad over the whole texture
+    std::array<fad::Animation, kGrades> judge_fad;  // anim.pac ui_ingame_judge_text_perfect .. _miss
+    std::map<std::string, Texture> fad_textures;     // by the names the .fad files list
+    GpuMesh corner;                                  // unit quad (0,0)-(1,-1) over the whole texture
     std::array<std::array<float, 2>, kLanes> lane{};  // canvas x, y (y down)
     std::array<float, 2> center{958, 146};
     float ring_size = 152, center_size = 288;
@@ -186,29 +189,57 @@ struct Playfield {
         m(1, 3) = -y;
         r.DrawUiMesh(mesh, &texture, UiScreen::CanvasToClip(r.Width(), r.Height()) * m, tint);
     }
-    // The combo count centred at canvas x, digits centred on `y`, the label under them (shortcut: position, glyph
-    // spacing and the "from 2 notes" rule are guesses; the game's combo drawing is not traced)
+    // The judgement animations (ui_ingame_judge_text_*.fad) and every texture they name
     bool LoadJudgeTexts(Renderer& r, const Vfs& vfs) {
         static constexpr const char* kNames[kGrades] = {"perfect", "great", "good", "bad", "miss"};
         for (int g = 0; g < kGrades; ++g) {
-            if (!LoadTexture(r, vfs, std::string("ui/ui_ingame.pac/texture.pac/ui_ingame_judge_text_") + kNames[g],
-                             judge_text[size_t(g)])) {
+            std::vector<uint8_t> file;
+            std::string error;
+            fad::Animation& a = judge_fad[size_t(g)];
+            if (!vfs.Read(std::string("ui/ui_ingame.pac/anim.pac/ui_ingame_judge_text_") + kNames[g] + ".fad", file, &error) ||
+                !fad::Parse(file, a, &error)) {
+                LogWarn("live: judgement {}: {}", kNames[g], error);
                 return false;
             }
+            for (const auto& [id, sprite] : a.sprites) {
+                if (fad_textures.contains(sprite.texture)) continue;
+                if (!LoadTexture(r, vfs, "ui/ui_ingame.pac/texture.pac/" + sprite.texture, fad_textures[sprite.texture])) return false;
+            }
         }
-        return Quad(r, 0, 0, 1, 1, full);
+        const MeshVertex quad[4] = {{{0, 0, 0}, {0, 0, 1}, {0, 0}}, {{1, 0, 0}, {0, 0, 1}, {1, 0}},
+                                    {{1, -1, 0}, {0, 0, 1}, {1, 1}}, {{0, -1, 0}, {0, 0, 1}, {0, 1}}};
+        const uint16_t indices[6] = {0, 1, 2, 0, 2, 3};
+        return r.CreateMesh(quad, indices, false, corner, nullptr);
     }
-    // The latest judgement's text, `ms` after it, centred at canvas (x, y): it pops in over 100 ms, holds and fades
-    // over its last 200 ms; 1050 ms is the length of its .fad animation (63 frames at 60 fps, header of
-    // ui_ingame_judge_text_*.fad). shortcut: the .fad (rings, stars, real motion and anchor) is not decoded, so the
-    // pop, fade and position are guesses
-    void DrawJudgeText(Renderer& r, Grade grade, double ms, float x, float y) const {
-        const Texture& t = judge_text[size_t(grade)];
-        if (!t.width || ms < 0 || ms > 1050) return;
-        const float scale = ms < 100 ? float(1.25 - 0.25 * ms / 100) : 1.0f;
-        const float alpha = ms > 850 ? float(1 - (ms - 850) / 200) : 1.0f;
-        Draw(r, full, t, x, y, float(t.width) * scale, float(t.height) * scale, {1, 1, 1, alpha});
+    // One frame of a .fad animation, `ms` after it started, with its canvas centre at canvas pixel (x, y). shortcut:
+    // the colour transforms' add part is ignored (the judgement animations only multiply) and the anchor is a guess
+    void DrawFad(Renderer& r, const fad::Animation& a, double ms, float x, float y) const {
+        const size_t frame = size_t(std::max(0.0, ms) * a.fps / 1000.0);
+        if (ms < 0 || frame >= a.frames.size()) return;
+        const Mat4 to_clip = UiScreen::CanvasToClip(r.Width(), r.Height());
+        const float ox = x - a.width / 2, oy = y - a.height / 2;
+        for (const auto& [depth, placed] : a.frames[frame]) {
+            const auto s = a.sprites.find(placed.sprite);
+            if (s == a.sprites.end()) continue;
+            const auto t = fad_textures.find(s->second.texture);
+            if (t == fad_textures.end()) continue;
+            // the textured rectangle (0,0)-(w,h), y down, through the sprite's and the timeline's matrices; the
+            // corner quad's vertices are (u, -v)
+            const fad::Matrix m = placed.matrix * s->second.matrix;
+            const float w = s->second.width, h = s->second.height;
+            Mat4 place;
+            place(0, 0) = m.a * w;
+            place(0, 1) = -m.c * h;
+            place(0, 3) = ox + m.tx;
+            place(1, 0) = -m.b * w;
+            place(1, 1) = m.d * h;
+            place(1, 3) = -(oy + m.ty);
+            const auto& c = placed.colour.mul;
+            r.DrawUiMesh(corner, &t->second, to_clip * place, {c[0], c[1], c[2], c[3]});
+        }
     }
+    // The combo count centred at canvas x, digits centred on `y`, the label under them (shortcut: position, glyph
+    // spacing and the "from 2 notes" rule are guesses; the game's combo drawing is not traced)
     void DrawCombo(Renderer& r, int combo, float x, float y) const {
         if (!combo_tex.width || combo < 2) return;
         const std::string text = std::to_string(combo);
@@ -223,8 +254,8 @@ struct Playfield {
     }
     void Release(Renderer& r) {
         for (Texture* t : {&atlas, &center_gauge, &center_mic, &combo_tex}) r.Release(*t);
-        for (Texture& t : judge_text) r.Release(t);
-        r.Release(full);
+        for (auto& [name, t] : fad_textures) r.Release(t);
+        r.Release(corner);
         for (GpuMesh* m : {&ring, &note, &trail, &combo_label, &gauge_fan}) r.Release(*m);
         for (GpuMesh& m : digits) r.Release(m);
     }
@@ -528,7 +559,8 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                     at(n.lane, judge.Held(i) ? now : n.time_ms, x, y, size);
                     field.Draw(renderer, field.note, field.atlas, x, y, size, {1, 1, 1, 1});
                 }
-                field.DrawJudgeText(renderer, judged, now - judged_at, 960, 350);  // above the combo (Hypothesis)
+                // the animation's canvas centre (its rings' centre) on the combo (Hypothesis)
+                field.DrawFad(renderer, field.judge_fad[size_t(judged)], now - judged_at, 960, 470);
                 field.DrawCombo(renderer, judge.combo, 960, 470);  // below the centre circle (Hypothesis)
             } else {  // placeholder lanes when the game's play field cannot be loaded
             layout.Fit(renderer.Width(), renderer.Height());
