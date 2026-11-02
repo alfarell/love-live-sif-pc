@@ -108,6 +108,10 @@ static void Real(const char* root) {
         if (i.id == 10) Check(i.group == 0 && i.unit == 0 && i.members.size() == 9 && i.stars[4] == 11, "list: 0010 mu's, 9 members, CHALLENGE level 11");
         if (i.id == 1940) Check(i.group == 2 && i.unit == 10 && i.members == std::vector<int>{21, 22}, "list: 1940 Saint Snow, members 21 and 22");
     }
+    std::vector<StageInfo> stages;
+    Check(LoadStageList(vfs, 1, stages) && stages.size() == 30 && stages[0].id == 1 && stages[0].name == "Live Show Stage" &&
+              stages.back().id == 112 && stages.back().name == "HAKODATE",
+          "stage list: 30 stages, Live Show Stage .. HAKODATE");
     Song aqours;
     Check(LoadSong(vfs, 1020, 4, aqours, &error) && aqours.group == 1, "song 1020 (Aozora Jumping Heart): group 1 (Aqours)");
     int holds = 0, ticks = 0;

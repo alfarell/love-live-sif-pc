@@ -84,6 +84,28 @@ bool LoadMusicRecord(const Vfs& vfs, int id, Song& out, std::string* error) {
     return Fail(error, "no s_music_datas record for this song");
 }
 
+bool LoadStageList(const Vfs& vfs, int language, std::vector<StageInfo>& out, std::string* error) {
+    out.clear();
+    std::vector<uint8_t> file;
+    std::span<const uint8_t> stages;
+    if (!ReadTable(vfs, "common/common.pac/stage_common.pac/stage_datas.bin", "s_stage_datas", file, stages, error)) return false;
+    constexpr size_t kRecord = 0x148;  // 42 records: ids 1-9, 11-19, 102-104, 101, 108, 106, 107, 105, 109-112, 3xx
+    for (size_t r = 0; r + kRecord <= stages.size(); r += kRecord) {
+        StageInfo s{At<int32_t>(stages, r), At<int32_t>(stages, r + 4), {}};
+        char folder[32];
+        std::snprintf(folder, sizeof(folder), "stage/st%03d.pac", s.model);
+        if (s.id <= 0 || s.id >= 300 || !vfs.Exists(folder)) continue;
+        const uint64_t at = At<uint64_t>(stages, r + 8 + 8 * size_t(std::clamp(language, 0, 3)));
+        if (at < file.size()) {
+            const char* t = reinterpret_cast<const char*>(&file[size_t(at)]);
+            s.name = std::string(t, strnlen(t, file.size() - size_t(at)));
+        }
+        out.push_back(std::move(s));
+    }
+    if (out.empty()) return Fail(error, "no stages in the dump");
+    return true;
+}
+
 bool LoadSongList(const Vfs& vfs, int language, std::vector<SongInfo>& out, std::string* error) {
     out.clear();
     std::vector<uint8_t> file;

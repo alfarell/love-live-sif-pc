@@ -45,6 +45,15 @@ struct SongInfo {
 };
 // `language`: 0 Japanese, 1 English, 2 simplified Chinese, 3 traditional Chinese (the order of the title pointers).
 bool LoadSongList(const Vfs& vfs, int language, std::vector<SongInfo>& out, std::string* error = nullptr);
+
+struct StageInfo {
+    int id = 0;        // s_stage_datas +0x00; thumbnail ui/ui_stage_thumbnail.pac stage_NNN
+    int model = 0;     // +0x04: the stage folder stage/stNNN.pac
+    std::string name;  // +0x08 + 8 x language
+};
+// The selectable stages in the game's order (stage_common.pac/stage_datas.bin), those whose folder is in the dump;
+// the 3xx records (variants reusing the 1xx models; Hypothesis: the stage_gimmick_ thumbnails) are left out.
+bool LoadStageList(const Vfs& vfs, int language, std::vector<StageInfo>& out, std::string* error = nullptr);
 // Music: the music.acb cue whose CueId equals the song id.
 bool LoadSongMusic(const Vfs& vfs, Song& song, cri::Pcm& out, std::string* error = nullptr);
 
