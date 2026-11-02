@@ -2,6 +2,7 @@
 
 #include <SDL3/SDL.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <string>
@@ -74,6 +75,20 @@ bool RunResult(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
             char cover[96];
             std::snprintf(cover, sizeof(cover), "ui/ui_music_thumbnail.pac/texture.pac/cd_cover_%04d", s.id);
             ui.SetMaterialTexture(song_data, "cd_jacket00_M", cover);
+            // difficulty: res_difficulty_level00 has the song select's label order (4 x 4: home BEGINNER .. ADVENTURE,
+            // then EASY(AC) .. CHALLENGE(AC)); res_difficulty_star_plate00 one colour per arcade difficulty (5 x 1);
+            // the level badge is 00_common's (cell = level - 1). Variants 00-04 are difficulty indexes 0-4, 10-13 are 5-8
+            const bool home = r.variant >= 10;
+            const int label = home ? r.variant - 10 : 4 + r.variant, index = home ? r.variant - 5 : r.variant;
+            const int level = index >= 0 && index < 9 ? s.stars[size_t(index)] : 0;
+            const int cell = std::clamp(level, 1, 15) - 1;
+            const std::string window = std::string(kLayout) + "/uil0005_PlayScoreWin00";
+            for (const std::string& part : {song_data, score}) {
+                ui.SetMaterialUv(part, "diff_plate00_M", 0.25f * float(label % 4), 0.25f * float(label / 4));
+            }
+            ui.SetMaterialUv(score, "star_bg00_M", 0.2f * float(std::clamp(home ? r.variant - 10 : r.variant, 0, 4)), 0);
+            ui.SetMaterialUv(window + "/common_uip0010_DifficultyStar00", "difficulty_star00", 0.25f * float(cell % 4),
+                             0.25f * float(cell / 4));
         }
     }
     for (int box = 1; box < 5; ++box) ui.SetInstanceText(song_data, box, "");
