@@ -38,6 +38,10 @@ struct SongInfo {
     std::string title;           // s_music_datas title in the UI language (+0x48 + 8 x language)
     std::string credits;         // lyricist, composer, arranger lines (+0xD0, +0x90, +0xB0 + 8 x language)
     std::array<int, 9> stars{};  // star level per difficulty index (s_live_datas +0x18; 0 = no chart)
+    int group = 0;               // s_music_datas +0x10: 0 mu's, 1 Aqours, 2 Saint Snow
+    int unit = -1;               // +0x14: 0 mu's, 1 Printemps, 2 BiBi, 3 lily white, 4 Aqours, 5 mu's solo, 6 Aqours
+                                 // solo, 7 CYaRon!, 8 AZALEA, 9 Guilty Kiss, 10 Saint Snow, -1 mixed (from the titles)
+    std::vector<int> members;    // +0x18 count, +0x1C slots: member ids (1-9 mu's, 11-19 Aqours, 21-22 Saint Snow)
 };
 // `language`: 0 Japanese, 1 English, 2 simplified Chinese, 3 traditional Chinese (the order of the title pointers).
 bool LoadSongList(const Vfs& vfs, int language, std::vector<SongInfo>& out, std::string* error = nullptr);

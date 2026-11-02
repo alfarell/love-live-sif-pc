@@ -102,6 +102,12 @@ static void Real(const char* root) {
     // song 0340 ac_easy: the chart measured on the game's result screens in shadPS4
     Song easy;
     Check(LoadSong(vfs, 340, 0, easy, &error), "load song 0340 variant 00: " + error);
+    std::vector<SongInfo> list;
+    Check(LoadSongList(vfs, 1, list), "song list");
+    for (const SongInfo& i : list) {
+        if (i.id == 10) Check(i.group == 0 && i.unit == 0 && i.members.size() == 9 && i.stars[4] == 11, "list: 0010 mu's, 9 members, CHALLENGE level 11");
+        if (i.id == 1940) Check(i.group == 2 && i.unit == 10 && i.members == std::vector<int>{21, 22}, "list: 1940 Saint Snow, members 21 and 22");
+    }
     Song aqours;
     Check(LoadSong(vfs, 1020, 4, aqours, &error) && aqours.group == 1, "song 1020 (Aozora Jumping Heart): group 1 (Aqours)");
     int holds = 0, ticks = 0;

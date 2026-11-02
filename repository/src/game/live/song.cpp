@@ -106,6 +106,11 @@ bool LoadSongList(const Vfs& vfs, int language, std::vector<SongInfo>& out, std:
             return std::string(t, strnlen(t, file.size() - size_t(at)));
         };
         s.title = text(0x48);
+        s.group = At<int32_t>(music, r + 0x10);
+        s.unit = At<int32_t>(music, r + 0x14);
+        for (int k = 0, n = std::clamp(At<int32_t>(music, r + 0x18), 0, 11); k < n; ++k) {
+            s.members.push_back(At<int32_t>(music, r + 0x1C + 4 * size_t(k)));
+        }
         // the game's setup screen formats "%s\n%s\n%s" from these three fields (eboot 0x16D960)
         s.credits = text(0xD0) + "\n" + text(0x90) + "\n" + text(0xB0);
         for (size_t c = 0; c + kChart <= charts.size(); c += kChart) {
