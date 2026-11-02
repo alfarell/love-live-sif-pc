@@ -33,7 +33,8 @@ template <class T> T At(std::span<const uint8_t> d, size_t off) {
 
 }
 
-bool SceneModel::Load(Renderer& renderer, const Vfs& vfs, const std::string& path, std::string* error) {
+bool SceneModel::Load(Renderer& renderer, const Vfs& vfs, const std::string& path, std::string* error,
+                      const std::string& more_textures) {
     if (!vfs.Read(path, file_, error) || !bmar::Parse(file_, model_, error)) return false;
 
     // textures by key: embedded BMT entries first, then a texture archive next to the model
@@ -41,7 +42,8 @@ bool SceneModel::Load(Renderer& renderer, const Vfs& vfs, const std::string& pat
     std::unordered_map<std::string, std::string> sources;  // key -> vfs path, or "#<n>" for BMT entry n
     for (size_t i = 0; i < model_.textures.size(); ++i) sources.emplace(TextureKey(model_.textures[i].name), "#" + std::to_string(i));
     const std::string folder = path.substr(0, path.rfind('/'));
-    for (const std::string& dir : {folder, folder.substr(0, folder.rfind('/'))}) {
+    for (const std::string& dir : {folder, folder.substr(0, folder.rfind('/')), more_textures}) {
+        if (dir.empty()) continue;
         for (const char* archive : {"texture.texs", "texture.pac"}) {
             std::vector<pac::ArcEntry> entries;
             if (!vfs.List(dir + "/" + archive, entries)) continue;

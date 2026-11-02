@@ -17,8 +17,11 @@ class Vfs;
 
 class SceneModel {
 public:
-    // `path`: the model entry in the dump, e.g. "chr/c01/c01.pac/model.pac/mod_01_honoka".
-    bool Load(Renderer& renderer, const Vfs& vfs, const std::string& path, std::string* error);
+    // `path`: the model entry in the dump, e.g. "chr/c01/c01.pac/model.pac/mod_01_honoka". `more_textures`
+    // (optional): one more folder whose texture archive is searched last, e.g. a costume model's own character
+    // folder for the face and hair ("chr/c01/c01.pac/model.pac").
+    bool Load(Renderer& renderer, const Vfs& vfs, const std::string& path, std::string* error,
+              const std::string& more_textures = {});
     // Bind pose when `motion` is null.
     void Pose(Renderer& renderer, const bmar::Motion* motion, float frame);
     void Pose(Renderer& renderer, std::span<const bmar::Layer> layers);
