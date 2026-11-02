@@ -75,6 +75,8 @@ struct Playfield {
     float gauge_progress = 0;
     std::array<GpuMesh, 10> digits;
     std::array<fad::Animation, kGrades> judge_fad;  // anim.pac ui_ingame_judge_text_perfect .. _miss
+    fad::Animation live_clear;                       // anim.pac ui_ingame_end_text_liveclear
+    std::array<float, 2> banner{962, 500};           // layout_FULLCOMBO centre (1052 x 147, like LIVE CLEAR's text)
     std::map<std::string, Texture> fad_textures;     // by the names the .fad files list
     GpuMesh corner;                                  // unit quad (0,0)-(1,-1) over the whole texture
     std::array<std::array<float, 2>, kLanes> lane{};  // canvas x, y (y down)
@@ -162,6 +164,8 @@ struct Playfield {
             } else if (n == "layout_center_circle") {
                 center = {cx, cy};
                 center_size = rect[2] - rect[0];
+            } else if (n == "layout_FULLCOMBO") {
+                banner = {cx, cy};
             }
         }
         loaded = LoadTexture(r, vfs, "ui/ui_ingame.pac/texture.pac/ui_ingame_notes", atlas) &&
@@ -173,6 +177,7 @@ struct Playfield {
         if (!loaded) LogWarn("live: game play field not loaded; drawing the placeholder lanes");
         if (loaded && !LoadCombo(r, vfs)) LogWarn("live: combo digits not loaded");
         if (loaded && !LoadJudgeTexts(r, vfs)) LogWarn("live: judgement texts not loaded");
+        if (loaded && !LoadFad(r, vfs, "ui_ingame_end_text_liveclear", live_clear)) LogWarn("live: LIVE CLEAR not loaded");
         return loaded;
     }
     // A sprite centred at canvas pixel (x, y), y downwards
@@ -189,30 +194,33 @@ struct Playfield {
         m(1, 3) = -y;
         r.DrawUiMesh(mesh, &texture, UiScreen::CanvasToClip(r.Width(), r.Height()) * m, tint);
     }
-    // The judgement animations (ui_ingame_judge_text_*.fad) and every texture they name
+    // anim.pac/<name>.fad and every texture it names
+    bool LoadFad(Renderer& r, const Vfs& vfs, const std::string& name, fad::Animation& a) {
+        std::vector<uint8_t> file;
+        std::string error;
+        if (!vfs.Read("ui/ui_ingame.pac/anim.pac/" + name + ".fad", file, &error) || !fad::Parse(file, a, &error)) {
+            LogWarn("live: {}: {}", name, error);
+            return false;
+        }
+        for (const auto& [id, sprite] : a.sprites) {
+            if (fad_textures.contains(sprite.texture)) continue;
+            if (!LoadTexture(r, vfs, "ui/ui_ingame.pac/texture.pac/" + sprite.texture, fad_textures[sprite.texture])) return false;
+        }
+        return true;
+    }
+    // The judgement animations (ui_ingame_judge_text_*.fad)
     bool LoadJudgeTexts(Renderer& r, const Vfs& vfs) {
         static constexpr const char* kNames[kGrades] = {"perfect", "great", "good", "bad", "miss"};
         for (int g = 0; g < kGrades; ++g) {
-            std::vector<uint8_t> file;
-            std::string error;
-            fad::Animation& a = judge_fad[size_t(g)];
-            if (!vfs.Read(std::string("ui/ui_ingame.pac/anim.pac/ui_ingame_judge_text_") + kNames[g] + ".fad", file, &error) ||
-                !fad::Parse(file, a, &error)) {
-                LogWarn("live: judgement {}: {}", kNames[g], error);
-                return false;
-            }
-            for (const auto& [id, sprite] : a.sprites) {
-                if (fad_textures.contains(sprite.texture)) continue;
-                if (!LoadTexture(r, vfs, "ui/ui_ingame.pac/texture.pac/" + sprite.texture, fad_textures[sprite.texture])) return false;
-            }
+            if (!LoadFad(r, vfs, std::string("ui_ingame_judge_text_") + kNames[g], judge_fad[size_t(g)])) return false;
         }
         const MeshVertex quad[4] = {{{0, 0, 0}, {0, 0, 1}, {0, 0}}, {{1, 0, 0}, {0, 0, 1}, {1, 0}},
                                     {{1, -1, 0}, {0, 0, 1}, {1, 1}}, {{0, -1, 0}, {0, 0, 1}, {0, 1}}};
         const uint16_t indices[6] = {0, 1, 2, 0, 2, 3};
         return r.CreateMesh(quad, indices, false, corner, nullptr);
     }
-    // One frame of a .fad animation, `ms` after it started, with its canvas centre at canvas pixel (x, y). shortcut:
-    // the colour transforms' add part is ignored (the judgement animations only multiply) and the anchor is a guess
+    // One frame of a .fad animation, `ms` after it started, with its canvas centre at canvas pixel (x, y) (shortcut:
+    // the anchor is a guess)
     void DrawFad(Renderer& r, const fad::Animation& a, double ms, float x, float y) const {
         const size_t frame = size_t(std::max(0.0, ms) * a.fps / 1000.0);
         if (ms < 0 || frame >= a.frames.size()) return;
@@ -234,8 +242,8 @@ struct Playfield {
             place(1, 0) = -m.b * w;
             place(1, 1) = m.d * h;
             place(1, 3) = -(oy + m.ty);
-            const auto& c = placed.colour.mul;
-            r.DrawUiMesh(corner, &t->second, to_clip * place, {c[0], c[1], c[2], c[3]});
+            const auto& c = placed.colour;
+            r.DrawUiMesh(corner, &t->second, to_clip * place, {c.mul[0], c.mul[1], c.mul[2], c.mul[3]}, {0, 0}, 1e9f, c.add);
         }
     }
     // The combo count centred at canvas x, digits centred on `y`, the label under them (shortcut: position, glyph
@@ -444,7 +452,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
     Grade judged = Grade::Miss;
     size_t log_seen = 0, auto_next = 0;
     std::vector<std::pair<double, int>> auto_releases;  // autoplay: (time, lane)
-    double end_at = -1;
+    uint64_t end_ticks = 0;  // when every note was judged (0: not yet)
     bool closed = false;
     std::vector<double> frame_cpu_ms;
     long frame = 0;
@@ -562,6 +570,11 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                 // the animation's canvas centre (its rings' centre) on the combo (Hypothesis)
                 field.DrawFad(renderer, field.judge_fad[size_t(judged)], now - judged_at, 960, 470);
                 field.DrawCombo(renderer, judge.combo, 960, 470);  // below the centre circle (Hypothesis)
+                // LIVE CLEAR once every note is judged, on the full-combo banner's spot, over the combo (Hypothesis)
+                if (end_ticks) {
+                    field.DrawFad(renderer, field.live_clear, double(SDL_GetTicksNS() - end_ticks) / 1e6, field.banner[0],
+                                  field.banner[1]);
+                }
             } else {  // placeholder lanes when the game's play field cannot be loaded
             layout.Fit(renderer.Width(), renderer.Height());
             const float ring[4] = {0.85f, 0.85f, 0.95f, 0.9f};
@@ -620,8 +633,12 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                           judge.counts[3], judge.counts[4], judge.score);
             SDL_SetWindowTitle(window, title);
         }
-        if (judge.Finished() && end_at < 0) end_at = now;
-        if (end_at >= 0 && (!audio.Playing() || now - end_at > 3000)) fade.Leave(hud);
+        // after the last judgement LIVE CLEAR plays (wall clock: the audio clock stops with the music), then the
+        // screen fades out
+        if (judge.Finished() && !end_ticks) end_ticks = SDL_GetTicksNS();
+        const double clear_ms = field.live_clear.frames.empty() ? 3000.0
+                                                                : field.live_clear.frames.size() * 1000.0 / field.live_clear.fps;
+        if (end_ticks && double(SDL_GetTicksNS() - end_ticks) / 1e6 > clear_ms) fade.Leave(hud);
     }
 
     scene.Release(renderer);

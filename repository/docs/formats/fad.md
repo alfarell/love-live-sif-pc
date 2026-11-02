@@ -54,4 +54,8 @@ The canvas centre (200, 200) is the centre of the rings. The text sits about 85�
 
 ## Placement (port)
 
-The port draws a judgement's animation with its canvas centre on the combo counter (canvas (960, 470)). It restarts on each judgement. With this anchor, the rings frame the combo and the arched text follows them (`work/m6/fad_a.png`). The game's own anchor is not traced (*Hypothesis*). The colour "add" part is not drawn yet.
+The port draws a judgement's animation with its canvas centre on the combo counter (canvas (960, 470)). It restarts on each judgement. With this anchor, the rings frame the combo and the arched text follows them (`work/m6/fad_a.png`).
+
+LIVE CLEAR plays once every note is judged, centred on `layout_FULLCOMBO` from `ui_ingame_layout.bin` ((962, 500), 1052 × 147, about the width of its text). The screen fades out when its 200 frames end.
+
+Both anchors are guesses (*Hypothesis*); the game's own are not traced. The colour transform is drawn as texture × multiply + add (`shaders/ui.frag`).
