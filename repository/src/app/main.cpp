@@ -18,6 +18,7 @@
 #include <string>
 #include <vector>
 
+#include "app/fade.h"
 #include "app/input.h"
 #include "app/live_screen.h"
 #include "app/result_screen.h"
@@ -178,8 +179,12 @@ int main(int argc, char** argv) {
         if (boot && audio_ok && (!options.title || sif::RunTitle(window, renderer, vfs, lang, options.frames))) {
             bool open = true;
             sif::SongChoice last;
+            sif::LoadingScreen loading;
+            loading.Load(renderer, vfs, lang);
             for (bool menu = !options.select; open;) {
+                if (menu) loading.Show(renderer);
                 if (menu && sif::RunTopMenu(window, renderer, vfs, lang, options.frames) < 0) break;
+                loading.Show(renderer);
                 const sif::SongChoice choice = sif::RunSongSelect(window, renderer, vfs, lang, options.frames, last);
                 if (choice.closed || (choice.song < 0 && options.select)) break;
                 menu = choice.song < 0;
@@ -188,11 +193,14 @@ int main(int argc, char** argv) {
                 options.live_options.song = choice.song;
                 options.live_options.variant = choice.variant;
                 sif::LiveResult result;
+                loading.Show(renderer);
                 code = sif::RunLive(window, renderer, audio, vfs, settings, options.live_options, &result);
+                if (code == 0 && !result.closed && result.finished) loading.Show(renderer);
                 open = code == 0 && !result.closed &&
                        (!result.finished || sif::RunResult(window, renderer, vfs, options.live_options.lang, result,
                                                            options.frames));
             }
+            loading.Release(renderer);
         } else if (boot) {
             code = audio_ok ? 0 : 1;
         } else if (!audio_ok) {

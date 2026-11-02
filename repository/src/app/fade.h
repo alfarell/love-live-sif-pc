@@ -5,9 +5,12 @@
 
 #include <algorithm>
 #include <cmath>
+#include <string>
 
+#include "engine/core/log.h"
 #include "engine/render/renderer.h"
 #include "engine/ui/ui_screen.h"
+#include "engine/ui/ui_text.h"
 
 namespace sif {
 
@@ -36,6 +39,30 @@ struct ScreenFade {
         const float w = float(r.Width()), h = float(r.Height());
         if (black[3] > 0) r.DrawCircle(w / 2, h / 2, std::hypot(w, h), 0, black);
     }
+};
+
+// The game's "Loading" layout (00_common uil0002_LoadingLayout00: the word in the bottom-right corner on a dark
+// screen), shown between a screen's fade-out and the next screen's blocking load.
+struct LoadingScreen {
+    UiText text;  // must outlive `ui`
+    UiScreen ui;
+    bool loaded = false;
+
+    void Load(Renderer& r, const Vfs& vfs, const std::string& lang) {
+        std::string error;
+        if (!text.Load(vfs, lang, &error)) LogWarn("loading screen: text: {}", error);
+        loaded = ui.Load(r, vfs, "ui2/00_common", lang, &error, &text);
+        if (!loaded) LogWarn("loading screen: {}", error);
+    }
+    // Presents it twice, so it is on screen while the caller blocks on its load
+    void Show(Renderer& r) const {
+        for (int i = 0; loaded && i < 2; ++i) {
+            if (!r.BeginFrame()) return;
+            ui.DrawLayout(r, "uil0002_LoadingLayout00", 1.0f);
+            r.EndFrame();
+        }
+    }
+    void Release(Renderer& r) { ui.Release(r); }
 };
 
 }
