@@ -143,7 +143,9 @@ struct Playfield {
         const auto v = FanVertices(progress);
         r.UpdateMesh(gauge_fan, v);
     }
-    bool Load(Renderer& r, const Vfs& vfs) {
+    // `group`: the song's group (0 mu's, 1 Aqours, 2 Saint Snow) picks the note face of atlas row 1: star, anchor or
+    // snowman (Hypothesis from the faces and the group field; the game's choice is not traced)
+    bool Load(Renderer& r, const Vfs& vfs, int group) {
         std::vector<uint8_t> file;
         std::vector<blbn::Symbol> symbols;
         if (!vfs.Read("ui/ui_ingame.pac/layout.pac/ui_ingame_layout.bin", file) || !blbn::Parse(file, symbols)) return false;
@@ -174,7 +176,7 @@ struct Playfield {
                  // lines up with the HUD's track
                  LoadTexture(r, vfs, "ui2/90_ingame.pac/uip0006_Songgage.pac/texture.pac/IngamesonggageCol.btx", center_gauge) &&
                  LoadTexture(r, vfs, "ui/ui_ingame.pac/texture.pac/ui_ingame_centercircle_mic_aq", center_mic) &&
-                 Cell(r, 1, 0, ring) && Cell(r, 0, 1, note) && Cell(r, 2, 0, trail) && LoadGauge(r) &&
+                 Cell(r, 1, 0, ring) && Cell(r, std::clamp(group, 0, 2), 1, note) && Cell(r, 2, 0, trail) && LoadGauge(r) &&
                  LoadTexture(r, vfs, "ui/ui_ingame.pac/texture.pac/ui_ingame_longnote_circle_01", hold_glow) &&
                  // the orange bar of atlas cell (1, 3): x 71-188, y 112-144 of the 256 px cell
                  Quad(r, (kCell + 71) / kAtlasW, (3 * kCell + 112) / kAtlasH, (kCell + 188) / kAtlasW,
@@ -437,7 +439,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
 
     Layout layout;
     Playfield field;
-    field.Load(renderer, vfs);
+    field.Load(renderer, vfs, song.group);
     // the game's top HUD bar (ui2/90_ingame, layout uil0001_Ingame00); shortcut: gauges and the FULL COMBO marks
     // stay at their defaults until the HUD logic is traced
     long hud_score = -1;
