@@ -423,7 +423,9 @@ void UiScreen::DrawTexts(Renderer& renderer, const std::string& part, const std:
             Render(renderer, t, *style, style->size > 0 ? style->size : (b[3] - b[1]) / lines);
         }
         if (!t.texture.gpu) continue;
-        const float w = float(t.width), h = float(t.height);
+        // a line wider than its box is scaled down to fit (shortcut: the game's own overflow rule is not traced)
+        const float fit = t.width > 0 ? std::min(1.0f, (b[2] - b[0]) / float(t.width)) : 1.0f;
+        const float w = float(t.width) * fit, h = float(t.height) * fit;
         const float x = style->halign == 0 ? b[0] : style->halign == 1 ? (b[0] + b[2] - w) / 2 : b[2] - w;
         const float y = style->valign == 0 ? b[3] : style->valign == 1 ? (b[1] + b[3] + h) / 2 : b[1] + h;  // top edge
         Mat4 place;

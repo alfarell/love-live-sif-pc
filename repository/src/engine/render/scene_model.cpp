@@ -212,7 +212,9 @@ void SceneModel::DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha, st
         if (parent >= 0 && !visible[size_t(parent)]) visible[i] = false;
     }
     for (const Part& part : parts_) {
-        if (part.texture < 0 || !visible[part.node]) continue;
+        // text boxes (no texture named) are not drawn; a named texture missing from the dump (e.g. one the game
+        // fills at run time, like the stage preview) is drawn only when the caller supplies one
+        if (model_.materials[part.material].texture.empty() || !visible[part.node]) continue;
         std::array<float, 4> tint{1, 1, 1, alpha};
         std::array<float, 2> uv{0, 0};
         float u_max = 1e9f;
@@ -236,10 +238,11 @@ void SceneModel::DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha, st
                 }
             }
         }
-        const Texture* texture = &textures_[size_t(part.texture)];
+        const Texture* texture = part.texture >= 0 ? &textures_[size_t(part.texture)] : nullptr;
         if (textures) {
             if (const auto t = textures->find(material); t != textures->end() && t->second) texture = t->second;
         }
+        if (!texture) continue;
         renderer.DrawUiMesh(part.gpu, texture, to_clip * world[part.node], tint, uv, u_max);
     }
 }
@@ -247,7 +250,7 @@ void SceneModel::DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha, st
 std::vector<std::array<float, 4>> SceneModel::TextBoxes() const {
     std::vector<std::array<float, 4>> out;
     for (const Part& part : parts_) {
-        if (part.texture >= 0) continue;
+        if (!model_.materials[part.material].texture.empty()) continue;  // only meshes without a texture name
         const Vec3 a = TransformPoint(world_[part.node], {part.bounds[0], part.bounds[1], 0});
         const Vec3 b = TransformPoint(world_[part.node], {part.bounds[2], part.bounds[3], 0});
         out.push_back({std::min(a.x, b.x), std::min(a.y, b.y), std::max(a.x, b.x), std::max(a.y, b.y)});

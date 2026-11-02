@@ -36,7 +36,8 @@ public:
                 const std::map<std::string, std::array<float, 3>>* uv_offsets = nullptr) const;
     void Release(Renderer& renderer);
     const bmar::Model& Data() const { return model_; }
-    // UI text boxes: the untextured meshes in draw order, as (x0, y0, x1, y1) after their node transform
+    // UI text boxes: the meshes whose material names no texture, in draw order, as (x0, y0, x1, y1) after their node
+    // transform (a named texture missing from the dump does not make a text box)
     std::vector<std::array<float, 4>> TextBoxes() const;
 
 private:
