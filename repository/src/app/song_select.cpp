@@ -19,13 +19,17 @@ namespace sif {
 namespace {
 
 using live::LoadSongList;
+using live::LoadStageList;
 using live::SongInfo;
+using live::StageInfo;
+
+enum Step { kSongStep, kDifficultyStep, kStageStep };
 
 constexpr const char* kRoot = "uil0001_StepLayout00";
 constexpr int kPlates = 11;      // uil0013_MusicList00: SelectPlate00_00 (centre), then 01/02, 03/04 ... left/right
 constexpr int kDifficulties = 5; // arcade: ac_easy .. ac_challenge (variants 00-04, difficulty index 0-4)
 // The parts of the step layout that belong to other steps or popups (song step shows the song list only)
-constexpr const char* kOtherSteps[] = {"uil0020_StageSelect00", "uil0025_CosSelect00", "uil0070_LiveViewBanner00",
+constexpr const char* kOtherSteps[] = {"uil0025_CosSelect00", "uil0070_LiveViewBanner00",
                                        "uil0071_LiveViewInfo00", "uil0072_LiveViewCaution00",
                                        "uip0019_MusicPreviewLock00", "uil0015_DifficultyList00_OR",
                                        // home-version difficulty strip and save results in the song info panel
@@ -118,20 +122,53 @@ void ApplyPanelDifficulty(UiScreen& ui, const std::string& panel, int label, int
 
 // shortcut: the step logic is the port's own (the eboot's setup screen, 0x163000-0x179000, is surveyed but not traced);
 // labels and levels come from the charts, records (rank, clear status, combo) need a save and are hidden
-void Apply(UiScreen& ui, const std::vector<SongInfo>& songs, int current, bool difficulty_step, int difficulty) {
+std::string StageThumbnail(const StageInfo& s) {
+    char t[80];
+    std::snprintf(t, sizeof(t), "ui/ui_stage_thumbnail.pac/texture.pac/stage_%03d", s.id);
+    return t;
+}
+
+// The stage step reuses the song list's plates (each also places uip0040_StageSelect00: thumbnail, name) plus the
+// stage preview (uil0020_StageSelect00: uip0041 picture and name; uip0043 records, hidden without a save)
+void ApplyStages(UiScreen& ui, const std::vector<StageInfo>& stages, int stage, bool show) {
+    ui.HideInstance(std::string(kRoot) + "/uil0020_StageSelect00", !show);
+    const int n = int(stages.size());
+    for (int k = 0; k < kPlates; ++k) {
+        const std::string plate = Plate(k) + "/uip0040_StageSelect00";
+        ui.HideInstance(plate, !show || n == 0);
+        if (!show || n == 0) continue;
+        const StageInfo& s = stages[size_t(((stage + PlateOffset(k)) % n + n) % n)];
+        ui.SetMaterialTexture(plate, "stage_thumbnail00_M", StageThumbnail(s));
+        ui.SetInstanceText(plate, 0, s.name);
+        for (const char* node : {"lock_ribbon00", "lock_icon00", "select_bg_eff00"}) ui.HideNode(plate, node, true);
+        ui.HideNode(plate, "select_bg00_on", k != 0);
+        ui.HideNode(plate, "select_bg00_off", k == 0);
+        ui.HideNode(plate, "select_bg00_line_on", k != 0);
+        ui.HideNode(plate, "select_bg00_line_off", k == 0);
+    }
+    if (!show || n == 0) return;
+    const std::string preview = std::string(kRoot) + "/uil0020_StageSelect00/uip0041_StagePreview00";
+    ui.SetMaterialTexture(preview, "stage_preview00_M", StageThumbnail(stages[size_t(stage)]));
+    ui.SetInstanceText(preview, 0, stages[size_t(stage)].name);
+    ui.HideNode(preview, "stage_preview_line00", true);
+    ui.HideInstance(std::string(kRoot) + "/uil0020_StageSelect00/uip0043_StagePlay00", true);
+}
+
+void Apply(UiScreen& ui, const std::vector<SongInfo>& songs, int current, Step step, int difficulty,
+           const std::vector<StageInfo>& stages, int stage) {
     for (const char* other : kOtherSteps) ui.HideInstance(std::string(kRoot) + "/" + other, true);
-    ui.HideInstance(std::string(kRoot) + "/uil0013_MusicList00", difficulty_step);
-    ui.HideInstance(std::string(kRoot) + "/uil0016_DifficultyList00_AC", !difficulty_step);
+    ui.HideInstance(std::string(kRoot) + "/uil0013_MusicList00", step == kDifficultyStep);
+    ui.HideInstance(std::string(kRoot) + "/uil0016_DifficultyList00_AC", step != kDifficultyStep);
+    ApplyStages(ui, stages, stage, step == kStageStep);
     const int n = int(songs.size());
     for (int k = 0; k < kPlates; ++k) {
         const std::string plate = Plate(k);
-        for (const char* p : {"/uip0040_StageSelect00", "/uip0045_CosSelect00", "/common_uip0017_New00_00",
-                              "/common_uip0017_New00_01"}) {
+        for (const char* p : {"/uip0045_CosSelect00", "/common_uip0017_New00_00", "/common_uip0017_New00_01"}) {
             ui.HideInstance(plate + p, true);
         }
         const std::string music = plate + "/uip0013_MusicSelect00";
         const int index = n ? ((current + PlateOffset(k)) % n + n) % n : 0;
-        ui.HideInstance(music, n == 0);
+        ui.HideInstance(music, n == 0 || step == kStageStep);
         if (n) {
             char cover[96];
             std::snprintf(cover, sizeof(cover), "ui/ui_music_thumbnail.pac/texture.pac/cd_cover_%04d", songs[size_t(index)].id);
@@ -154,8 +191,10 @@ void Apply(UiScreen& ui, const std::vector<SongInfo>& songs, int current, bool d
         ui.SetInstanceText(preview, 3, song->credits);
         const std::string panel = std::string(kRoot) + "/uip0004_SelectList00";
         ui.SetInstanceText(panel, 0, song->title);
-        ui.SetInstanceText(panel, 1, "");
+        // box 1: the stage (Hypothesis: boxes 1 and 2 are the stage and costume names)
+        ui.SetInstanceText(panel, 1, stages.empty() ? "" : stages[size_t(stage)].name);
         ui.SetInstanceText(panel, 2, "");
+        if (!stages.empty()) ui.SetMaterialTexture(panel, "stage_000", StageThumbnail(stages[size_t(stage)]));
         ui.SetMaterialTexture(panel, "cd_cover00", cover);
         const auto group = UnitLogo(song->group, -1), unit = UnitLogo(song->group, song->unit);
         ui.SetMaterialUv(panel, "logo00_M", group[0], group[1]);
@@ -183,6 +222,7 @@ void Apply(UiScreen& ui, const std::vector<SongInfo>& songs, int current, bool d
         ui.HideNode(card, "lock_icon00", true);
         ui.SetMaterialUv(badge, "difficulty_star00", cell[0], cell[1]);
     }
+    ui.HideInstance(std::string(kRoot) + "/uil0010_MusicSelect00/uil0012_MusicDiff_AC00", step == kStageStep);  // under the preview
     for (int d = 0; d < kDifficulties; ++d) {
         const std::string plate = DifficultyPlate(d);
         const int stars = song ? song->stars[size_t(d)] : 0;
@@ -222,53 +262,70 @@ SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs,
     }
     ui.HideNode("new00", true);
     ui.HideNode("complete00", true);
-    LogInfo("song select: {} songs", songs.size());
-    int current = 0, difficulty = kDifficulties - 1;
+    std::vector<StageInfo> stages;
+    if (!LoadStageList(vfs, language, stages, &error)) LogWarn("song select: stages: {}", error);
+    LogInfo("song select: {} songs, {} stages", songs.size(), stages.size());
+    int current = 0, difficulty = kDifficulties - 1, stage = 0;
     for (size_t i = 0; i < songs.size(); ++i) {
         if (songs[i].id == previous.song) current = int(i), difficulty = previous.variant;
     }
-    bool difficulty_step = false;
+    const std::string last_stage = previous.stage.empty() ? "st017" : previous.stage;  // else the live default
+    for (size_t i = 0; i < stages.size(); ++i) {
+        char folder[16];
+        std::snprintf(folder, sizeof(folder), "st%03d", stages[i].model);
+        if (last_stage == folder) stage = int(i);
+    }
+    Step step = kSongStep;
     SongChoice choice;
     bool running = true;
     ScreenFade fade;
-    Apply(ui, songs, current, difficulty_step, difficulty);
+    Apply(ui, songs, current, step, difficulty, stages, stage);
     uint64_t last = SDL_GetTicksNS();
     for (long frame = 0; running && !fade.Left() && (max_frames < 0 || frame < max_frames); ++frame) {
         SDL_Event e;
         while (PollEvent(e)) {
             if (e.type == SDL_EVENT_QUIT) running = false, choice.closed = true;
             if (e.type != SDL_EVENT_KEY_DOWN || e.key.repeat || fade.leaving) continue;
-            const int n = int(songs.size());
+            const int n = int(songs.size()), ns = std::max(1, int(stages.size()));
             switch (e.key.scancode) {
                 case SDL_SCANCODE_LEFT:
-                    if (difficulty_step) difficulty = std::max(0, difficulty - 1);
+                    if (step == kDifficultyStep) difficulty = std::max(0, difficulty - 1);
+                    else if (step == kStageStep) stage = (stage + ns - 1) % ns;
                     else current = (current + n - 1) % n;
                     break;
                 case SDL_SCANCODE_RIGHT:
-                    if (difficulty_step) difficulty = std::min(kDifficulties - 1, difficulty + 1);
+                    if (step == kDifficultyStep) difficulty = std::min(kDifficulties - 1, difficulty + 1);
+                    else if (step == kStageStep) stage = (stage + 1) % ns;
                     else current = (current + 1) % n;
                     break;
                 case SDL_SCANCODE_RETURN:
                 case SDL_SCANCODE_SPACE:
-                    if (difficulty_step) {
+                    if (step == kStageStep || (step == kDifficultyStep && stages.empty())) {
                         choice = {songs[size_t(current)].id, difficulty};
+                        if (!stages.empty()) {
+                            char folder[16];
+                            std::snprintf(folder, sizeof(folder), "st%03d", stages[size_t(stage)].model);
+                            choice.stage = folder;
+                        }
                         fade.Leave(ui);
                     } else {
-                        difficulty_step = true;
+                        step = Step(step + 1);
                     }
                     break;
                 case SDL_SCANCODE_ESCAPE:
                 case SDL_SCANCODE_BACKSPACE:
-                    if (difficulty_step) difficulty_step = false;
+                    if (step != kSongStep) step = Step(step - 1);
                     else fade.Leave(ui);
                     break;
                 default: break;
             }
-            Apply(ui, songs, current, difficulty_step, difficulty);
+            Apply(ui, songs, current, step, difficulty, stages, stage);
             const SongInfo& s = songs[size_t(current)];
             char title[256];
             std::snprintf(title, sizeof(title), "SIF port - %04d %s%s", s.id, s.title.c_str(),
-                          difficulty_step ? (" - difficulty " + std::to_string(difficulty)).c_str() : "");
+                          step == kDifficultyStep ? (" - difficulty " + std::to_string(difficulty)).c_str()
+                          : step == kStageStep    ? (" - stage " + stages[size_t(stage)].name).c_str()
+                                                  : "");
             SDL_SetWindowTitle(window, title);
         }
         const uint64_t now = SDL_GetTicksNS();

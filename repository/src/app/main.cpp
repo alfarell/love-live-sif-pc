@@ -192,6 +192,7 @@ int main(int argc, char** argv) {
                 last = choice;
                 options.live_options.song = choice.song;
                 options.live_options.variant = choice.variant;
+                if (!choice.stage.empty()) options.live_options.stage = choice.stage;
                 sif::LiveResult result;
                 loading.Show(renderer);
                 code = sif::RunLive(window, renderer, audio, vfs, settings, options.live_options, &result);
