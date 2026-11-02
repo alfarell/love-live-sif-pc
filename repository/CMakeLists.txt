@@ -65,6 +65,7 @@ add_library(sif_engine STATIC
   src/engine/formats/bmar.cpp
   src/engine/formats/bscm.cpp
   src/engine/formats/btx.cpp
+  src/engine/formats/fad.cpp
   src/engine/fs/pac.cpp
   src/engine/fs/vfs.cpp
   src/engine/platform/os.cpp
@@ -119,6 +120,12 @@ add_executable(sif_live_test tests/unit/live_test.cpp)
 target_link_libraries(sif_live_test PRIVATE sif_game)
 if(MSVC)
   target_compile_options(sif_live_test PRIVATE /utf-8 /EHsc)
+endif()
+
+add_executable(sif_fad_test tests/unit/fad_test.cpp)
+target_link_libraries(sif_fad_test PRIVATE sif_engine)
+if(MSVC)
+  target_compile_options(sif_fad_test PRIVATE /utf-8 /EHsc)
 endif()
 
 add_executable(sif_input_test tests/unit/input_test.cpp src/app/input.cpp)
