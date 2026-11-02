@@ -3,6 +3,7 @@
 #include <SDL3/SDL.h>
 
 #include <algorithm>
+#include <array>
 #include <cstdio>
 #include <string>
 #include <vector>
@@ -54,8 +55,69 @@ std::string DifficultyPlate(int k) {
 }
 int PlateOffset(int k) { return k == 0 ? 0 : (k % 2 ? -(k + 1) / 2 : k / 2); }  // 1 -> -1, 2 -> +1, 3 -> -2 ...
 
+// Difficulty labels (setup_difficulty_plate00 / setup_difficulty_level00) and level badges (00_common
+// setup_difficulty_star01) are 4 x 4 atlases of 0.25 x 0.25 cells. Labels: 0-3 home BEGINNER, STANDARD, HYPER,
+// ADVENTURE (variants 10-13), 4-8 EASY(AC) .. CHALLENGE(AC) (variants 00-04); badges: cell n-1 shows level n (1-15).
+std::array<float, 2> Cell(int k) { return {0.25f * float(k % 4), 0.25f * float(k / 4)}; }
+
+// setup_unit_logo00 (5 x 2 cells of 0.2 x 0.5): mu's, Aqours, Saint Snow, Printemps, lily white / BiBi, CYaRon!,
+// AZALEA, Guilty Kiss. The song's unit picks the logo; solos and mixed line-ups show their group's.
+std::array<float, 2> UnitLogo(int group, int unit) {
+    static constexpr int kLogoOfUnit[11] = {0, 3, 5, 4, 1, 0, 1, 6, 7, 8, 2};
+    const int k = unit >= 0 && unit < 11 ? kLogoOfUnit[unit] : std::clamp(group, 0, 2);
+    return {0.2f * float(k % 5), 0.5f * float(k / 5)};
+}
+
+std::string MemberTexture(int member) {
+    char s[80];
+    std::snprintf(s, sizeof(s), "ui/ui_sd_character.pac/texture.pac/sd_character_menu%02d", member);
+    return s;
+}
+
+// The song's members as chibis (ui_sd_character.pac sd_character_menuNN, NN = member id). The music select row
+// (uip0018_SDMember00) has 11 slots, filled from the left; the selection panel (uip0004_SelectList00) has groups of
+// 11 (sd_member_all), 2 (sd_member_duo) and 8 (sd_member_even) slots. shortcut: the panel's group choice (2 -> duo,
+// even -> even, odd -> all) and centring are guesses from the slot counts
+void ApplyMembers(UiScreen& ui, const std::string& row, const std::string& panel, const std::vector<int>& members) {
+    const int n = int(members.size());
+    for (int k = 0; k < 11; ++k) {
+        char node[16], material[24];
+        std::snprintf(node, sizeof(node), k < 10 ? "sd_chara0%d" : "sd_chara0%02d", k);
+        std::snprintf(material, sizeof(material), k == 9 ? "sd_characte09" : "sd_characte00_%02d", k);
+        ui.HideNode(row, node, k >= n);
+        if (k < n) ui.SetMaterialTexture(row, material, MemberTexture(members[size_t(k)]));
+    }
+    const int group = n == 2 ? 1 : n % 2 == 0 ? 2 : 0;
+    static constexpr const char* kGroups[3] = {"sd_member_all", "sd_member_duo", "sd_member_even"};
+    static constexpr int kSlots[3] = {11, 2, 8};
+    for (int g = 0; g < 3; ++g) ui.HideNode(panel, kGroups[g], g != group);
+    const int first = (kSlots[group] - std::min(n, kSlots[group])) / 2;
+    for (int k = 0; k < kSlots[group]; ++k) {
+        char node[24], material[24];
+        std::snprintf(node, sizeof(node), "sd_chara%02d_%02d", group, k);
+        std::snprintf(material, sizeof(material), "sd_characte%02d", k);
+        const int m = k - first;
+        ui.HideNode(panel, node, m < 0 || m >= n);
+        if (m >= 0 && m < n) ui.SetMaterialTexture(panel, material, MemberTexture(members[size_t(m)]));
+    }
+}
+
+// The selection panel's difficulty: small label (setup_difficulty_level_s00, same order as the labels), and ten stars
+// from setup_difficulty_star00 (cells of 0.5: grey (0, 0), yellow (0.5, 0), pink (0, 0.5)); like the level badges,
+// stars past 10 turn the first ones pink
+void ApplyPanelDifficulty(UiScreen& ui, const std::string& panel, int label, int level) {
+    const auto l = Cell(label);
+    ui.SetMaterialUv(panel, "difficulty_level00", l[0], l[1]);
+    for (int s = 0; s < 10; ++s) {
+        char material[24];
+        std::snprintf(material, sizeof(material), "difficulty_star%02d", s);
+        const bool pink = s < level - 10, yellow = s < level;
+        ui.SetMaterialUv(panel, material, pink ? 0.0f : yellow ? 0.5f : 0.0f, pink ? 0.5f : 0.0f);
+    }
+}
+
 // shortcut: the step logic is the port's own (the eboot's setup screen, 0x163000-0x179000, is surveyed but not traced);
-// difficulty labels on the plates stay the part's default, the stars show each chart's level
+// labels and levels come from the charts, records (rank, clear status, combo) need a save and are hidden
 void Apply(UiScreen& ui, const std::vector<SongInfo>& songs, int current, bool difficulty_step, int difficulty) {
     for (const char* other : kOtherSteps) ui.HideInstance(std::string(kRoot) + "/" + other, true);
     ui.HideInstance(std::string(kRoot) + "/uil0013_MusicList00", difficulty_step);
@@ -94,6 +156,32 @@ void Apply(UiScreen& ui, const std::vector<SongInfo>& songs, int current, bool d
         ui.SetInstanceText(panel, 0, song->title);
         ui.SetInstanceText(panel, 1, "");
         ui.SetInstanceText(panel, 2, "");
+        ui.SetMaterialTexture(panel, "cd_cover00", cover);
+        const auto group = UnitLogo(song->group, -1), unit = UnitLogo(song->group, song->unit);
+        ui.SetMaterialUv(panel, "logo00_M", group[0], group[1]);
+        ui.SetMaterialUv(panel, "logo01_M", unit[0], unit[1]);
+        ApplyPanelDifficulty(ui, panel, 4 + difficulty, song->stars[size_t(difficulty)]);
+        const std::string music = std::string(kRoot) + "/uil0010_MusicSelect00/";
+        ApplyMembers(ui, music + "uip0018_SDMember00", panel, song->members);
+        // the group signs (uip0012_GroupName00): group_logo00 twice, group_logo02 once; group and unit (Hypothesis)
+        ui.SetMaterialUv(music + "uip0012_GroupName00", "group_logo00", group[0], group[1]);
+        ui.SetMaterialUv(music + "uip0012_GroupName00", "group_logo02", unit[0], unit[1]);
+    }
+    // the song step's five arcade difficulty cards: label, level badge; no chart -> no card
+    const std::string cards = std::string(kRoot) + "/uil0010_MusicSelect00/uil0012_MusicDiff_AC00/";
+    for (int d = 0; d < kDifficulties; ++d) {
+        char k[8];
+        std::snprintf(k, sizeof(k), "_%02d", d);
+        const int level = song ? song->stars[size_t(d)] : 0;
+        const std::string card = cards + "uip0011_MusicDifficulty00" + k, badge = cards + "common_uip0010_DifficultyStar00" + k;
+        ui.HideInstance(card, level == 0);
+        ui.HideInstance(badge, level == 0);
+        ui.HideInstance(cards + "uip0020_Clear_status00" + k, true);
+        const auto label = Cell(4 + d), cell = Cell(std::clamp(level, 1, 15) - 1);
+        ui.SetMaterialUv(card, "difficulty_level00", label[0], label[1]);
+        ui.HideNode(card, "lank_result00", true);
+        ui.HideNode(card, "lock_icon00", true);
+        ui.SetMaterialUv(badge, "difficulty_star00", cell[0], cell[1]);
     }
     for (int d = 0; d < kDifficulties; ++d) {
         const std::string plate = DifficultyPlate(d);
@@ -107,6 +195,8 @@ void Apply(UiScreen& ui, const std::vector<SongInfo>& songs, int current, bool d
                                  "setup_difficulty_lock00", "select_bg_eff00"}) {
             ui.HideNode(plate, node, true);
         }
+        const auto label = Cell(4 + d);
+        ui.SetMaterialUv(plate, "M_difficulty_level00_big", label[0], label[1]);
         ui.HideNode(plate, "select_bg00_on", d != difficulty);
         ui.HideNode(plate, "select_bg00_off", d == difficulty);
     }
