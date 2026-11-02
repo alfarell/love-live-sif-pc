@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 
+#include "app/fade.h"
 #include "app/input.h"
 #include "app/result_screen.h"
 #include "engine/audio/audio_output.h"
@@ -387,13 +388,20 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
     bool closed = false;
     std::vector<double> frame_cpu_ms;
     long frame = 0;
+    ScreenFade fade;  // in from black; out to black at the song's end or on Esc
+    uint64_t fade_last = SDL_GetTicksNS();
     SetPadLayout(PadLayout::Live);
-    for (bool running = true; running && (opt.max_frames < 0 || frame < opt.max_frames); ++frame) {
+    for (bool running = true; running && !fade.Left() && (opt.max_frames < 0 || frame < opt.max_frames); ++frame) {
+        const uint64_t fade_now = SDL_GetTicksNS();
+        fade.Update(double(fade_now - fade_last) / 1e9);
+        fade_last = fade_now;
         SDL_Event e;
         while (PollEvent(e)) {
-            if (e.type == SDL_EVENT_QUIT || (e.type == SDL_EVENT_KEY_DOWN && e.key.scancode == SDL_SCANCODE_ESCAPE)) {
+            if (e.type == SDL_EVENT_QUIT) {
                 running = false;
-                closed = closed || e.type == SDL_EVENT_QUIT;
+                closed = true;
+            } else if (e.type == SDL_EVENT_KEY_DOWN && e.key.scancode == SDL_SCANCODE_ESCAPE) {
+                fade.Leave(hud);
             } else if ((e.type == SDL_EVENT_KEY_DOWN || e.type == SDL_EVENT_KEY_UP) && !e.key.repeat && !opt.autoplay) {
                 const int lane = LaneOf(e.key.scancode);
                 if (lane < 0) continue;
@@ -533,6 +541,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                 renderer.DrawCircle(x, y, r, 0, body);
             }
             }
+            fade.Draw(renderer);
             renderer.EndFrame();
             const double cpu_ms = double(SDL_GetTicksNS() - draw_start) / 1e6;  // CPU cost of one frame, without the vsync wait
             frame_cpu_ms.push_back(cpu_ms);
@@ -548,7 +557,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
             SDL_SetWindowTitle(window, title);
         }
         if (judge.Finished() && end_at < 0) end_at = now;
-        if (end_at >= 0 && (!audio.Playing() || now - end_at > 3000)) running = false;
+        if (end_at >= 0 && (!audio.Playing() || now - end_at > 3000)) fade.Leave(hud);
     }
 
     scene.Release(renderer);
