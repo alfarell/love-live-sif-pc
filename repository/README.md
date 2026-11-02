@@ -32,7 +32,7 @@ The build folder is `../work/build/<preset>/`. SDL3 and zlib are fetched at conf
 ## Run
 
 ```
-sif.exe --game <your CUSA24620 dump folder> [--title|--menu|--select [--lang en|cn|tw|jp]] [--ui SCREEN:LAYOUT[:CLIP]] [--result-demo] [--live ID:VARIANT [--autoplay] [--stage stNNN] [--member N] | --calibrate | --show VFS_PATH --play SHEET:CUE|none] [--frames N] [--crash] [--data DIR]
+sif.exe --game <your CUSA24620 dump folder> [--title|--menu|--select [--lang en|cn|tw|jp]] [--ui SCREEN:LAYOUT[:CLIP]] [--result-demo] [--live ID:VARIANT [--autoplay] [--stage stNNN] [--costume dNNN] [--member N] | --calibrate | --show VFS_PATH --play SHEET:CUE|none] [--frames N] [--crash] [--data DIR]
 ```
 
 - `--live 10:4` plays song 0010 on chart variant 04 (`ac_challenge`; 00-04 arcade, 10-13 home difficulties). Keys for the 9 lanes, left to right: `A S D F Space J K L ;`. Esc quits. The title bar shows combo, judgement counts and the score; `sif.log` gets the result and the mean press offset. `--autoplay` presses every note on time. The live screen draws the stage (`--stage`, default `st017`) and the members dancing the song (all who have a dance for it; `--member N` shows only member N, 1-9) behind the lanes, filmed by the song's own camera animation.

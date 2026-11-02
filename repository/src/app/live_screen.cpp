@@ -362,11 +362,19 @@ struct LiveScene {
             std::snprintf(chr, sizeof(chr), "chr/c%02d/c%02d.pac/model.pac", m, m);
             std::snprintf(mot, sizeof(mot), "live/%04d/c%02d_%04d.pac", opt.song, m, opt.song);
             std::snprintf(prefix, sizeof(prefix), "mod_%02d_", m);
-            const std::string model_path = FindEntry(vfs, chr, prefix), motion_path = FindEntry(vfs, mot, "mot_");
+            std::string model_path = FindEntry(vfs, chr, prefix), textures;
+            const std::string motion_path = FindEntry(vfs, mot, "mot_");
+            if (!opt.costume.empty()) {  // chr/cNN/dXXX/dXXX.pac: the whole member in that costume (face and hair
+                                         // textures stay in the member's own model.pac); members without it keep theirs
+                char dress[64];
+                std::snprintf(dress, sizeof(dress), "chr/c%02d/%s/%s.pac", m, opt.costume.c_str(), opt.costume.c_str());
+                const std::string dressed = FindEntry(vfs, dress, "mod_");
+                if (!dressed.empty()) model_path = dressed, textures = chr;
+            }
             if (motion_path.empty()) continue;  // not in this song
             auto d = std::make_unique<Dancer>();
             d->member = m;
-            if (model_path.empty() || !d->model.Load(renderer, vfs, model_path, &error)) {
+            if (model_path.empty() || !d->model.Load(renderer, vfs, model_path, &error, textures)) {
                 LogWarn("live: member {}: {}", m, model_path.empty() ? "no model" : error);
                 continue;
             }
@@ -436,7 +444,18 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
     judge.Reset(chart, song.windows, song.rules);
     const double offset = settings.timing.audio_offset_ms;
     LiveScene scene;
-    scene.Load(renderer, vfs, opt);
+    LiveOptions dressed = opt;
+    if (dressed.costume.empty()) {  // no costume chosen: the song's own, else the school uniform (live::PickCostume)
+        std::vector<live::SongInfo> songs;
+        std::vector<live::DressInfo> dresses;
+        if (live::LoadSongList(vfs, 1, songs) && live::LoadDressList(vfs, 1, dresses)) {
+            for (const live::SongInfo& s : songs) {
+                if (s.id == opt.song) dressed.costume = live::PickCostume(vfs, s, dresses);
+            }
+        }
+        LogInfo("live: costume {}", dressed.costume.empty() ? "base model" : dressed.costume);
+    }
+    scene.Load(renderer, vfs, dressed);
     audio.Play(std::move(music));
 
     Layout layout;

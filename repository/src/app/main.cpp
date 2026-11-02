@@ -80,6 +80,7 @@ Options ParseOptions(int argc, char** argv) {
         else if (!std::strcmp(argv[i], "--ui-hide-path") && i + 1 < argc) o.ui_hide_path = argv[++i];
         else if (!std::strcmp(argv[i], "--lang") && i + 1 < argc) o.lang = argv[++i];
         else if (!std::strcmp(argv[i], "--stage") && i + 1 < argc) o.live_options.stage = argv[++i];
+        else if (!std::strcmp(argv[i], "--costume") && i + 1 < argc) o.live_options.costume = argv[++i];
         else if (!std::strcmp(argv[i], "--member") && i + 1 < argc) o.live_options.member = int(std::strtol(argv[++i], nullptr, 10));
         else if (!std::strcmp(argv[i], "--live") && i + 1 < argc) {
             o.live = true;
