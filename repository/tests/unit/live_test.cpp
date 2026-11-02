@@ -96,11 +96,14 @@ static void Real(const char* root) {
     Check(song.rules.multiplier == 3.0f && song.rules.tick_ms == 41, "song 0010/04 (ac_challenge): multiplier 3.0");
     Check(song.rules.rank_rates[0] == 0.45f && song.rules.rank_rates[5] == 1.2f, "rank thresholds read (+0x138..+0x14C)");
     Check(p.MaxScore() == p.score, "song 0010/04: all Perfect = maximum score");
+    Check(song.group == 0, "song 0010: group 0 (mu's)");
     Check(song.dance_start_frame == 972, "song 0010: music starts at dance frame 972 (s_music_datas +0x104)");
     std::printf("song 0010/04 all Perfect: score %.0f\n", p.score);
     // song 0340 ac_easy: the chart measured on the game's result screens in shadPS4
     Song easy;
     Check(LoadSong(vfs, 340, 0, easy, &error), "load song 0340 variant 00: " + error);
+    Song aqours;
+    Check(LoadSong(vfs, 1020, 4, aqours, &error) && aqours.group == 1, "song 1020 (Aozora Jumping Heart): group 1 (Aqours)");
     int holds = 0, ticks = 0;
     for (const Note& n : easy.chart.notes) {
         if (!n.IsHold()) continue;
