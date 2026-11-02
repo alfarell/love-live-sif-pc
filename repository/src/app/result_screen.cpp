@@ -2,6 +2,7 @@
 
 #include <SDL3/SDL.h>
 
+#include <cmath>
 #include <cstdio>
 #include <string>
 #include <vector>
@@ -19,8 +20,9 @@ constexpr const char* kLayout = "uil0001_ResultTop00/uil0002_ResultLayout00";
 
 }
 
-// shortcut: the result screen's own logic (eboot) is not traced: the judgement-row labels, score rate, combo result
-// and rank show their parts' defaults; the values the port knows are filled in (score, counts, max combo, title, cover)
+// shortcut: the result screen's own logic (eboot) is not traced: the combo result (FULL COMBO), records and rewards
+// show their parts' defaults; the values the port knows are filled in (score, counts, max combo, clear rate, rank,
+// title, cover)
 bool RunResult(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, const LiveResult& r,
                long max_frames) {
     UiText text;
@@ -33,11 +35,21 @@ bool RunResult(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
     }
     ui.HideNode("new00", true);
     ui.HideNode("complete00", true);
-    // the play-score window: number box 0 = this score (boxes 1 and 2: Hypothesis, high score and rate; not known)
+    // the play-score window: number boxes 0 score, 1 max combo, 2 clear rate (its digit row has '.' and '%'; the
+    // two-decimal format is a guess)
     const std::string score = std::string(kLayout) + "/uil0005_PlayScoreWin00/uip0003_PlayScore00";
     ui.SetInstanceNumber(score, 0, std::to_string(long(r.score)));
     ui.SetInstanceNumber(score, 1, std::to_string(r.max_combo));
-    ui.SetInstanceNumber(score, 2, "");
+    char rate[16];
+    std::snprintf(rate, sizeof(rate), "%.2f%%", std::floor(r.clear_rate * 10000) / 100);
+    ui.SetInstanceNumber(score, 2, rate);
+    // the rank letter: res_result_evaluation00 holds D C B A over S SS SSS in cells of 1/4 x 1/2
+    const std::string rank = std::string(kLayout) + "/uil0007_ScoreRateGroup00/uip0005_ScoreRate00";
+    for (const char* material : {"score_rate_M", "score_rate_eff_M"}) {
+        ui.SetMaterialUv(rank, material, 0.25f * float(r.rank % 4), 0.5f * float(r.rank / 4));
+    }
+    // the FULL COMBO banner: only when nothing broke the combo (Good, Bad and Miss do)
+    if (r.counts[2] + r.counts[3] + r.counts[4] > 0) ui.HideInstance(std::string(kLayout) + "/uip0004_ComboResult00", true);
     for (int k = 0; k < 3; ++k) {
         ui.HideInstance(std::string(kLayout) + "/uil0005_PlayScoreWin00/common_uip0017_New_0" + std::to_string(k), true);
     }
@@ -66,7 +78,8 @@ bool RunResult(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
     ui.HideNode(song_data, "old_rate00", true);
     ui.Play("*", UiScreen::ClipName(1), false);  // "in"
     SDL_SetWindowTitle(window, "SIF port - result");
-    LogInfo("result: song {:04d}/{:02d}, score {:.0f}, max combo {}", r.song, r.variant, r.score, r.max_combo);
+    LogInfo("result: song {:04d}/{:02d}, score {:.0f}, max combo {}, clear rate {}, rank {}", r.song, r.variant, r.score,
+            r.max_combo, rate, r.rank);
     bool open = true, done = false;
     uint64_t last = SDL_GetTicksNS();
     for (long frame = 0; open && !done && (max_frames < 0 || frame < max_frames); ++frame) {

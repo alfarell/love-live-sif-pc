@@ -575,7 +575,8 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
             judge.counts[0], judge.counts[1], judge.counts[2], judge.counts[3], judge.counts[4], judge.max_combo,
             judge.score, mean, sd, n);
     if (result) {
-        *result = {opt.song, opt.variant, {}, judge.max_combo, judge.score, judge.Finished(), closed};
+        *result = {opt.song, opt.variant, {}, judge.max_combo, judge.score, judge.Finished(), closed, judge.ClearRate(),
+                   judge.Rank()};
         std::copy(judge.counts.begin(), judge.counts.end(), result->counts.begin());
     }
     return 0;

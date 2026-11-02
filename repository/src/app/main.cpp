@@ -153,7 +153,7 @@ int main(int argc, char** argv) {
     if (!audio_ok) sif::LogError("audio: {}", why);  // keep running without sound
 
     if (options.result_demo) {  // developer: the result screen with song 0010/04's autoplay values
-        sif::LiveResult demo{10, 4, {583, 0, 0, 0, 0}, 583, 199220, true};
+        sif::LiveResult demo{10, 4, {583, 0, 0, 0, 0}, 583, 199220, true, false, 1.00001, 4};
         sif::RunResult(window, renderer, vfs, options.lang == "jp" ? "" : options.lang, demo, options.frames);
         audio.Close();
         renderer.Shutdown();
