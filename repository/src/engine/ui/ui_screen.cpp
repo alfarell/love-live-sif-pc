@@ -316,6 +316,17 @@ void UiScreen::SetInstanceNumber(const std::string& instance, int box, const std
     instance_numbers_[{instance, box}] = digits;
 }
 
+namespace {
+
+// Glyph slot of a number-box character: '0'-'9' are 0-9; res_record_num00's clear-rate row also has '%' in slot 15 and
+// '.' in slot 18 (their advances in s_ui_numtex_datas are the digits' width). -1: not drawn.
+int GlyphSlot(char c) {
+    if (c >= '0' && c <= '9') return c - '0';
+    return c == '%' ? 15 : c == '.' ? 18 : -1;
+}
+
+}
+
 void UiScreen::DrawNumbers(Renderer& renderer, const std::string& part, const std::string& path, const Mat4& to_clip,
                            float alpha) const {
     const auto model = parts_.find(part);
@@ -334,12 +345,12 @@ void UiScreen::DrawNumbers(Renderer& renderer, const std::string& part, const st
         const float scale = (b[3] - b[1]) / nt.h;
         float width = 0;
         for (const char c : value) {
-            if (c >= '0' && c <= '9') width += nt.advance[size_t(c - '0')] * scale;
+            if (GlyphSlot(c) >= 0) width += nt.advance[size_t(GlyphSlot(c))] * scale;
         }
         float x = spec.align == 0 ? b[0] : spec.align == 1 ? (b[0] + b[2] - width) / 2 : b[2] - width;
         for (const char c : value) {
-            if (c < '0' || c > '9') continue;
-            const int d = c - '0';
+            const int d = GlyphSlot(c);
+            if (d < 0) continue;
             const float advance = nt.advance[size_t(d)] * scale;
             // the glyph cell is centred on its advance
             Mat4 place;

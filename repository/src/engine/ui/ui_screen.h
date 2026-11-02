@@ -36,7 +36,8 @@ public:
     // The same for one placed instance (its part's text style is kept), e.g. each song plate's title.
     void SetInstanceText(const std::string& instance, int box, const std::string& utf8);
     // Number boxes (ui_number.bin + numtex_datas.bin: digit glyphs from a number texture, e.g. a score): the string
-    // shown in one placed instance's number box (digits only; the table's default otherwise).
+    // shown in one placed instance's number box (digits, plus '%' and '.' where the texture has them; the table's
+    // default otherwise).
     void SetInstanceNumber(const std::string& instance, int box, const std::string& digits);
     void Release(Renderer& renderer);
 
