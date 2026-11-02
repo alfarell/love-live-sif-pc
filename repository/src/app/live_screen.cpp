@@ -77,6 +77,7 @@ struct Playfield {
     std::array<GpuMesh, 10> digits;
     std::array<fad::Animation, kGrades> judge_fad;  // anim.pac ui_ingame_judge_text_perfect .. _miss
     fad::Animation live_clear;                       // anim.pac ui_ingame_end_text_liveclear
+    fad::Animation ring_break;                       // anim.pac ui_ingame_judgering_break
     std::array<float, 2> banner{962, 500};           // layout_FULLCOMBO centre (1052 x 147, like LIVE CLEAR's text)
     std::map<std::string, Texture> fad_textures;     // by the names the .fad files list
     GpuMesh corner;                                  // unit quad (0,0)-(1,-1) over the whole texture
@@ -185,6 +186,7 @@ struct Playfield {
         if (loaded && !LoadCombo(r, vfs)) LogWarn("live: combo digits not loaded");
         if (loaded && !LoadJudgeTexts(r, vfs)) LogWarn("live: judgement texts not loaded");
         if (loaded && !LoadFad(r, vfs, "ui_ingame_end_text_liveclear", live_clear)) LogWarn("live: LIVE CLEAR not loaded");
+        if (loaded && !LoadFad(r, vfs, "ui_ingame_judgering_break", ring_break)) LogWarn("live: ring break not loaded");
         return loaded;
     }
     // A sprite centred at canvas pixel (x, y), y downwards
@@ -470,6 +472,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
     std::vector<double> flash(kLanes, -1e9);
     std::vector<Grade> flash_grade(kLanes, Grade::Miss);
     double judged_at = -1e9;  // the latest judgement, for its text
+    std::vector<double> missed(kLanes, -1e9);  // the latest Miss per lane, for the ring break
     Grade judged = Grade::Miss;
     size_t log_seen = 0, auto_next = 0;
     std::vector<std::pair<double, int>> auto_releases;  // autoplay: (time, lane)
@@ -523,6 +526,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
             flash_grade[size_t(lane)] = j.grade;
             judged_at = now;
             judged = j.grade;
+            if (j.grade == Grade::Miss) missed[size_t(lane)] = now;
         }
 
         if (has_hud && long(judge.score) != hud_score) {
@@ -562,6 +566,12 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                     if (now - flash[size_t(l)] < 150) {
                         field.Draw(renderer, field.trail, field.atlas, p[0], p[1], field.ring_size * 2.0f, grade_tint(l));
                     }
+                }
+                // a Miss breaks the lane's ring (shortcut: the trigger is a guess from the animation's name and its
+                // ring-sized shards; the game's use is not traced)
+                for (int l = 0; l < kLanes; ++l) {
+                    const auto& p = field.lane[size_t(l)];
+                    field.DrawFad(renderer, field.ring_break, now - missed[size_t(l)], p[0], p[1]);
                 }
                 // notes fly from the centre circle to their ring, growing (far notes first, nearer ones on top)
                 const auto at = [&](int lane, double t, float& x, float& y, float& size) {
