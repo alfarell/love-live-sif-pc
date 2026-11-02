@@ -106,6 +106,50 @@ bool LoadStageList(const Vfs& vfs, int language, std::vector<StageInfo>& out, st
     return true;
 }
 
+bool LoadDressList(const Vfs& vfs, int language, std::vector<DressInfo>& out, std::string* error) {
+    out.clear();
+    std::vector<uint8_t> file;
+    std::span<const uint8_t> dresses;
+    if (!ReadTable(vfs, "common/common.pac/dress.pac/dress_data.bin", "ll3::dress::s_dress_datas", file, dresses, error)) return false;
+    constexpr size_t kRecord = 192;  // record 0 is empty (id -1); the table ends where ids stop being costume ids
+    for (size_t r = kRecord; r + kRecord <= dresses.size(); r += kRecord) {
+        DressInfo d{At<int32_t>(dresses, r), {}};
+        if (d.id <= 0 || d.id >= 1000) break;
+        const uint64_t at = At<uint64_t>(dresses, r + 8 + 8 * size_t(std::clamp(language, 0, 3)));
+        if (at < file.size()) {
+            const char* t = reinterpret_cast<const char*>(&file[size_t(at)]);
+            d.name = std::string(t, strnlen(t, file.size() - size_t(at)));
+        }
+        out.push_back(std::move(d));
+    }
+    if (out.empty()) return Fail(error, "no costumes in dress_data.bin");
+    return true;
+}
+
+std::string PickCostume(const Vfs& vfs, const SongInfo& song, const std::vector<DressInfo>& english_dresses) {
+    const auto everyone_has = [&](int id) {
+        char folder[48];
+        for (const int m : song.members) {
+            std::snprintf(folder, sizeof(folder), "chr/c%02d/d%03d/d%03d.pac", m, id, id);
+            if (!vfs.Exists(folder)) return false;
+        }
+        return !song.members.empty();
+    };
+    const auto name = [](int id) {
+        char s[8];
+        std::snprintf(s, sizeof(s), "d%03d", id);
+        return std::string(s);
+    };
+    for (const DressInfo& d : english_dresses) {
+        if (d.name == song.title && everyone_has(d.id)) return name(d.id);
+    }
+    if (everyone_has(0)) return name(0);
+    for (const DressInfo& d : english_dresses) {
+        if (everyone_has(d.id)) return name(d.id);
+    }
+    return {};
+}
+
 bool LoadSongList(const Vfs& vfs, int language, std::vector<SongInfo>& out, std::string* error) {
     out.clear();
     std::vector<uint8_t> file;

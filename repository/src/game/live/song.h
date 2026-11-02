@@ -54,6 +54,18 @@ struct StageInfo {
 // The selectable stages in the game's order (stage_common.pac/stage_datas.bin), those whose folder is in the dump;
 // the 3xx records (variants reusing the 1xx models; Hypothesis: the stage_gimmick_ thumbnails) are left out.
 bool LoadStageList(const Vfs& vfs, int language, std::vector<StageInfo>& out, std::string* error = nullptr);
+
+struct DressInfo {
+    int id = 0;        // s_dress_datas +0x00: chr/cNN/dNNN/dNNN.pac, thumbnail ui/ui_dress_thumbnail.pac dress_thumb_NNNN
+    std::string name;  // +0x08 + 8 x language
+};
+// The costumes in the game's order (common/dress.pac/dress_data.bin, 192-byte records after an empty first one).
+bool LoadDressList(const Vfs& vfs, int language, std::vector<DressInfo>& out, std::string* error = nullptr);
+// A costume every member of `song` has a model for ("dNNN", "" if none): the costume named like the song (English
+// names), else d000 (the school uniform; not in the costume table), else the first costume in table order.
+// shortcut: the game lets the player dress each member on the costume step (member cards, 30_costume preview), which
+// the port does not have yet; this rule is the port's own
+std::string PickCostume(const Vfs& vfs, const SongInfo& song, const std::vector<DressInfo>& english_dresses);
 // Music: the music.acb cue whose CueId equals the song id.
 bool LoadSongMusic(const Vfs& vfs, Song& song, cri::Pcm& out, std::string* error = nullptr);
 

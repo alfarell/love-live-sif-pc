@@ -112,6 +112,13 @@ static void Real(const char* root) {
     Check(LoadStageList(vfs, 1, stages) && stages.size() == 30 && stages[0].id == 1 && stages[0].name == "Live Show Stage" &&
               stages.back().id == 112 && stages.back().name == "HAKODATE",
           "stage list: 30 stages, Live Show Stage .. HAKODATE");
+    std::vector<DressInfo> dresses;
+    Check(LoadDressList(vfs, 1, dresses) && dresses.size() == 70 && dresses[0].id == 31, "costume list: 70 costumes, first 31");
+    for (const SongInfo& i : list) {
+        if (i.id == 20) Check(PickCostume(vfs, i, dresses) == "d004", "costume: Snow Halation wears its own (d004)");
+        if (i.id == 30) Check(PickCostume(vfs, i, dresses) == "d000", "costume: a song without its own costume -> d000");
+        if (i.id == 1940) Check(PickCostume(vfs, i, dresses).starts_with("d2"), "costume: Saint Snow -> one of theirs (d2xx)");
+    }
     Song aqours;
     Check(LoadSong(vfs, 1020, 4, aqours, &error) && aqours.group == 1, "song 1020 (Aozora Jumping Heart): group 1 (Aqours)");
     int holds = 0, ticks = 0;
