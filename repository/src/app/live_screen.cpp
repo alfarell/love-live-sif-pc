@@ -71,7 +71,8 @@ struct Layout {
 struct Playfield {
     static constexpr float kCell = 256, kAtlasW = 1280, kAtlasH = 1536;
     Texture atlas, center_gauge, center_mic, combo_tex;
-    GpuMesh ring, note, trail, combo_label, gauge_fan;
+    GpuMesh ring, note, trail, combo_label, gauge_fan, bar;
+    Texture hold_glow;  // ui_ingame_longnote_circle_01: a glowing ring (240 px; the ring is about 0.71 of it)
     float gauge_progress = 0;
     std::array<GpuMesh, 10> digits;
     std::array<fad::Animation, kGrades> judge_fad;  // anim.pac ui_ingame_judge_text_perfect .. _miss
@@ -173,7 +174,11 @@ struct Playfield {
                  // lines up with the HUD's track
                  LoadTexture(r, vfs, "ui2/90_ingame.pac/uip0006_Songgage.pac/texture.pac/IngamesonggageCol.btx", center_gauge) &&
                  LoadTexture(r, vfs, "ui/ui_ingame.pac/texture.pac/ui_ingame_centercircle_mic_aq", center_mic) &&
-                 Cell(r, 1, 0, ring) && Cell(r, 0, 1, note) && Cell(r, 2, 0, trail) && LoadGauge(r);
+                 Cell(r, 1, 0, ring) && Cell(r, 0, 1, note) && Cell(r, 2, 0, trail) && LoadGauge(r) &&
+                 LoadTexture(r, vfs, "ui/ui_ingame.pac/texture.pac/ui_ingame_longnote_circle_01", hold_glow) &&
+                 // the orange bar of atlas cell (1, 3): x 71-188, y 112-144 of the 256 px cell
+                 Quad(r, (kCell + 71) / kAtlasW, (3 * kCell + 112) / kAtlasH, (kCell + 188) / kAtlasW,
+                      (3 * kCell + 144) / kAtlasH, bar);
         if (!loaded) LogWarn("live: game play field not loaded; drawing the placeholder lanes");
         if (loaded && !LoadCombo(r, vfs)) LogWarn("live: combo digits not loaded");
         if (loaded && !LoadJudgeTexts(r, vfs)) LogWarn("live: judgement texts not loaded");
@@ -246,6 +251,19 @@ struct Playfield {
             r.DrawUiMesh(corner, &t->second, to_clip * place, {c.mul[0], c.mul[1], c.mul[2], c.mul[3]}, {0, 0}, 1e9f, c.add);
         }
     }
+    // The orange bar stretched from (x1, y1) to (x2, y2), `thickness` px across (canvas pixels, y down)
+    void DrawBar(Renderer& r, float x1, float y1, float x2, float y2, float thickness) const {
+        const float dx = x2 - x1, dy = -(y2 - y1);  // canvas y up
+        const float len = std::hypot(dx, dy), cs = len > 0 ? dx / len : 1, sn = len > 0 ? dy / len : 0;
+        Mat4 m;
+        m(0, 0) = len * cs;
+        m(0, 1) = -thickness * sn;
+        m(1, 0) = len * sn;
+        m(1, 1) = thickness * cs;
+        m(0, 3) = (x1 + x2) / 2;
+        m(1, 3) = -(y1 + y2) / 2;
+        r.DrawUiMesh(bar, &atlas, UiScreen::CanvasToClip(r.Width(), r.Height()) * m, {1, 1, 1, 1});
+    }
     // The combo count centred at canvas x, digits centred on `y`, the label under them (shortcut: position, glyph
     // spacing and the "from 2 notes" rule are guesses; the game's combo drawing is not traced)
     void DrawCombo(Renderer& r, int combo, float x, float y) const {
@@ -264,7 +282,8 @@ struct Playfield {
         for (Texture* t : {&atlas, &center_gauge, &center_mic, &combo_tex}) r.Release(*t);
         for (auto& [name, t] : fad_textures) r.Release(t);
         r.Release(corner);
-        for (GpuMesh* m : {&ring, &note, &trail, &combo_label, &gauge_fan}) r.Release(*m);
+        for (GpuMesh* m : {&ring, &note, &trail, &combo_label, &gauge_fan, &bar}) r.Release(*m);
+        r.Release(hold_glow);
         for (GpuMesh& m : digits) r.Release(m);
     }
 };
@@ -439,7 +458,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
     } else {
         LogWarn("live: HUD: {}", error);
     }
-    GpuMesh unit_quad;  // (0,0)-(1,-1) for the centre-circle textures
+    GpuMesh unit_quad;  // centred unit quad over a whole texture (centre circle, hold glow)
     {
         const MeshVertex quad[4] = {{{-0.5f, 0.5f, 0}, {0, 0, 1}, {0, 0}}, {{0.5f, 0.5f, 0}, {0, 0, 1}, {1, 0}},
                                     {{0.5f, -0.5f, 0}, {0, 0, 1}, {1, 1}}, {{-0.5f, -0.5f, 0}, {0, 0, 1}, {0, 1}}};
@@ -550,6 +569,20 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                     y = field.center[1] + (p[1] - field.center[1]) * k;
                     size = field.ring_size * 1.68f * (0.2f + 0.8f * k);  // the atlas cell has a margin round the art
                 };
+                // notes due at the same moment are joined by a bar under them (shortcut: the orange bar of atlas row 3
+                // and this rule are guesses from how SIF looks; the game's note drawing is not traced)
+                for (size_t i = 0; i + 1 < chart.notes.size(); ++i) {
+                    const live::Note& a = chart.notes[i];
+                    const live::Note& b = chart.notes[i + 1];
+                    if (std::abs(a.time_ms - b.time_ms) > 1 || a.time_ms - now > opt.approach_ms || judge.Held(i) ||
+                        judge.Held(i + 1) || !judge.Active(i) || !judge.Active(i + 1)) {
+                        continue;
+                    }
+                    float x1, y1, x2, y2, size;
+                    at(a.lane, a.time_ms, x1, y1, size);
+                    at(b.lane, b.time_ms, x2, y2, size);
+                    field.DrawBar(renderer, x1, y1, x2, y2, size * 32 / 256);
+                }
                 for (size_t i = chart.notes.size(); i-- > 0;) {
                     const live::Note& n = chart.notes[i];
                     if (!judge.Active(i) || n.time_ms - now > opt.approach_ms) continue;
@@ -566,6 +599,11 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                     }
                     at(n.lane, judge.Held(i) ? now : n.time_ms, x, y, size);
                     field.Draw(renderer, field.note, field.atlas, x, y, size, {1, 1, 1, 1});
+                    if (judge.Held(i)) {  // a held long note: a glowing ring over it, pulsing (pulse rate is a guess)
+                        const auto& p = field.lane[size_t(n.lane)];
+                        const float pulse = float(0.7 + 0.3 * std::sin(now / 60.0));
+                        field.Draw(renderer, unit_quad, field.hold_glow, p[0], p[1], field.ring_size * 1.58f, {1, 1, 1, pulse});
+                    }
                 }
                 // the animation's canvas centre (its rings' centre) on the combo (Hypothesis)
                 field.DrawFad(renderer, field.judge_fad[size_t(judged)], now - judged_at, 960, 470);
