@@ -1,0 +1,56 @@
+// The port's own save (src/game/save/save.cpp): round trip, update rule, kept unknown lines, missing file.
+#include <cstdio>
+#include <filesystem>
+#include <fstream>
+#include <string>
+
+#include "game/save/save.h"
+
+using namespace sif::save;
+
+static int failures = 0;
+static void Check(bool ok, const std::string& what) {
+    if (!ok) {
+        ++failures;
+        std::printf("FAIL: %s\n", what.c_str());
+    }
+}
+
+int main() {
+    const std::filesystem::path dir = std::filesystem::temp_directory_path() / "sif_save_test";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    const std::filesystem::path path = dir / "save.txt";
+
+    SaveData empty;
+    Check(Load(path, empty) && empty.records.empty() && empty.player == "Player", "missing file: an empty save");
+
+    SaveData s;
+    s.player = "Ayumu Uehara";
+    NewBests n = Record(s, {10, 4, 150000, 300, 2, 0.75, false});
+    Check(n.score && n.combo && n.rate, "first play: every best is new");
+    n = Record(s, {10, 4, 199220, 250, 4, 1.00001, true});
+    Check(n.score && !n.combo && n.rate, "second play: better score and rate, worse combo");
+    const ChartRecord& r = s.records[{10, 4}];
+    Check(r.best_score == 199220 && r.best_combo == 300 && r.best_rank == 4 && r.best_rate == 10000 && r.plays == 2 &&
+              r.clears == 2 && r.full_combos == 1,
+          "record keeps the bests and counts");
+    s.unknown.push_back("medal 3 gold");  // a line from a newer version
+
+    std::string error;
+    Check(Write(path, s, &error), "write: " + error);
+    Check(!std::filesystem::exists(dir / "save.txt.tmp"), "no temporary file left");
+    SaveData back;
+    Check(Load(path, back, &error), "load: " + error);
+    Check(back.player == "Ayumu Uehara" && back.records.size() == 1 && back.records[{10, 4}].best_score == 199220 &&
+              back.records[{10, 4}].full_combos == 1 && back.unknown.size() == 1 && back.unknown[0] == "medal 3 gold",
+          "round trip keeps the name (with spaces), the record and unknown lines");
+
+    { std::ofstream(path) << "not a save\n"; }
+    SaveData bad;
+    Check(!Load(path, bad, &error) && bad.records.empty(), "another file is refused, not read as a save");
+
+    std::filesystem::remove_all(dir);
+    std::printf("%s\n", failures ? "save_test FAILED" : "save_test ok");
+    return failures ? 1 : 0;
+}
