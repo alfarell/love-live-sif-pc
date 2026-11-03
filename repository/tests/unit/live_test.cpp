@@ -117,6 +117,12 @@ static void Real(const char* root) {
     for (const SongInfo& i : list) {
         if (i.id == 20) Check(PickCostume(vfs, i, dresses) == "d004", "costume: Snow Halation wears its own (d004)");
         if (i.id == 30) Check(PickCostume(vfs, i, dresses) == "d000", "costume: a song without its own costume -> d000");
+        if (i.id == 30) Check(CostumesFor(vfs, i, dresses).front().id == 0, "costume list for 0030 starts with the uniform");
+        if (i.id == 1940) {
+            std::vector<int> ids;
+            for (const DressInfo& d : CostumesFor(vfs, i, dresses)) ids.push_back(d.id);
+            Check(ids.size() == 3 && ids[0] / 100 == 2 && ids[1] / 100 == 2 && ids[2] / 100 == 2, "costume list for 1940: the 3 Saint Snow costumes");
+        }
         if (i.id == 1940) Check(PickCostume(vfs, i, dresses).starts_with("d2"), "costume: Saint Snow -> one of theirs (d2xx)");
     }
     Song aqours;

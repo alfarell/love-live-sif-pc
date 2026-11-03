@@ -61,11 +61,14 @@ struct DressInfo {
 };
 // The costumes in the game's order (common/dress.pac/dress_data.bin, 192-byte records after an empty first one).
 bool LoadDressList(const Vfs& vfs, int language, std::vector<DressInfo>& out, std::string* error = nullptr);
-// A costume every member of `song` has a model for ("dNNN", "" if none): the costume named like the song (English
-// names), else d000 (the school uniform; not in the costume table), else the first costume in table order.
-// shortcut: the game lets the player dress each member on the costume step (member cards, 30_costume preview), which
-// the port does not have yet; this rule is the port's own
+// The costumes every member of `song` has a model for: d000 (the school uniform; not in the costume table, named
+// "School Uniform" by the port) first, then the table's in its order.
+std::vector<DressInfo> CostumesFor(const Vfs& vfs, const SongInfo& song, const std::vector<DressInfo>& dresses);
+// The default costume ("dNNN", "" if none): the one named like the song (English names), else the first of
+// CostumesFor. shortcut: the game lets the player dress each member (member cards, 30_costume preview); the port's
+// costume step picks one costume for everyone, starting from this rule
 std::string PickCostume(const Vfs& vfs, const SongInfo& song, const std::vector<DressInfo>& english_dresses);
+std::string CostumeFolder(int id);  // 4 -> "d004"
 // Music: the music.acb cue whose CueId equals the song id.
 bool LoadSongMusic(const Vfs& vfs, Song& song, cri::Pcm& out, std::string* error = nullptr);
 

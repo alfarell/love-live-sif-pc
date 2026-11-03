@@ -126,7 +126,13 @@ bool LoadDressList(const Vfs& vfs, int language, std::vector<DressInfo>& out, st
     return true;
 }
 
-std::string PickCostume(const Vfs& vfs, const SongInfo& song, const std::vector<DressInfo>& english_dresses) {
+std::string CostumeFolder(int id) {
+    char s[16];
+    std::snprintf(s, sizeof(s), "d%03d", id);
+    return s;
+}
+
+std::vector<DressInfo> CostumesFor(const Vfs& vfs, const SongInfo& song, const std::vector<DressInfo>& dresses) {
     const auto everyone_has = [&](int id) {
         char folder[48];
         for (const int m : song.members) {
@@ -135,19 +141,20 @@ std::string PickCostume(const Vfs& vfs, const SongInfo& song, const std::vector<
         }
         return !song.members.empty();
     };
-    const auto name = [](int id) {
-        char s[8];
-        std::snprintf(s, sizeof(s), "d%03d", id);
-        return std::string(s);
-    };
-    for (const DressInfo& d : english_dresses) {
-        if (d.name == song.title && everyone_has(d.id)) return name(d.id);
+    std::vector<DressInfo> out;
+    if (everyone_has(0)) out.push_back({0, "School Uniform"});
+    for (const DressInfo& d : dresses) {
+        if (everyone_has(d.id)) out.push_back(d);
     }
-    if (everyone_has(0)) return name(0);
-    for (const DressInfo& d : english_dresses) {
-        if (everyone_has(d.id)) return name(d.id);
+    return out;
+}
+
+std::string PickCostume(const Vfs& vfs, const SongInfo& song, const std::vector<DressInfo>& english_dresses) {
+    const std::vector<DressInfo> costumes = CostumesFor(vfs, song, english_dresses);
+    for (const DressInfo& d : costumes) {
+        if (d.name == song.title) return CostumeFolder(d.id);
     }
-    return {};
+    return costumes.empty() ? std::string() : CostumeFolder(costumes.front().id);
 }
 
 bool LoadSongList(const Vfs& vfs, int language, std::vector<SongInfo>& out, std::string* error) {
