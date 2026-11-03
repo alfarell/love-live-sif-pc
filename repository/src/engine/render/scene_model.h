@@ -40,7 +40,7 @@ public:
     void Release(Renderer& renderer);
     const bmar::Model& Data() const { return model_; }
     // UI text boxes: the meshes whose material names no texture, in draw order, as (x0, y0, x1, y1) after their node
-    // transform (a named texture missing from the dump does not make a text box)
+    // transform (a named texture missing from the dump, or a mask node named "*stencil*", does not make a text box)
     std::vector<std::array<float, 4>> TextBoxes() const;
 
 private:

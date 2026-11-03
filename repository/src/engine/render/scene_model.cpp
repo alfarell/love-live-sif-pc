@@ -253,6 +253,10 @@ std::vector<std::array<float, 4>> SceneModel::TextBoxes() const {
     std::vector<std::array<float, 4>> out;
     for (const Part& part : parts_) {
         if (!model_.materials[part.material].texture.empty()) continue;  // only meshes without a texture name
+        // ... and not masks (e.g. uip0021_sound_param00's volume_gauge00_Stencil), which the game's ui_text boxes skip
+        std::string node = model_.nodes[part.node].name;
+        std::transform(node.begin(), node.end(), node.begin(), [](unsigned char c) { return char(std::tolower(c)); });
+        if (node.find("stencil") != std::string::npos) continue;
         const Vec3 a = TransformPoint(world_[part.node], {part.bounds[0], part.bounds[1], 0});
         const Vec3 b = TransformPoint(world_[part.node], {part.bounds[2], part.bounds[3], 0});
         out.push_back({std::min(a.x, b.x), std::min(a.y, b.y), std::max(a.x, b.x), std::max(a.y, b.y)});
