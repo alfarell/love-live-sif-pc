@@ -17,6 +17,7 @@ public:
     // buffer_frames: requested device buffer (SDL_HINT_AUDIO_DEVICE_SAMPLE_FRAMES). Needs SDL_INIT_AUDIO.
     bool Open(int buffer_frames, float volume, std::string* error = nullptr);
     void Close();
+    void SetVolume(float volume);  // 0..1, at once (the options screen)
 
     void Play(cri::Pcm pcm);  // replaces the current voice; plays from the start
     bool Playing() const;

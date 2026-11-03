@@ -26,6 +26,9 @@ struct AppSettings {
         int audio_offset_ms = 0;  // calibration: positive = notes later
         int input_offset_ms = 0;
     } timing;
+    struct Play {
+        int approach_ms = 1300;  // note travel time from the centre circle to the ring (note speed)
+    } play;
 };
 
 bool LoadAppSettings(const std::filesystem::path& path, AppSettings& out);

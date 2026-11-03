@@ -8,6 +8,10 @@
 
 namespace sif {
 
+void AudioOutput::SetVolume(float volume) {
+    if (stream_) SDL_SetAudioStreamGain(stream_, volume);
+}
+
 bool AudioOutput::Open(int buffer_frames, float volume, std::string* error) {
     SDL_SetHint(SDL_HINT_AUDIO_DEVICE_SAMPLE_FRAMES, std::to_string(buffer_frames).c_str());
     // SIF's music and voice are 48 kHz stereo/mono; SDL converts other voices and the device rate
