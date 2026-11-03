@@ -27,7 +27,7 @@ constexpr const char* kLayout = "uil0001_ResultTop00/uil0002_ResultLayout00";
 // show their parts' defaults; the values the port knows are filled in (score, counts, max combo, clear rate, rank,
 // title, cover)
 bool RunResult(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, const LiveResult& r,
-               long max_frames) {
+               long max_frames, const save::NewBests& news) {
     UiText text;
     std::string error;
     if (!text.Load(vfs, lang, &error)) LogWarn("result: text: {}", error);
@@ -53,8 +53,10 @@ bool RunResult(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
     }
     // the FULL COMBO banner: only when nothing broke the combo (Good, Bad and Miss do)
     if (r.counts[2] + r.counts[3] + r.counts[4] > 0) ui.HideInstance(std::string(kLayout) + "/uip0004_ComboResult00", true);
+    // "NEW" by the score, max combo and clear rate rows (Hypothesis: New_00..02 follow the rows top to bottom)
+    const bool is_new[3] = {news.score, news.combo, news.rate};
     for (int k = 0; k < 3; ++k) {
-        ui.HideInstance(std::string(kLayout) + "/uil0005_PlayScoreWin00/common_uip0017_New_0" + std::to_string(k), true);
+        ui.HideInstance(std::string(kLayout) + "/uil0005_PlayScoreWin00/common_uip0017_New_0" + std::to_string(k), !is_new[k]);
     }
     // the judgement list, top to bottom (Hypothesis: Perfect .. Miss, as on the result screens seen in shadPS4)
     for (int k = 0; k < 5; ++k) {

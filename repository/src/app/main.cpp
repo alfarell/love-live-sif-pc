@@ -35,6 +35,7 @@
 #include "engine/platform/os.h"
 #include "engine/platform/settings.h"
 #include "engine/render/renderer.h"
+#include "game/save/save.h"
 
 #ifndef SIF_BUILD_ID
 #define SIF_BUILD_ID "dev"
@@ -157,7 +158,7 @@ int main(int argc, char** argv) {
 
     if (options.result_demo) {  // developer: the result screen with song 0010/04's autoplay values
         sif::LiveResult demo{10, 4, {583, 0, 0, 0, 0}, 583, 199220, true, false, 1.00001, 4};
-        sif::RunResult(window, renderer, vfs, options.lang == "jp" ? "" : options.lang, demo, options.frames);
+        sif::RunResult(window, renderer, vfs, options.lang == "jp" ? "" : options.lang, demo, options.frames, {true, true, true});
         audio.Close();
         renderer.Shutdown();
         SDL_DestroyWindow(window);
@@ -180,13 +181,19 @@ int main(int argc, char** argv) {
         if (boot && audio_ok && (!options.title || sif::RunTitle(window, renderer, vfs, lang, options.frames))) {
             bool open = true;
             sif::SongChoice last;
+            // the port's own save; one that cannot be read is left alone (played without saving), never overwritten
+            const auto save_path = options.data_dir / "save.txt";
+            sif::save::SaveData save;
+            std::string save_error;
+            const bool can_save = sif::save::Load(save_path, save, &save_error);
+            if (!can_save) sif::LogWarn("save: {}: {}; playing without saving", sif::os::PathToUtf8(save_path), save_error);
             sif::LoadingScreen loading;
             loading.Load(renderer, vfs, lang);
             for (bool menu = !options.select; open;) {
                 if (menu) loading.Show(renderer);
                 if (menu && sif::RunTopMenu(window, renderer, vfs, lang, options.frames) < 0) break;
                 loading.Show(renderer);
-                const sif::SongChoice choice = sif::RunSongSelect(window, renderer, vfs, lang, options.frames, last);
+                const sif::SongChoice choice = sif::RunSongSelect(window, renderer, vfs, lang, options.frames, last, &save);
                 if (choice.closed || (choice.song < 0 && options.select)) break;
                 menu = choice.song < 0;
                 if (menu) continue;
@@ -197,10 +204,17 @@ int main(int argc, char** argv) {
                 sif::LiveResult result;
                 loading.Show(renderer);
                 code = sif::RunLive(window, renderer, audio, vfs, settings, options.live_options, &result);
-                if (code == 0 && !result.closed && result.finished) loading.Show(renderer);
+                sif::save::NewBests news;
+                if (code == 0 && !result.closed && result.finished) {
+                    loading.Show(renderer);
+                    const bool full_combo = result.counts[2] + result.counts[3] + result.counts[4] == 0;
+                    news = sif::save::Record(save, {result.song, result.variant, int(result.score), result.max_combo, result.rank,
+                                                    result.clear_rate, full_combo});
+                    if (can_save && !sif::save::Write(save_path, save, &save_error)) sif::LogWarn("save: {}", save_error);
+                }
                 open = code == 0 && !result.closed &&
                        (!result.finished || sif::RunResult(window, renderer, vfs, options.live_options.lang, result,
-                                                           options.frames));
+                                                           options.frames, news));
             }
             loading.Release(renderer);
         } else if (boot) {

@@ -4,6 +4,8 @@
 #include <array>
 #include <string>
 
+#include "game/save/save.h"
+
 struct SDL_Window;
 
 namespace sif {
@@ -22,8 +24,9 @@ struct LiveResult {
     int rank = 0;           // 0 D, 1 C, 2 B, 3 A, 4 S, 5 SS, 6 SSS (the result atlas's order)
 };
 
-// Shows the result until a key or pad button (or `max_frames`); false if the window was closed.
+// Shows the result until a key or pad button (or `max_frames`); false if the window was closed. `news`: which
+// bests this play improved (the "NEW" marks).
 bool RunResult(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, const LiveResult& result,
-               long max_frames);
+               long max_frames, const save::NewBests& news = {});
 
 }

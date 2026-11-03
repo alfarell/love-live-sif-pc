@@ -154,8 +154,15 @@ void ApplyStages(UiScreen& ui, const std::vector<StageInfo>& stages, int stage, 
     ui.HideInstance(std::string(kRoot) + "/uil0020_StageSelect00/uip0043_StagePlay00", true);
 }
 
+// A chart's record, or null if it was never played to its end
+const save::ChartRecord* Record(const save::SaveData* save, int song, int variant) {
+    if (!save) return nullptr;
+    const auto it = save->records.find({song, variant});
+    return it != save->records.end() && it->second.best_rank >= 0 ? &it->second : nullptr;
+}
+
 void Apply(UiScreen& ui, const std::vector<SongInfo>& songs, int current, Step step, int difficulty,
-           const std::vector<StageInfo>& stages, int stage) {
+           const std::vector<StageInfo>& stages, int stage, const save::SaveData* save) {
     for (const char* other : kOtherSteps) ui.HideInstance(std::string(kRoot) + "/" + other, true);
     ui.HideInstance(std::string(kRoot) + "/uil0013_MusicList00", step == kDifficultyStep);
     ui.HideInstance(std::string(kRoot) + "/uil0016_DifficultyList00_AC", step != kDifficultyStep);
@@ -218,7 +225,10 @@ void Apply(UiScreen& ui, const std::vector<SongInfo>& songs, int current, Step s
         ui.HideInstance(cards + "uip0020_Clear_status00" + k, true);
         const auto label = Cell(4 + d), cell = Cell(std::clamp(level, 1, 15) - 1);
         ui.SetMaterialUv(card, "difficulty_level00", label[0], label[1]);
-        ui.HideNode(card, "lank_result00", true);
+        // the best rank: setup_result_evaluation00 holds D C B A S SS SSS in cells of 0.125
+        const save::ChartRecord* record = song ? Record(save, song->id, d) : nullptr;
+        ui.HideNode(card, "lank_result00", !record);
+        if (record) ui.SetMaterialUv(card, "result_evaluation00", 0.125f * float(record->best_rank), 0);
         ui.HideNode(card, "lock_icon00", true);
         ui.SetMaterialUv(badge, "difficulty_star00", cell[0], cell[1]);
     }
@@ -231,9 +241,18 @@ void Apply(UiScreen& ui, const std::vector<SongInfo>& songs, int current, Step s
             std::snprintf(node, sizeof(node), "difficultyStar%02d", s);
             ui.HideNode(plate, node, s >= stars);
         }
-        for (const char* node : {"clearrank00", "combostatus00", "select_playstatus_tex00", "select_playstatus_tex01",
-                                 "setup_difficulty_lock00", "select_bg_eff00"}) {
+        for (const char* node : {"select_playstatus_tex00", "select_playstatus_tex01", "setup_difficulty_lock00",
+                                 "select_bg_eff00"}) {  // unlock hints and locks: nothing is locked in the port
             ui.HideNode(plate, node, true);
+        }
+        // played: best rank instead of "Unplayed", and FULL COMBO (setup_result_combo00 row 1 of 4) once achieved
+        const save::ChartRecord* record = song ? Record(save, song->id, d) : nullptr;
+        ui.HideNode(plate, "notplayed00", record != nullptr);
+        ui.HideNode(plate, "clearrank00", !record);
+        ui.HideNode(plate, "combostatus00", !record || record->full_combos == 0);
+        if (record) {
+            ui.SetMaterialUv(plate, "M_clearrank00", 0.125f * float(record->best_rank), 0);
+            ui.SetMaterialUv(plate, "M_combostatus00", 0, 0.25f);
         }
         const auto label = Cell(4 + d);
         ui.SetMaterialUv(plate, "M_difficulty_level00_big", label[0], label[1]);
@@ -245,7 +264,7 @@ void Apply(UiScreen& ui, const std::vector<SongInfo>& songs, int current, Step s
 }
 
 SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, long max_frames,
-                         const SongChoice& previous) {
+                         const SongChoice& previous, const save::SaveData* save) {
     std::vector<SongInfo> songs;
     std::string error;
     const int language = lang == "en" ? 1 : lang == "cn" ? 2 : lang == "tw" ? 3 : 0;
@@ -279,7 +298,7 @@ SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs,
     SongChoice choice;
     bool running = true;
     ScreenFade fade;
-    Apply(ui, songs, current, step, difficulty, stages, stage);
+    Apply(ui, songs, current, step, difficulty, stages, stage, save);
     uint64_t last = SDL_GetTicksNS();
     for (long frame = 0; running && !fade.Left() && (max_frames < 0 || frame < max_frames); ++frame) {
         SDL_Event e;
@@ -319,7 +338,7 @@ SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs,
                     break;
                 default: break;
             }
-            Apply(ui, songs, current, step, difficulty, stages, stage);
+            Apply(ui, songs, current, step, difficulty, stages, stage, save);
             const SongInfo& s = songs[size_t(current)];
             char title[256];
             std::snprintf(title, sizeof(title), "SIF port - %04d %s%s", s.id, s.title.c_str(),

@@ -4,6 +4,8 @@
 
 #include <string>
 
+#include "game/save/save.h"
+
 struct SDL_Window;
 
 namespace sif {
@@ -18,8 +20,9 @@ struct SongChoice {
     std::string stage;    // the chosen stage folder, "stNNN" ("" = the live screen's default)
 };
 
-// `previous`: the last choice, focused again (song and difficulty) when coming back from a live.
+// `previous`: the last choice, focused again (song and difficulty) when coming back from a live. `save` (optional):
+// the records shown on the difficulty cards and plates.
 SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, long max_frames,
-                         const SongChoice& previous = {});
+                         const SongChoice& previous = {}, const save::SaveData* save = nullptr);
 
 }
