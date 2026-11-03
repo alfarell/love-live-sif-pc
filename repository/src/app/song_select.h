@@ -18,6 +18,7 @@ struct SongChoice {
     int variant = 4;   // chart variant 00-04 (arcade difficulties)
     bool closed = false;  // the window was closed
     std::string stage;    // the chosen stage folder, "stNNN" ("" = the live screen's default)
+    std::string costume;  // the chosen costume folder, "dNNN" ("" = the live screen's default pick)
 };
 
 // `previous`: the last choice, focused again (song and difficulty) when coming back from a live. `save` (optional):
