@@ -67,7 +67,8 @@ void Apply(UiScreen& ui, int mode, int entry) {
 
 }
 
-int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, long max_frames) {
+int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, long max_frames,
+               int* chosen_mode) {
     UiText text;
     std::string error;
     if (!text.Load(vfs, lang, &error)) LogWarn("top menu: text: {}", error);
@@ -120,6 +121,7 @@ int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
     }
     ui.Release(renderer);
     LogInfo("top menu: {}", chosen >= 0 ? "entry " + std::to_string(chosen) : std::string("closed"));
+    if (chosen_mode) *chosen_mode = mode;
     return chosen;
 }
 

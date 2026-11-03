@@ -21,6 +21,7 @@
 #include "app/fade.h"
 #include "app/input.h"
 #include "app/live_screen.h"
+#include "app/options_screen.h"
 #include "app/result_screen.h"
 #include "app/song_select.h"
 #include "app/title_screen.h"
@@ -115,6 +116,7 @@ int main(int argc, char** argv) {
     const auto settings_path = options.data_dir / "settings.ini";
     sif::AppSettings settings;
     if (!sif::LoadAppSettings(settings_path, settings)) sif::LogInfo("settings: none yet, using defaults");
+    options.live_options.approach_ms = settings.play.approach_ms;
     if (!options.game.empty()) settings.game.folder = options.game;
 
     sif::Vfs vfs;
@@ -191,7 +193,23 @@ int main(int argc, char** argv) {
             loading.Load(renderer, vfs, lang);
             for (bool menu = !options.select; open;) {
                 if (menu) loading.Show(renderer);
-                if (menu && sif::RunTopMenu(window, renderer, vfs, lang, options.frames) < 0) break;
+                if (menu) {
+                    int mode = -1;
+                    const int entry = sif::RunTopMenu(window, renderer, vfs, lang, options.frames, &mode);
+                    if (entry < 0) break;
+                    // Options (mode 3): entry 8 Sound Settings, 10 Game Settings; the others still lead to the song
+                    // select (shortcut: Costumes and Control Settings are not built)
+                    if (mode == 3 && (entry == 8 || entry == 10)) {
+                        loading.Show(renderer);
+                        open = sif::RunOptions(window, renderer, vfs, lang, audio, settings,
+                                               entry == 8 ? sif::OptionsPage::kSound : sif::OptionsPage::kGame, options.frames);
+                        options.live_options.approach_ms = settings.play.approach_ms;
+                        if (!sif::SaveAppSettings(settings_path, settings)) {
+                            sif::LogWarn("settings: cannot write {}", sif::os::PathToUtf8(settings_path));
+                        }
+                        continue;
+                    }
+                }
                 loading.Show(renderer);
                 const sif::SongChoice choice = sif::RunSongSelect(window, renderer, vfs, lang, options.frames, last, &save);
                 if (choice.closed || (choice.song < 0 && options.select)) break;

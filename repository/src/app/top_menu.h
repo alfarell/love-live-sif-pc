@@ -12,6 +12,8 @@ class Renderer;
 class Vfs;
 
 // Shows the top menu until the player confirms a submenu entry (returns its entry id) or quits (returns -1).
-int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, long max_frames);
+// `mode` (optional) gets the wheel mode the entry belongs to (0 Play .. 5 Event; entry ids repeat across modes).
+int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, long max_frames,
+               int* mode = nullptr);
 
 }
