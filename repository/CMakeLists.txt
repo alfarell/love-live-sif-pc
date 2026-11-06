@@ -90,7 +90,8 @@ add_library(sif_game STATIC
   src/game/live/chart.cpp
   src/game/live/judge.cpp
   src/game/live/song.cpp
-  src/game/save/save.cpp)
+  src/game/save/save.cpp
+  src/game/text/messages.cpp)
 target_link_libraries(sif_game PUBLIC sif_engine)
 if(MSVC)
   target_compile_options(sif_game PRIVATE /W3 /utf-8 /EHsc)
@@ -121,6 +122,12 @@ add_executable(sif_live_test tests/unit/live_test.cpp)
 target_link_libraries(sif_live_test PRIVATE sif_game)
 if(MSVC)
   target_compile_options(sif_live_test PRIVATE /utf-8 /EHsc)
+endif()
+
+add_executable(sif_message_test tests/unit/message_test.cpp)
+target_link_libraries(sif_message_test PRIVATE sif_game)
+if(MSVC)
+  target_compile_options(sif_message_test PRIVATE /utf-8 /EHsc)
 endif()
 
 add_executable(sif_save_test tests/unit/save_test.cpp)
