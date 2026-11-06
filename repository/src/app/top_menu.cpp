@@ -13,6 +13,7 @@
 #include "engine/core/log.h"
 #include "engine/render/renderer.h"
 #include "engine/ui/ui_screen.h"
+#include "game/text/localizer.h"
 
 namespace sif {
 namespace {
@@ -77,6 +78,7 @@ int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
         LogError("top menu: {}", error);
         return -1;
     }
+    if (!LocalizeScreen(ui, vfs, lang, &error)) LogWarn("top menu: messages: {}", error);
     ui.HideNode("new00", true);  // nothing is new or complete without a save (0x1BD2D0 shows them per save flags)
     ui.HideNode("complete00", true);
     int mode = 0, entry = 0;  // shortcut: start mode not traced; 0 = Play

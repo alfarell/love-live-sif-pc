@@ -27,6 +27,7 @@
 #include "engine/render/renderer.h"
 #include "engine/render/scene_model.h"
 #include "game/live/song.h"
+#include "game/text/localizer.h"
 
 namespace sif {
 namespace {
@@ -468,6 +469,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
     UiScreen hud;
     bool has_hud = hud_text.Load(vfs, opt.lang, &error) && hud.Load(renderer, vfs, "ui2/90_ingame", opt.lang, &error, &hud_text);
     if (has_hud) {
+        if (!LocalizeScreen(hud, vfs, opt.lang, &error)) LogWarn("live: HUD messages: {}", error);
         hud.HideInstance("uil0001_Ingame00/uip0008_FinaleON00", true);
         hud.HideNode("IngamesonggageCol", true);  // the play field draws the filled part of this ring
         for (int k = 0; k < 9; ++k) hud.HideInstance("uil0001_Ingame00/uip0007_FFmark_ef_0" + std::to_string(k), true);

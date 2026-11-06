@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cstdio>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "app/fade.h"
@@ -14,6 +15,7 @@
 #include "engine/core/log.h"
 #include "engine/render/renderer.h"
 #include "engine/ui/ui_screen.h"
+#include "game/text/localizer.h"
 
 namespace sif {
 namespace {
@@ -32,6 +34,12 @@ void SetText(UiScreen& ui, const std::string& part, int first_box, const std::st
     ui.SetInstanceText(part, first_box + 1, text);
 }
 
+// The localized message, or the port's own word when the message table has no such entry.
+std::string MessageOr(const Localizer& localizer, int id, const char* fallback) {
+    const std::string& text = localizer.Text(id);
+    return text.empty() ? std::string(fallback) : text;
+}
+
 void Focus(UiScreen& ui, const Row& row, bool on) {
     for (const char* node : {"select_plate_on", "select_eff00_on", "menu_borderline00_on", "volume_gauge_icon00_on",
                              "volume_gauge_icon01_on"}) {
@@ -47,9 +55,9 @@ void Focus(UiScreen& ui, const Row& row, bool on) {
 
 }
 
-// shortcut: the labels are the port's own English words (the game takes them from message.pac, not decoded yet) and
-// only the settings the port has are shown; the other rows (more sound channels, brightness, judge ring, voice,
-// "iine", language) and the two buttons are hidden until they exist
+// shortcut: only the settings the port has are shown; the other rows (more sound channels, brightness, judge ring,
+// voice, "iine", language) and the two buttons are hidden until they exist. Labels that the ui_text defaults do not
+// carry are taken from message.pac by id (706/707 the title plate, 711/712 the game rows, 718 the BGM row).
 bool RunOptions(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, AudioOutput& audio,
                 AppSettings& settings, OptionsPage page, long max_frames) {
     UiText text;
@@ -60,6 +68,10 @@ bool RunOptions(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const st
         LogError("options: {}", error);
         return true;
     }
+    Localizer localizer;
+    if (!localizer.Load(vfs, lang, &error)) LogWarn("options: messages: {}", error);
+    ui.LocalizeTexts(
+        [&](std::string_view japanese, std::string& out) { return localizer.ForDefault(japanese, out); });
     const bool sound = page == OptionsPage::kSound;
     const std::string root = sound ? "uil0020_soundOpt_layout00" : "uil0040_gameOpt_layout00";
     // the title atlas (opt_titile_test00): rows of 1/8, Sound, Game Settings, Control Settings, Button Controls
@@ -67,11 +79,12 @@ bool RunOptions(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const st
     for (const char* other : {"common_uip0005_SelectButton00_00", "common_uip0005_SelectButton00_01", "uip0020_menutitle_plate00_01"}) {
         ui.HideInstance(root + "/" + other, true);
     }
-    SetText(ui, root + "/uip0020_menutitle_plate00_00", 0, sound ? "Sound" : "Live");
+    SetText(ui, root + "/uip0020_menutitle_plate00_00", 0,
+            MessageOr(localizer, sound ? 706 : 707, sound ? "Sound" : "Live"));
     std::vector<Row> rows;
     if (sound) {
         for (int k = 1; k < 6; ++k) ui.HideInstance(root + "/uip0021_sound_param00_0" + std::to_string(k), true);
-        rows.push_back({root + "/uip0021_sound_param00_00", "", "Volume"});
+        rows.push_back({root + "/uip0021_sound_param00_00", "", MessageOr(localizer, 718, "Volume")});
     } else {
         for (const char* other : {"uil0043_gameOpt_brightnessPlate00", "uil0044_gameOpt_judgeringPlate00",
                                   "uil0045_gameOpt_voicePlate00", "uil0046_gameOpt_iinePlate00", "uil0047_gameOpt_languagePlate00"}) {
@@ -81,8 +94,8 @@ bool RunOptions(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const st
             const std::string p = root + "/" + plate;
             rows.push_back({p + "/uip0002_opt_setplate00", p + "/uip0040_gameOpt_box00", ""});
         }
-        rows[0].label = "Note speed";
-        rows[1].label = "Timing offset";
+        rows[0].label = MessageOr(localizer, 711, "Note speed");
+        rows[1].label = MessageOr(localizer, 712, "Timing offset");
     }
     for (const Row& r : rows) SetText(ui, r.plate, 0, r.label);
     // the volume knob: clip a012 of the sound row, posed at the volume in percent (Hypothesis: 0-100 frames span it)

@@ -14,6 +14,7 @@
 #include "engine/render/renderer.h"
 #include "engine/ui/ui_screen.h"
 #include "game/live/song.h"
+#include "game/text/localizer.h"
 
 namespace sif {
 namespace {
@@ -36,6 +37,7 @@ bool RunResult(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
         LogError("result: {}", error);
         return true;
     }
+    if (!LocalizeScreen(ui, vfs, lang, &error)) LogWarn("result: messages: {}", error);
     ui.HideNode("new00", true);
     ui.HideNode("complete00", true);
     // the play-score window: number boxes 0 score, 1 max combo, 2 clear rate (its digit row has '.' and '%'; the

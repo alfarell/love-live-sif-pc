@@ -14,6 +14,7 @@
 #include "engine/render/renderer.h"
 #include "engine/ui/ui_screen.h"
 #include "game/live/song.h"
+#include "game/text/localizer.h"
 
 namespace sif {
 namespace {
@@ -308,6 +309,7 @@ SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs,
         LogError("song select: {}", error);
         return {};
     }
+    if (!LocalizeScreen(ui, vfs, lang, &error)) LogWarn("song select: messages: {}", error);
     ui.HideNode("new00", true);
     ui.HideNode("complete00", true);
     std::vector<StageInfo> stages;

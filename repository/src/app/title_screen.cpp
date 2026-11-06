@@ -12,6 +12,7 @@
 #include "engine/core/log.h"
 #include "engine/render/renderer.h"
 #include "engine/ui/ui_screen.h"
+#include "game/text/localizer.h"
 
 namespace sif {
 namespace {
@@ -47,6 +48,7 @@ bool RunTitle(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std:
         LogError("title: {}", error);
         return false;
     }
+    if (!LocalizeScreen(ui, vfs, lang, &error)) LogWarn("title: messages: {}", error);
     SDL_SetWindowTitle(window, "SIF port");
     size_t stage = 0;
     uint64_t stage_start = SDL_GetTicksNS();
