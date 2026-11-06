@@ -6,10 +6,12 @@
 // visibility and material tracks. Everything is drawn on a 1920 x 1080 canvas (origin top-left, y negative downwards)
 // fitted to the window.
 
+#include <functional>
 #include <map>
 #include <memory>
 #include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "engine/formats/bmar.h"
@@ -33,6 +35,9 @@ public:
               const UiText* text = nullptr);
     // Replaces the default string of a part's text box (e.g. with message.pac text).
     void SetText(const std::string& part, int box, const std::string& utf8);
+    // Replaces every default string `localize` recognizes (its Japanese text, its localized replacement). Call it
+    // after Load and before the screen sets its own strings; unrecognized boxes keep their defaults.
+    void LocalizeTexts(const std::function<bool(std::string_view, std::string&)>& localize);
     // The same for one placed instance (its part's text style is kept), e.g. each song plate's title.
     void SetInstanceText(const std::string& instance, int box, const std::string& utf8);
     // Number boxes (ui_number.bin + numtex_datas.bin: digit glyphs from a number texture, e.g. a score): the string

@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <utility>
 
 #include "engine/core/log.h"
 #include "engine/formats/blbn.h"
@@ -239,6 +240,16 @@ void UiScreen::SetText(const std::string& part, int box, const std::string& utf8
     if (renderer_ && t.texture.gpu) renderer_->Release(t.texture);
     t.utf8 = utf8;
     t.rendered = false;
+}
+
+void UiScreen::LocalizeTexts(const std::function<bool(std::string_view, std::string&)>& localize) {
+    for (auto& [key, t] : texts_) {
+        std::string localized;
+        if (!localize(t.utf8, localized) || localized == t.utf8) continue;
+        if (renderer_ && t.texture.gpu) renderer_->Release(t.texture);
+        t.utf8 = std::move(localized);
+        t.rendered = false;
+    }
 }
 
 void UiScreen::Play(const std::string& instance, const std::string& clip, bool loop, int layer) {

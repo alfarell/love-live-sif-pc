@@ -91,6 +91,7 @@ add_library(sif_game STATIC
   src/game/live/judge.cpp
   src/game/live/song.cpp
   src/game/save/save.cpp
+  src/game/text/localizer.cpp
   src/game/text/messages.cpp)
 target_link_libraries(sif_game PUBLIC sif_engine)
 if(MSVC)
