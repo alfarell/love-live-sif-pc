@@ -121,6 +121,7 @@ private:
     std::map<std::string, std::vector<std::string>> stems_;  // package -> its uip/uil entry stems
     std::map<std::string, Part> parts_;
     std::map<std::string, std::unique_ptr<Layout>> layouts_;
+    std::set<std::pair<std::string, std::string>> packages_;  // (package, part prefix) of every loaded part, for texts
     struct Held {
         std::string clip;
         float frame = 0;

@@ -51,13 +51,14 @@ bool UiScreen::Load(Renderer& renderer, const Vfs& vfs, const std::string& scree
         if (!e.name.ends_with(".pac") || !(e.name.starts_with("uip") || e.name.starts_with("uil"))) continue;
         Require(renderer, vfs, package_, "", e.name.substr(0, e.name.size() - 4), 0);
     }
-    if (text_) {
-        // ll3::ui::s_ui_text_info_table: 32-byte records (u32 part id, u32 box, u32 style, u32 ?, u32 ?, u32 ?,
-        // u64 string*); the part id is the NNNN of uipNNNN_<Name>
+    // ll3::ui::s_ui_text_info_table: 32-byte records (u32 part id, u32 box, u32 style, u32 ?, u32 ?, u32 ?,
+    // u64 string*); the part id is the NNNN of uipNNNN_<Name>. Each package has its own table, so parts placed from
+    // another package (prefix "ctg03_" ...) take their boxes from that package's table.
+    for (const auto& [text_package, part_prefix] : text_ ? packages_ : decltype(packages_){}) {
         std::vector<uint8_t> file;
         std::vector<blbn::Symbol> symbols;
         const blbn::Symbol* table = nullptr;
-        if (vfs.Read(package_ + "/ui_text.bin", file) && blbn::Parse(file, symbols) &&
+        if (vfs.Read(text_package + "/ui_text.bin", file) && blbn::Parse(file, symbols) &&
             (table = blbn::Find(symbols, "ll3::ui::s_ui_text_info_table"))) {
             const auto u32 = [&](size_t off) {
                 uint32_t v = 0;
@@ -70,10 +71,14 @@ bool UiScreen::Load(Renderer& renderer, const Vfs& vfs, const std::string& scree
                 const size_t str = size_t(u32(base + r + 24)) | size_t(u32(base + r + 28)) << 32;
                 char prefix[16];
                 std::snprintf(prefix, sizeof(prefix), "uip%04u_", id);
+                const std::string want = part_prefix + prefix;
                 for (const auto& [name, part] : parts_) {
-                    if (!name.starts_with(prefix) || str >= file.size()) continue;
+                    if (!name.starts_with(want) || str >= file.size()) continue;
                     const char* s = reinterpret_cast<const char*>(&file[str]);
-                    texts_[{name, int(box)}] = {int(style), std::string(s, strnlen(s, file.size() - str))};
+                    // another package's defaults are placeholders the game replaces (e.g. the help bar's line), so
+                    // those boxes start empty: only text the screen sets is drawn
+                    texts_[{name, int(box)}] = {int(style), part_prefix.empty() ? std::string(s, strnlen(s, file.size() - str))
+                                                                                : std::string()};
                 }
             }
         }
@@ -178,6 +183,7 @@ void UiScreen::Require(Renderer& renderer, const Vfs& vfs, const std::string& pa
             }
         }
         parts_[key] = std::move(part);
+        packages_.insert({package, prefix});
         return;
     }
     auto layout = std::make_unique<Layout>();
