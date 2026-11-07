@@ -14,9 +14,11 @@ class AudioOutput;
 class Renderer;
 class Vfs;
 
-enum class OptionsPage { kSound, kGame };
+enum class OptionsPage { kSound, kGame, kButtons };
 
-// Up/Down pick a row, Left/Right change it, Enter or Esc leaves. False if the window was closed.
+// Sound and Game: Up/Down pick a row, Left/Right change it. Buttons (the 9-lane pad Button Controls,
+// settings.controls.pad_lanes): Left/Right pick a slot, Up/Down change its button, T (pad Triangle) resets to the game's
+// defaults. Enter or Esc leaves. False if the window was closed.
 bool RunOptions(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, AudioOutput& audio,
                 AppSettings& settings, OptionsPage page, long max_frames);
 

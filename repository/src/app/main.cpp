@@ -173,6 +173,14 @@ int main(int argc, char** argv) {
     sif::AppSettings settings;
     if (!sif::LoadAppSettings(settings_path, settings)) sif::LogInfo("settings: none yet, using defaults");
     options.live_options.approach_ms = settings.play.approach_ms;
+    {
+        sif::PadSlots slots = sif::DefaultPadSlots();
+        if (!settings.controls.pad_lanes.empty() && !sif::PadSlotsFromText(settings.controls.pad_lanes, slots)) {
+            sif::LogWarn("settings: controls.pad_lanes '{}' is not 10 button names; using the defaults",
+                         settings.controls.pad_lanes);
+        }
+        sif::SetPadSlots(slots);
+    }
     if (!options.game.empty()) settings.game.folder = options.game;
 
     sif::Vfs vfs;
@@ -284,12 +292,15 @@ int main(int argc, char** argv) {
                         if (can_save && !sif::save::Write(save_path, save, &save_error)) sif::LogWarn("save: {}", save_error);
                     }
                     if (entry < 0) break;
-                    // Options (mode 3): entry 13 Sound, 10 Game Settings; the others still lead to the song
-                    // select (shortcut: Costumes and Control Settings are not built)
-                    if (mode == 3 && (entry == 13 || entry == 10)) {
+                    // Options (mode 3): entry 13 Sound, 10 Game Settings, 12 Control Settings (straight to the 9-lane
+                    // Button Controls); the others still lead to the song select (shortcut: Costumes are not built)
+                    if (mode == 3 && (entry == 13 || entry == 10 || entry == 12)) {
                         loading.Show(renderer);
                         open = sif::RunOptions(window, renderer, vfs, lang, audio, settings,
-                                               entry == 13 ? sif::OptionsPage::kSound : sif::OptionsPage::kGame, options.frames);
+                                               entry == 13   ? sif::OptionsPage::kSound
+                                               : entry == 10 ? sif::OptionsPage::kGame
+                                                             : sif::OptionsPage::kButtons,
+                                               options.frames);
                         options.live_options.approach_ms = settings.play.approach_ms;
                         if (!sif::SaveAppSettings(settings_path, settings)) {
                             sif::LogWarn("settings: cannot write {}", sif::os::PathToUtf8(settings_path));

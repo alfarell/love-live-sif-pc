@@ -45,6 +45,94 @@ void Focus(UiScreen& ui, const Row& row, bool on) {
     for (const char* node : {"opt_box00_off", "arrow00_left_off", "arrow00_right_off"}) ui.HideNode(row.box, node, on);
 }
 
+// The Button Controls ring (uil0011_keyConfigLayout00 > uil0012_keySetting00): its "button_9" group has 10 button plates
+// (uip0031_controllButton00_00-09) and 9 lane rings (uip0032_controllRing00_00-08); "button_6" (_10-_15) is the 6-lane
+// form. The plate's icon is a 1/4 x 1/4 cell of opt_ope_ingame_button00 in PadButton order.
+bool RunButtons(SDL_Window* window, Renderer& renderer, UiScreen& ui, AppSettings& settings, long max_frames) {
+    const std::string root = "uil0011_keyConfigLayout00", ring = root + "/uil0012_keySetting00/";
+    const auto slot_path = [&](int i) {
+        char s[64];
+        std::snprintf(s, sizeof(s), "uip0031_controllButton00_%02d", i);
+        return ring + s;
+    };
+    const auto ring_path = [&](int i) {
+        char s[64];
+        std::snprintf(s, sizeof(s), "uip0032_controllRing00_%02d", i);
+        return ring + s;
+    };
+    ui.SetMaterialUv(root + "/uil0001_option_set00/uip0001_opt_title_text00", "M_opt_title_text00", 0, 0.375f);
+    SetText(ui, root + "/uip0020_menutitle_plate00", 0, "Live Show (AC)");
+    // shortcut: Reset and OK are keys (T, Enter), not focusable buttons; the 3- and 6-lane configs are not built
+    for (const char* b : {"common_uip0005_SelectButton00_00", "common_uip0005_SelectButton00_01"}) {
+        ui.HideInstance(root + "/" + b, true);
+    }
+    for (int i = 10; i < 16; ++i) ui.HideInstance(slot_path(i), true), ui.HideInstance(ring_path(i), true);
+    PadSlots slots = DefaultPadSlots();
+    PadSlotsFromText(settings.controls.pad_lanes, slots);
+    int focus = 0;
+    const auto show = [&] {
+        for (int i = 0; i < kPadSlots; ++i) {
+            const std::string p = slot_path(i);
+            const int b = int(slots[size_t(i)]);
+            ui.SetMaterialUv(p, "cont_button00_M", 0.25f * float(b % 4), 0.25f * float(b / 4));
+            ui.HideNode(p, "button_plate00_select", i != focus);
+            ui.HideNode(p, "button_plate00_select_eff", i != focus);
+            ui.HideNode(p, "button_plate00_on", true);
+            ui.HideNode(p, "button_plate00_on_eff", true);
+            ui.HideNode(p, "button_plate00_off", i == focus);
+        }
+        for (int l = 0; l < 9; ++l) {
+            ui.HideNode(ring_path(l), "judge_ring00_blue", l != kLaneOfSlot[size_t(focus)]);
+            ui.HideNode(ring_path(l), "judge_ring00_eff", true);
+        }
+    };
+    show();
+    SDL_SetWindowTitle(window, "SIF port - options: button controls");
+    bool open = true;
+    ScreenFade fade;
+    uint64_t last = SDL_GetTicksNS();
+    for (long frame = 0; open && !fade.Left() && (max_frames < 0 || frame < max_frames); ++frame) {
+        SDL_Event e;
+        while (PollEvent(e)) {
+            if (e.type == SDL_EVENT_QUIT) open = false;
+            if (e.type != SDL_EVENT_KEY_DOWN || fade.leaving) continue;
+            const int n = int(PadButton::Count);
+            PadButton& b = slots[size_t(focus)];
+            switch (e.key.scancode) {
+                case SDL_SCANCODE_LEFT: focus = (focus + kPadSlots - 1) % kPadSlots; break;
+                case SDL_SCANCODE_RIGHT: focus = (focus + 1) % kPadSlots; break;
+                case SDL_SCANCODE_UP: b = PadButton((int(b) + n - 1) % n); break;
+                case SDL_SCANCODE_DOWN: b = PadButton((int(b) + 1) % n); break;
+                case SDL_SCANCODE_T: slots = DefaultPadSlots(); break;
+                case SDL_SCANCODE_RETURN:
+                case SDL_SCANCODE_SPACE:
+                case SDL_SCANCODE_ESCAPE:
+                case SDL_SCANCODE_BACKSPACE:
+                    if (!e.key.repeat) fade.Leave(ui);
+                    break;
+                default: break;
+            }
+            show();
+        }
+        const uint64_t now = SDL_GetTicksNS();
+        ui.Update(double(now - last) / 1e9);
+        fade.Update(double(now - last) / 1e9);
+        last = now;
+        if (!renderer.BeginFrame()) {
+            SDL_Delay(5);
+            continue;
+        }
+        ui.DrawLayout(renderer, root, 1.0f);
+        fade.Draw(renderer);
+        renderer.EndFrame();
+    }
+    // shortcut: a button in two slots is kept (it plays the first slot's lane), as the game's own rule is not traced
+    settings.controls.pad_lanes = slots == DefaultPadSlots() ? std::string() : PadSlotsToText(slots);
+    SetPadSlots(slots);
+    LogInfo("options: pad lanes {}", PadSlotsToText(slots));
+    return open;
+}
+
 }
 
 // shortcut: the labels are the port's own English words (the game takes them from message.pac, not decoded yet) and
@@ -59,6 +147,11 @@ bool RunOptions(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const st
     if (!ui.Load(renderer, vfs, "ui2/60_option", lang, &error, &text)) {
         LogError("options: {}", error);
         return true;
+    }
+    if (page == OptionsPage::kButtons) {
+        const bool open = RunButtons(window, renderer, ui, settings, max_frames);
+        ui.Release(renderer);
+        return open;
     }
     const bool sound = page == OptionsPage::kSound;
     const std::string root = sound ? "uil0020_soundOpt_layout00" : "uil0040_gameOpt_layout00";
