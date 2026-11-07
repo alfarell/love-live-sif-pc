@@ -87,6 +87,7 @@ endif()
 
 # SIF game rules (live play), kept apart from the generic engine
 add_library(sif_game STATIC
+  src/game/dlc/dlc.cpp
   src/game/live/chart.cpp
   src/game/live/judge.cpp
   src/game/live/song.cpp
@@ -124,6 +125,12 @@ add_executable(sif_live_test tests/unit/live_test.cpp)
 target_link_libraries(sif_live_test PRIVATE sif_game)
 if(MSVC)
   target_compile_options(sif_live_test PRIVATE /utf-8 /EHsc)
+endif()
+
+add_executable(sif_dlc_test tests/unit/dlc_test.cpp)
+target_link_libraries(sif_dlc_test PRIVATE sif_game)
+if(MSVC)
+  target_compile_options(sif_dlc_test PRIVATE /utf-8 /EHsc)
 endif()
 
 add_executable(sif_mission_test tests/unit/mission_test.cpp)
