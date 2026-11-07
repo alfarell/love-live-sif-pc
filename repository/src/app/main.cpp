@@ -36,6 +36,8 @@
 #include "engine/platform/os.h"
 #include "engine/platform/settings.h"
 #include "engine/render/renderer.h"
+#include "game/live/song.h"
+#include "game/mission/mission.h"
 #include "game/save/save.h"
 
 #ifndef SIF_BUILD_ID
@@ -95,6 +97,25 @@ Options ParseOptions(int argc, char** argv) {
     o.live_options.lang = o.lang == "jp" ? "" : o.lang;
     if (o.data_dir.empty()) o.data_dir = sif::os::ExecutableFile().parent_path() / "data";
     return o;
+}
+
+// Logs the missions this live completed (done in `after`, not in `before`). shortcut: logged only; the game's mission
+// screen and result pop-up are not built
+void LogNewMissions(const sif::mission::Missions& missions, const std::vector<sif::live::SongInfo>& songs, int language,
+                    const sif::save::SaveData& before, const sif::save::SaveData& after) {
+    for (const sif::mission::Mission& m : missions.rows) {
+        if (size_t(m.Kind()) >= missions.conditions.size() || !sif::mission::ProgressOf(m, after).Done() ||
+            sif::mission::ProgressOf(m, before).Done()) {
+            continue;
+        }
+        std::string p1 = std::to_string(m.p1);
+        for (const auto& s : songs) {
+            if (m.Kind() >= 35 && m.Kind() <= 39 && s.id == m.p1) p1 = s.title;
+        }
+        const auto& c = missions.conditions[size_t(m.Kind())];
+        sif::LogInfo("mission {} done: {} ({})", m.id, sif::mission::Fill(c.title[size_t(language)], m, p1),
+                     sif::mission::Fill(c.text[size_t(language)], m, p1));
+    }
 }
 
 int Quit(int code, const char* why) {
@@ -191,6 +212,11 @@ int main(int argc, char** argv) {
             if (!can_save) sif::LogWarn("save: {}: {}; playing without saving", sif::os::PathToUtf8(save_path), save_error);
             sif::LoadingScreen loading;
             loading.Load(renderer, vfs, lang);
+            const int language = lang == "en" ? 1 : lang == "cn" ? 2 : lang == "tw" ? 3 : 0;
+            sif::mission::Missions missions;
+            std::vector<sif::live::SongInfo> songs;
+            if (!sif::mission::Load(vfs, missions, &why)) sif::LogWarn("missions: {}", why);
+            if (!sif::live::LoadSongList(vfs, language, songs, &why)) sif::LogWarn("missions: songs: {}", why);
             for (bool menu = !options.select; open;) {
                 if (menu) loading.Show(renderer);
                 if (menu) {
@@ -227,9 +253,11 @@ int main(int argc, char** argv) {
                 if (code == 0 && !result.closed && result.finished) {
                     loading.Show(renderer);
                     const bool full_combo = result.counts[2] + result.counts[3] + result.counts[4] == 0;
+                    const sif::save::SaveData before = save;
                     news = sif::save::Record(save, {result.song, result.variant, int(result.score), result.max_combo, result.rank,
                                                     result.clear_rate, full_combo});
                     if (can_save && !sif::save::Write(save_path, save, &save_error)) sif::LogWarn("save: {}", save_error);
+                    LogNewMissions(missions, songs, language, before, save);
                 }
                 open = code == 0 && !result.closed &&
                        (!result.finished || sif::RunResult(window, renderer, vfs, options.live_options.lang, result,
