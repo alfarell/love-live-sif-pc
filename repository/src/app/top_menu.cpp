@@ -90,30 +90,7 @@ void Apply(UiScreen& ui, int mode, int entry) {
 
 void ApplyNameplate(UiScreen& ui, const Nameplate& p) {
     const std::string top = std::string(kRoot) + "/uil0009_PlayerDataTop00";
-    const std::string title = top + "/ctg03_uip0004_Title00", set = top + "/ctg03_uil0005_NameSet00";
-    const std::string name = set + "/uip0005_NamePlate00", badge = set + "/uip0006_Badge00";
-    const NameplateItem none;
-    const NameplateItem& a = p.accolade < p.accolades.size() ? p.accolades[p.accolade] : none;
-    const NameplateItem& b = p.badge < p.badges.size() ? p.badges[p.badge] : none;
-    char path[96];
-    std::snprintf(path, sizeof(path), "ui/ui_honorific_title.pac/texture.pac/title_plate_%04d", a.plate);
-    if (a.plate && !ui.SetMaterialTexture(title, "title_plate00_M", path)) LogWarn("nameplate: no {}", path);
-    if (p.name_plate < p.name_plates.size()) {  // id PPPSSSS -> name_plate_PPP_SSSS
-        const int id = p.name_plates[p.name_plate].id;
-        std::snprintf(path, sizeof(path), "ui/ui_name_plate.pac/texture.pac/name_plate_%03d_%04d", id / 10000, id % 10000);
-        // the layout's default plate is not in ui_name_plate.pac, only in the screen packages
-        if (id == 110011) std::snprintf(path, sizeof(path), "ui2/03_card.pac/texture.pac/name_plate_011_0011.btx");
-        if (!ui.SetMaterialTexture(name, "name_plate00_M", path)) LogWarn("nameplate: no {}", path);
-    }
-    std::snprintf(path, sizeof(path), "ui/ui_badge.pac/texture.pac/badge_plate_%03d_0", b.plate);
-    if (b.plate && !ui.SetMaterialTexture(badge, "badge00_M", path)) LogWarn("nameplate: no {}", path);
-    // text boxes (probed): title 0 accolade name, name plate 0 player name, badge 0 badge name; box 1 of the title and
-    // name plates sits over box 0's left part (shortcut: its use is not known, left empty)
-    ui.SetInstanceText(title, 0, a.name);
-    ui.SetInstanceText(title, 1, "");
-    ui.SetInstanceText(name, 0, p.player);
-    ui.SetInstanceText(name, 1, "");
-    ui.SetInstanceText(badge, 0, b.name);
+    ShowNameplate(ui, p, top + "/ctg03_uip0004_Title00", top + "/ctg03_uil0005_NameSet00");
     // the header's date (uip0008_PlayerData00 box 0) and boost items (box 1; shortcut: not built, left empty)
     const std::time_t t = std::time(nullptr);
     std::tm local{};
@@ -126,8 +103,46 @@ void ApplyNameplate(UiScreen& ui, const Nameplate& p) {
 
 }
 
+std::string TitlePlatePath(int plate) {
+    char s[96];
+    std::snprintf(s, sizeof(s), "ui/ui_honorific_title.pac/texture.pac/title_plate_%04d", plate);
+    return s;
+}
+
+std::string NamePlatePath(int id) {  // id PPPSSSS -> name_plate_PPP_SSSS
+    char s[96];
+    std::snprintf(s, sizeof(s), "ui/ui_name_plate.pac/texture.pac/name_plate_%03d_%04d", id / 10000, id % 10000);
+    return s;
+}
+
+std::string BadgePlatePath(int category) {
+    char s[96];
+    std::snprintf(s, sizeof(s), "ui/ui_badge.pac/texture.pac/badge_plate_%03d_0", category);
+    return s;
+}
+
+void ShowNameplate(UiScreen& ui, const Nameplate& p, const std::string& title, const std::string& set) {
+    const std::string name = set + "/uip0005_NamePlate00", badge = set + "/uip0006_Badge00";
+    const NameplateItem none;
+    const NameplateItem& a = p.accolade < p.accolades.size() ? p.accolades[p.accolade] : none;
+    const NameplateItem& b = p.badge < p.badges.size() ? p.badges[p.badge] : none;
+    if (a.plate && !ui.SetMaterialTexture(title, "title_plate00_M", TitlePlatePath(a.plate))) LogWarn("nameplate: no {}", a.plate);
+    if (p.name_plate < p.name_plates.size()) {
+        const int id = p.name_plates[p.name_plate].id;
+        if (!ui.SetMaterialTexture(name, "name_plate00_M", NamePlatePath(id))) LogWarn("nameplate: no name plate {}", id);
+    }
+    if (b.plate && !ui.SetMaterialTexture(badge, "badge00_M", BadgePlatePath(b.plate))) LogWarn("nameplate: no badge {}", b.plate);
+    // text boxes (probed): title 0 accolade name, name plate 0 player name, badge 0 badge name; box 1 of the title and
+    // name plates sits over box 0's left part (shortcut: its use is not known, left empty)
+    ui.SetInstanceText(title, 0, a.name);
+    ui.SetInstanceText(title, 1, "");
+    ui.SetInstanceText(name, 0, p.player);
+    ui.SetInstanceText(name, 1, "");
+    ui.SetInstanceText(badge, 0, b.name);
+}
+
 int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, long max_frames,
-               int* chosen_mode, AudioOutput* audio, Nameplate* plate) {
+               int* chosen_mode, AudioOutput* audio, const Nameplate* plate) {
     UiText text;
     std::string error;
     if (!text.Load(vfs, lang, &error)) LogWarn("top menu: text: {}", error);
@@ -160,7 +175,6 @@ int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
     }
     std::mt19937 random{std::random_device{}()};
     int chosen = -1;
-    bool editing = false;  // Profile Card: choosing the nameplate in the header
     bool running = true;
     ScreenFade fade;
     uint64_t last = SDL_GetTicksNS();
@@ -170,26 +184,6 @@ int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
             if (e.type == SDL_EVENT_QUIT) running = false;
             if (e.type != SDL_EVENT_KEY_DOWN || e.key.repeat || fade.leaving) continue;
             const std::vector<int>& ids = kEntriesOfMode[size_t(mode)];
-            if (editing) {
-                const auto step = [](size_t& i, size_t n, int d) { i = n ? (i + (d < 0 ? n - 1 : 1)) % n : 0; };
-                switch (e.key.scancode) {
-                    case SDL_SCANCODE_UP: step(plate->accolade, plate->accolades.size(), -1); break;
-                    case SDL_SCANCODE_DOWN: step(plate->accolade, plate->accolades.size(), 1); break;
-                    case SDL_SCANCODE_LEFT: step(plate->badge, plate->badges.size(), -1); break;
-                    case SDL_SCANCODE_RIGHT: step(plate->badge, plate->badges.size(), 1); break;
-                    case SDL_SCANCODE_PAGEUP: step(plate->name_plate, plate->name_plates.size(), -1); break;
-                    case SDL_SCANCODE_PAGEDOWN: step(plate->name_plate, plate->name_plates.size(), 1); break;
-                    case SDL_SCANCODE_RETURN:
-                    case SDL_SCANCODE_SPACE:
-                    case SDL_SCANCODE_ESCAPE: editing = false; break;
-                    default: break;
-                }
-                ApplyNameplate(ui, *plate);
-                LogInfo("nameplate: accolade {} of {}, badge {} of {}, name plate {} of {}{}", plate->accolade + 1,
-                        plate->accolades.size(), plate->badge + 1, plate->badges.size(), plate->name_plate + 1,
-                        plate->name_plates.size(), editing ? "" : " (done)");
-                continue;
-            }
             switch (e.key.scancode) {
                 case SDL_SCANCODE_ESCAPE: fade.Leave(ui); break;
                 case SDL_SCANCODE_T:
@@ -201,12 +195,7 @@ int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
                 case SDL_SCANCODE_DOWN: entry = ids.empty() ? 0 : (entry + 1) % int(ids.size()); break;
                 case SDL_SCANCODE_RETURN:
                 case SDL_SCANCODE_SPACE:
-                    if (plate && mode == 4 && !ids.empty() && ids[size_t(entry)] == 15) {  // Collection: Profile Card
-                        editing = true;
-                        LogInfo("nameplate: editing");
-                    } else if (!ids.empty()) {
-                        chosen = ids[size_t(entry)], fade.Leave(ui);
-                    }
+                    if (!ids.empty()) chosen = ids[size_t(entry)], fade.Leave(ui);
                     break;
                 default: break;
             }

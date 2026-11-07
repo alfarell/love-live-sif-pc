@@ -11,6 +11,7 @@ namespace sif {
 
 class AudioOutput;
 class Renderer;
+class UiScreen;
 class Vfs;
 
 // The player's nameplate in the header (uil0009_PlayerDataTop00 places 03_card's name plate, badge and accolade plate).
@@ -20,18 +21,26 @@ struct NameplateItem {
                     // (row +0x04 category)
     std::string name;
 };
+// What the player owns for the nameplate and what they chose (main.cpp MakeNameplate; edited on the Profile Card
+// screen, profile_screen.h).
 struct Nameplate {
     std::string player;
     std::vector<NameplateItem> accolades, badges, name_plates;  // the choosable ones (name plates: plate = id)
-    size_t accolade = 0, badge = 0, name_plate = 0;             // the chosen ones (indices); the menu changes them
+    size_t accolade = 0, badge = 0, name_plate = 0;             // the chosen ones (indices)
 };
+
+// The plate pictures: accolade plate (row +0x08), name plate id (PPPSSSS -> name_plate_PPP_SSSS), badge category.
+std::string TitlePlatePath(int plate);
+std::string NamePlatePath(int id);
+std::string BadgePlatePath(int category);
+// Fills a placed 03_card nameplate: `title` (ctg03_uip0004_Title00) and `set` (ctg03_uil0005_NameSet00) instance paths.
+void ShowNameplate(UiScreen& ui, const Nameplate& p, const std::string& title, const std::string& set);
 
 // Shows the top menu until the player confirms a submenu entry (returns its entry id) or quits (returns -1).
 // `mode` (optional) gets the wheel mode the entry belongs to (0 Play .. 5 Event; entry ids repeat across modes).
-// With `plate`, the header shows the nameplate; Profile Card (entry 15) edits it in place: Up/Down accolade, Left/Right
-// badge, PageUp/PageDown (pad L1/R1) name plate, Enter or Esc done (shortcut: the game's Profile Card screen, 40_collection uil0031_PlateChangeMenu00, is not
-// built). With `audio`, the navigator greets by the time of day on entry and says another line on T (pad Triangle).
+// With `plate`, the header shows the nameplate. With `audio`, the navigator greets by the time of day on entry and says
+// another line on T (pad Triangle).
 int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, long max_frames,
-               int* mode = nullptr, AudioOutput* audio = nullptr, Nameplate* plate = nullptr);
+               int* mode = nullptr, AudioOutput* audio = nullptr, const Nameplate* plate = nullptr);
 
 }

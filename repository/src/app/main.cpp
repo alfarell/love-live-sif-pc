@@ -25,6 +25,7 @@
 #include "app/live_screen.h"
 #include "app/mission_screen.h"
 #include "app/options_screen.h"
+#include "app/profile_screen.h"
 #include "app/result_screen.h"
 #include "app/song_select.h"
 #include "app/title_screen.h"
@@ -127,7 +128,9 @@ sif::Nameplate MakeNameplate(const sif::mission::Missions& missions, const std::
     add(plate.accolades, accolades, save.accolade);
     add(plate.badges, badges, save.badge);
     // name plates: the id is the picture (name_plate_PPP_SSSS); shortcut: no names (the plates have none in the table)
-    plate.name_plates.push_back({110011, 110011, ""});  // 03_card's default (name_plate_011_0011)
+    // the starting plate: the pink "Wai-Wai!" (name_plate_001_9001, the first s_name_plate_datas row), as the game's
+    // Change Accolade or Name Plate screen shows on a new save (shadPS4, M7)
+    plate.name_plates.push_back({19001, 19001, ""});
     std::vector<int> plates = sif::mission::Owned(save, 6);
     if (save.name_plate) plates.push_back(save.name_plate);
     for (int id : plates) {
@@ -309,15 +312,20 @@ int main(int argc, char** argv) {
                 if (menu) {
                     int mode = -1;
                     sif::Nameplate plate = MakeNameplate(missions, accolades, badges, save);
-                    const size_t shown_accolade = plate.accolade, shown_badge = plate.badge, shown_plate = plate.name_plate;
                     const int entry = sif::RunTopMenu(window, renderer, vfs, lang, options.frames, &mode, &audio, &plate);
-                    // only a real choice is saved
-                    if (plate.accolade != shown_accolade || plate.badge != shown_badge || plate.name_plate != shown_plate) {
-                        save.accolade = plate.accolades[plate.accolade].id, save.badge = plate.badges[plate.badge].id;
-                        save.name_plate = plate.name_plates[plate.name_plate].id;
-                        if (can_save && !sif::save::Write(save_path, save, &save_error)) sif::LogWarn("save: {}", save_error);
-                    }
                     if (entry < 0) break;
+                    if (mode == 4 && entry == 15) {  // Collection: Profile Card (Change Accolade or Name Plate)
+                        loading.Show(renderer);
+                        const size_t shown_accolade = plate.accolade, shown_badge = plate.badge, shown_plate = plate.name_plate;
+                        open = sif::RunProfile(window, renderer, vfs, lang, plate, options.frames);
+                        // only a real choice is saved
+                        if (plate.accolade != shown_accolade || plate.badge != shown_badge || plate.name_plate != shown_plate) {
+                            save.accolade = plate.accolades[plate.accolade].id, save.badge = plate.badges[plate.badge].id;
+                            save.name_plate = plate.name_plates[plate.name_plate].id;
+                            if (can_save && !sif::save::Write(save_path, save, &save_error)) sif::LogWarn("save: {}", save_error);
+                        }
+                        continue;
+                    }
                     // Options (mode 3): entry 13 Sound, 10 Game Settings, 12 Control Settings (straight to the 9-lane
                     // Button Controls); the others still lead to the song select (shortcut: Costumes are not built)
                     if (mode == 3 && (entry == 13 || entry == 10 || entry == 12)) {
