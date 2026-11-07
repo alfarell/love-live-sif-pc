@@ -3,6 +3,7 @@
 #include <SDL3/SDL.h>
 
 #include <algorithm>
+#include <array>
 #include <cstdio>
 
 #include "app/fade.h"
@@ -20,6 +21,33 @@ constexpr const char* kRoot = "uil0001_MisLayout00";
 constexpr int kFirstPlate = 1, kPlates = 5;
 // eve_mis_gauge00_01 fills u 162..862 of 1024
 constexpr float kGaugeU0 = 162.0f / 1024.0f, kGaugeU1 = 862.0f / 1024.0f;
+
+// The tabs (uip0006_missonPageTab00 label atlas eve_mis_type_tab_text00_00_T, rows of 1/8: Member, Group, Songs,
+// Costumes) and the frame layout drawn for each active tab (uil0002_MisframeLayout00 places all four)
+constexpr int kTabs = 4;
+constexpr std::array<const char*, kTabs> kTabLayouts = {"uil0006_missipntabOshi00", "uil0007_missipntabCom00",
+                                                        "uil0008_missipntabMusic00", "uil0009_missipntabDress00"};
+// The tab of a condition kind: member (recommended table, 20-34), group (common, 0-19), songs (35-39), costumes (40-48)
+int TabOf(int kind) { return kind >= 40 ? 3 : kind >= 35 ? 2 : kind >= 20 ? 0 : 1; }
+
+void ApplyTabs(UiScreen& ui, int active) {
+    for (int v = 0; v < kTabs; ++v) {
+        const std::string layout = std::string(kRoot) + "/uil0002_MisframeLayout00/" + kTabLayouts[size_t(v)];
+        ui.HideInstance(layout, v != active);
+        for (int k = 0; k < kTabs; ++k) {
+            char holder[64];
+            std::snprintf(holder, sizeof(holder), "/uil0005_missipntabAll00_%02d", k);
+            const std::string tab = layout + holder + "/uip0006_missonPageTab00";
+            ui.SetMaterialUv(tab, "M_tab_text00", 0.0f, 0.125f * float(k));
+            ui.HideNode(tab, "missontab00_ON", k != active);
+            ui.HideNode(tab, "missontab00_OFF", k == active);
+            // boxes 0/1: the tab's reward count and its label (rewards); shortcut: rewards are not claimed, so empty
+            ui.SetInstanceText(tab, 0, "");
+            ui.SetInstanceText(tab, 1, "");
+            ui.HideInstance(layout + holder + "/common_uip0017_New00", true);
+        }
+    }
+}
 
 std::string Holder(int i) {
     char s[128];
@@ -46,8 +74,10 @@ void Apply(UiScreen& ui, const std::vector<Row>& rows, int top, int cursor) {
         // text boxes (probed): 0 title, 2 description, 3 progress, 4 reward count, 5 "press to claim"; 1, 6, 7 unused
         ui.SetInstanceText(plate, 0, row.title);
         ui.SetInstanceText(plate, 2, row.text);
-        const int need = row.progress.need, have = std::min(row.progress.have, need);
-        ui.SetInstanceText(plate, 3, std::to_string(have) + "/" + std::to_string(need));
+        const int need = row.progress.need, have = std::clamp(row.progress.have, 0, need);
+        // not tracked by the port yet: "-" and an empty gauge
+        ui.SetInstanceText(plate, 3,
+                           (row.progress.have < 0 ? std::string("-") : std::to_string(have)) + "/" + std::to_string(need));
         ui.SetInstanceText(plate, 4, row.accolade ? "" : "x" + std::to_string(row.m->reward_amount));
         for (int b : {1, 5, 6, 7}) ui.SetInstanceText(plate, b, "");
         ui.SetMaterialClip(plate, "M_misgauge00", kGaugeU0 + (kGaugeU1 - kGaugeU0) * float(have) / float(need));
@@ -80,30 +110,38 @@ bool RunMissions(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const s
         return true;
     }
     const int language = lang == "en" ? 1 : lang == "cn" ? 2 : lang == "tw" ? 3 : 0;
-    std::vector<Row> rows;
+    std::vector<live::DressInfo> dresses;
+    if (!live::LoadDressList(vfs, language, dresses, &error)) LogWarn("missions: costumes: {}", error);
+    std::array<std::vector<Row>, kTabs> tabs;
     if (data.missions && data.save) {
         for (const mission::Mission& m : data.missions->rows) {
             if (size_t(m.Kind()) >= data.missions->conditions.size()) continue;
-            const bool per_song = m.Kind() >= 35 && m.Kind() <= 39;
-            if (per_song && data.owned && !data.owned->Song(m.p1)) continue;
+            const int tab = TabOf(m.Kind());
+            if (tab == 2 && data.owned && !data.owned->Song(m.p1)) continue;     // no add-on for the song
+            if (tab == 3 && data.owned && !data.owned->Costume(m.p1)) continue;  // or the costume
             Row row{&m, {}, {}, mission::ProgressOf(m, *data.save)};
-            if (row.progress.have < 0) continue;  // shortcut: only the kinds the port tracks are listed
+            // [p1]: song title, costume name; members by number (shortcut: member names are not read yet)
             std::string p1 = std::to_string(m.p1);
-            if (per_song && data.songs) {
+            if (tab == 2 && data.songs) {
                 for (const auto& s : *data.songs) {
                     if (s.id == m.p1) p1 = s.title;
                 }
+            }
+            for (const auto& d : dresses) {
+                if (tab == 3 && d.id == m.p1) p1 = d.name;
             }
             const auto& c = data.missions->conditions[size_t(m.Kind())];
             row.title = mission::Fill(c.title[size_t(language)], m, p1);
             row.text = mission::Fill(c.text[size_t(language)], m, p1);
             if (m.reward_type == 4 && data.accolades) row.accolade = mission::FindAward(*data.accolades, m.reward_id);
-            rows.push_back(std::move(row));
+            tabs[size_t(tab)].push_back(std::move(row));
         }
     }
-    LogInfo("missions: {} listed", rows.size());
-    int cursor = 0, top = 0;
-    Apply(ui, rows, top, cursor);
+    LogInfo("missions: {} member, {} group, {} song, {} costume", tabs[0].size(), tabs[1].size(), tabs[2].size(),
+            tabs[3].size());
+    int tab = 1, cursor = 0, top = 0;  // start on Group (the general missions)
+    ApplyTabs(ui, tab);
+    Apply(ui, tabs[size_t(tab)], top, cursor);
     SDL_SetWindowTitle(window, "SIF port - task list");
     bool open = true;
     ScreenFade fade;
@@ -113,18 +151,21 @@ bool RunMissions(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const s
         while (PollEvent(e)) {
             if (e.type == SDL_EVENT_QUIT) open = false;
             if (e.type != SDL_EVENT_KEY_DOWN || fade.leaving) continue;
-            const int n = int(rows.size());
+            const int n = int(tabs[size_t(tab)].size());
+            const int old_tab = tab;
             switch (e.key.scancode) {
                 case SDL_SCANCODE_ESCAPE: fade.Leave(ui); break;
                 case SDL_SCANCODE_UP: cursor = std::max(0, cursor - 1); break;
                 case SDL_SCANCODE_DOWN: cursor = std::min(std::max(0, n - 1), cursor + 1); break;
-                case SDL_SCANCODE_LEFT: cursor = std::max(0, cursor - kPlates); break;  // a page; shortcut: the
-                case SDL_SCANCODE_RIGHT: cursor = std::min(std::max(0, n - 1), cursor + kPlates); break;  // game's tabs
-                // (all / member / common / song / costume, uil0005-0009) are not wired; Left/Right page instead
+                case SDL_SCANCODE_PAGEUP: cursor = std::max(0, cursor - kPlates); break;
+                case SDL_SCANCODE_PAGEDOWN: cursor = std::min(std::max(0, n - 1), cursor + kPlates); break;
+                case SDL_SCANCODE_LEFT: tab = (tab + kTabs - 1) % kTabs; break;
+                case SDL_SCANCODE_RIGHT: tab = (tab + 1) % kTabs; break;
                 default: break;
             }
+            if (tab != old_tab) cursor = top = 0, ApplyTabs(ui, tab);
             top = std::clamp(top, std::max(0, cursor - kPlates + 1), cursor);
-            Apply(ui, rows, top, cursor);
+            Apply(ui, tabs[size_t(tab)], top, cursor);
         }
         const uint64_t now = SDL_GetTicksNS();
         ui.Update(double(now - last) / 1e9);
