@@ -21,6 +21,7 @@
 #include "app/fade.h"
 #include "app/input.h"
 #include "app/live_screen.h"
+#include "app/mission_screen.h"
 #include "app/options_screen.h"
 #include "app/result_screen.h"
 #include "app/song_select.h"
@@ -257,6 +258,12 @@ int main(int argc, char** argv) {
                         if (!sif::SaveAppSettings(settings_path, settings)) {
                             sif::LogWarn("settings: cannot write {}", sif::os::PathToUtf8(settings_path));
                         }
+                        continue;
+                    }
+                    if (mode == 5 && entry == 20) {  // Event: Task List
+                        loading.Show(renderer);
+                        open = sif::RunMissions(window, renderer, vfs, lang,
+                                                {&missions, &accolades, &songs, &save, &owned}, options.frames);
                         continue;
                     }
                 }
