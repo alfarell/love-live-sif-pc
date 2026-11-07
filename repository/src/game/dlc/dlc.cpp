@@ -109,7 +109,7 @@ Ownership Resolve(const Catalog& catalog, const std::set<std::string>& owned) {
         if (!owned.count(label)) o.locked_songs.insert(song);
     }
     for (const auto& [label, costume] : catalog.costumes) {
-        if (!owned.count(label)) o.locked_costumes.insert(costume);
+        (owned.count(label) ? o.addon_costumes : o.locked_costumes).insert(costume);
     }
     return o;
 }

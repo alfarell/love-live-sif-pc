@@ -27,6 +27,7 @@ std::set<std::string> ScanOwned(const std::vector<std::filesystem::path>& folder
 
 struct Ownership {
     std::set<int> locked_songs, locked_costumes;  // in the catalog, with no add-on found
+    std::set<int> addon_costumes;                 // in the catalog, with the add-on found (the add-on gives it)
     bool Song(int id) const { return !locked_songs.count(id); }
     bool Costume(int id) const { return !locked_costumes.count(id); }
 };
