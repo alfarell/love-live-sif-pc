@@ -247,12 +247,12 @@ int main(int argc, char** argv) {
                     int mode = -1;
                     const int entry = sif::RunTopMenu(window, renderer, vfs, lang, options.frames, &mode, &audio);
                     if (entry < 0) break;
-                    // Options (mode 3): entry 8 Sound Settings, 10 Game Settings; the others still lead to the song
+                    // Options (mode 3): entry 13 Sound, 10 Game Settings; the others still lead to the song
                     // select (shortcut: Costumes and Control Settings are not built)
-                    if (mode == 3 && (entry == 8 || entry == 10)) {
+                    if (mode == 3 && (entry == 13 || entry == 10)) {
                         loading.Show(renderer);
                         open = sif::RunOptions(window, renderer, vfs, lang, audio, settings,
-                                               entry == 8 ? sif::OptionsPage::kSound : sif::OptionsPage::kGame, options.frames);
+                                               entry == 13 ? sif::OptionsPage::kSound : sif::OptionsPage::kGame, options.frames);
                         options.live_options.approach_ms = settings.play.approach_ms;
                         if (!sif::SaveAppSettings(settings_path, settings)) {
                             sif::LogWarn("settings: cannot write {}", sif::os::PathToUtf8(settings_path));

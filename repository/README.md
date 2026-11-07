@@ -43,7 +43,7 @@ sif.exe --game <your CUSA24620 dump folder> [--title|--menu|--select [--lang en|
 - Add-ons: the song select lists the base game's songs and costumes plus those of the add-ons you have installed (`[game] dlc_folder`); `sif.log` says how many it found.
 - Missions: after each finished live, `sif.log` lists the missions it completed (plays, FULL COMBO, rank, score; general and per song) and the accolade each gives. There is no mission screen yet.
 - Talk: on the top menu the navigator (Honoka for now) greets by the time of day; T (pad Triangle) plays another of her lines.
-- Options: on the top menu, turn the wheel to Options and pick Sound Settings (volume) or Game Settings (note speed, timing offset). Up/Down pick a row, Left/Right change it (it applies at once), Enter or Esc goes back; the values are written to `settings.ini` (`[audio] volume`, `[play] approach_ms`, `[timing] audio_offset_ms`).
+- Options: on the top menu, turn the wheel to Options and pick Sound (volume) or Game Settings (note speed, timing offset). Up/Down pick a row, Left/Right change it (it applies at once), Enter or Esc goes back; the values are written to `settings.ini` (`[audio] volume`, `[play] approach_ms`, `[timing] audio_offset_ms`).
 - `--ui SCREEN:LAYOUT[:CLIP]` (developer) shows any ui2 layout, e.g. `--ui 10_top_menu:uil0001_TopMenu00`; `--ui-hide`/`--ui-hide-path` hide nodes or placed instances.
 - `--calibrate` plays 24 clicks; press Space on each. The median offset is stored as `timing.audio_offset_ms` and applied to judgement.
 

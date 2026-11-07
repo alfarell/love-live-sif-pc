@@ -28,11 +28,13 @@ constexpr int kSwitch = 20; // ui_animation.bin: clip 20 "switch", posed at the 
 // DAT_005F42F0: the submenu list shown for each mode; DAT_005F3F54: entries per submenu list
 constexpr std::array<int, kModes> kSubmenuOfMode = {1, 3, 3, 1, 0, 2};
 constexpr std::array<int, 4> kEntriesOfSubmenu = {5, 4, 3, 2};
-// The entry ids (label cells) per mode, from the pointer table at 0xC085A0 (resolved through its relocations).
-// Mode 0 (Play) is filled at runtime (its slot points at code in the file); Hypothesis: the 4 ids at 0x5F4410
-// (0 1 2 3 = Play Live Show, Play Live Show (AC), View Live Show, Live Show Medley, as seen in shadPS4)
+// The entry ids (label cells of top_mode_sub00_on_T, 4 per row: 0-3 Play items, 5 Create/Change Costumes, 7 Costume
+// Materials, 8 Songs, 9 Costumes, 10 Game Settings, 12 Control Settings, 13 Sound, 14 Credits, 15 Profile Card,
+// 16 Member Card, 17 Skill Card, 18 Photo Gallery, 19 AC Archive, 20 Task List, 21 Ongoing Events, 22 Rankings).
+// From the pointer table at 0xC085A0, which the first reading took one slot late (it gave each mode the previous
+// mode's ids); corrected by the label atlas and the submenu sizes (2, 2, 4, 5, 3), M7.
 const std::array<std::vector<int>, kModes> kEntriesOfMode = {{
-    {0, 1, 2, 3}, {0, 1}, {5, 7}, {8, 9, 10, 12}, {10, 12, 13, 14, 15}, {15, 16, 17}}};
+    {0, 1, 2, 3}, {5, 7}, {8, 9}, {10, 12, 13, 14}, {15, 16, 17, 18, 19}, {20, 21, 22}}};
 // The submenu layouts per list index, matched by their banner counts (5, 4, 3, 2): idle and active ("_act") forms
 constexpr std::array<const char*, 4> kIdleList = {"uil0003_SubMenuList00", "uil0010_SubMenuList03",
                                                   "uil0004_SubMenuList01", "uil0005_SubMenuList02"};
