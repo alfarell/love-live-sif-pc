@@ -101,8 +101,9 @@ Options ParseOptions(int argc, char** argv) {
 
 // Logs the missions this live completed (done in `after`, not in `before`). shortcut: logged only; the game's mission
 // screen and result pop-up are not built
-void LogNewMissions(const sif::mission::Missions& missions, const std::vector<sif::live::SongInfo>& songs, int language,
-                    const sif::save::SaveData& before, const sif::save::SaveData& after) {
+void LogNewMissions(const sif::mission::Missions& missions, const std::vector<sif::mission::Award>& accolades,
+                    const std::vector<sif::live::SongInfo>& songs, int language, const sif::save::SaveData& before,
+                    const sif::save::SaveData& after) {
     for (const sif::mission::Mission& m : missions.rows) {
         if (size_t(m.Kind()) >= missions.conditions.size() || !sif::mission::ProgressOf(m, after).Done() ||
             sif::mission::ProgressOf(m, before).Done()) {
@@ -113,8 +114,10 @@ void LogNewMissions(const sif::mission::Missions& missions, const std::vector<si
             if (m.Kind() >= 35 && m.Kind() <= 39 && s.id == m.p1) p1 = s.title;
         }
         const auto& c = missions.conditions[size_t(m.Kind())];
-        sif::LogInfo("mission {} done: {} ({})", m.id, sif::mission::Fill(c.title[size_t(language)], m, p1),
-                     sif::mission::Fill(c.text[size_t(language)], m, p1));
+        const sif::mission::Award* accolade = m.reward_type == 4 ? sif::mission::FindAward(accolades, m.reward_id) : nullptr;
+        sif::LogInfo("mission {} done: {} ({}){}", m.id, sif::mission::Fill(c.title[size_t(language)], m, p1),
+                     sif::mission::Fill(c.text[size_t(language)], m, p1),
+                     accolade ? "; accolade " + std::to_string(accolade->id) + " " + accolade->name : std::string());
     }
 }
 
@@ -216,6 +219,8 @@ int main(int argc, char** argv) {
             sif::mission::Missions missions;
             std::vector<sif::live::SongInfo> songs;
             if (!sif::mission::Load(vfs, missions, &why)) sif::LogWarn("missions: {}", why);
+            std::vector<sif::mission::Award> accolades, badges;
+            if (!sif::mission::LoadAwards(vfs, accolades, badges, &why)) sif::LogWarn("awards: {}", why);
             if (!sif::live::LoadSongList(vfs, language, songs, &why)) sif::LogWarn("missions: songs: {}", why);
             for (bool menu = !options.select; open;) {
                 if (menu) loading.Show(renderer);
@@ -257,7 +262,7 @@ int main(int argc, char** argv) {
                     news = sif::save::Record(save, {result.song, result.variant, int(result.score), result.max_combo, result.rank,
                                                     result.clear_rate, full_combo});
                     if (can_save && !sif::save::Write(save_path, save, &save_error)) sif::LogWarn("save: {}", save_error);
-                    LogNewMissions(missions, songs, language, before, save);
+                    LogNewMissions(missions, accolades, songs, language, before, save);
                 }
                 open = code == 0 && !result.closed &&
                        (!result.finished || sif::RunResult(window, renderer, vfs, options.live_options.lang, result,
