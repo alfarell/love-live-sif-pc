@@ -65,8 +65,8 @@ bool LoadDressList(const Vfs& vfs, int language, std::vector<DressInfo>& out, st
 // "School Uniform" by the port) first, then the table's in its order.
 std::vector<DressInfo> CostumesFor(const Vfs& vfs, const SongInfo& song, const std::vector<DressInfo>& dresses);
 // The default costume ("dNNN", "" if none): the one named like the song (English names), else the first of
-// CostumesFor. shortcut: the game lets the player dress each member (member cards, 30_costume preview); the port's
-// costume step picks one costume for everyone, starting from this rule
+// CostumesFor. The song select's costume step starts from this rule; a member's own costume (Create/Change Costumes,
+// LiveOptions::wear) wins over it in the live
 std::string PickCostume(const Vfs& vfs, const SongInfo& song, const std::vector<DressInfo>& english_dresses);
 std::string CostumeFolder(int id);  // 4 -> "d004"
 // Music: the music.acb cue whose CueId equals the song id.

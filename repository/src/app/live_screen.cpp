@@ -357,19 +357,26 @@ struct LiveScene {
                 stage_loops.push_back(std::move(loop));
             }
         }
-        for (int m = opt.member ? opt.member : 1; m <= (opt.member ? opt.member : 9); ++m) {
+        for (int m = opt.member ? opt.member : 1; m <= (opt.member ? opt.member : 22); ++m) {
             char chr[64], mot[64], prefix[32];
             std::snprintf(chr, sizeof(chr), "chr/c%02d/c%02d.pac/model.pac", m, m);
             std::snprintf(mot, sizeof(mot), "live/%04d/c%02d_%04d.pac", opt.song, m, opt.song);
             std::snprintf(prefix, sizeof(prefix), "mod_%02d_", m);
             std::string model_path = FindEntry(vfs, chr, prefix), textures;
             const std::string motion_path = FindEntry(vfs, mot, "mot_");
-            if (!opt.costume.empty()) {  // chr/cNN/dXXX/dXXX.pac: the whole member in that costume (face and hair
-                                         // textures stay in the member's own model.pac); members without it keep theirs
+            // chr/cNN/dXXX/dXXX.pac: the whole member in that costume (face and hair textures stay in the member's own
+            // model.pac): the member's own costume first, then the chosen one; members with neither keep theirs
+            const auto own = opt.wear.find(m);
+            for (const std::string& costume : {own == opt.wear.end() ? std::string() : own->second, opt.costume}) {
+                if (costume.empty()) continue;
                 char dress[64];
-                std::snprintf(dress, sizeof(dress), "chr/c%02d/%s/%s.pac", m, opt.costume.c_str(), opt.costume.c_str());
+                std::snprintf(dress, sizeof(dress), "chr/c%02d/%s/%s.pac", m, costume.c_str(), costume.c_str());
                 const std::string dressed = FindEntry(vfs, dress, "mod_");
-                if (!dressed.empty()) model_path = dressed, textures = chr;
+                if (!dressed.empty()) {
+                    model_path = dressed, textures = chr;
+                    if (costume != opt.costume) LogInfo("live: member {} wears {} (own costume)", m, costume);
+                    break;
+                }
             }
             if (motion_path.empty()) continue;  // not in this song
             auto d = std::make_unique<Dancer>();

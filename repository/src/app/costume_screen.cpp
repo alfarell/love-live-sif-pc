@@ -10,6 +10,7 @@
 #include "app/fade.h"
 #include "app/input.h"
 #include "engine/core/log.h"
+#include "engine/fs/vfs.h"
 #include "engine/render/renderer.h"
 #include "engine/ui/ui_screen.h"
 
@@ -162,7 +163,20 @@ bool RunCostumes(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const s
         }
         return std::to_string(dress);
     };
-    int group = 0, cursor = 0;
+    // the member being dressed (the game's "Switch Members"): µ's 1-9, Aqours 11-19, Saint Snow 21-22; the grid shows
+    // the member's group
+    static constexpr int kMembers[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19, 21, 22};
+    constexpr int kMemberCount = int(std::size(kMembers));
+    int member = 0, group = 0, cursor = 0;
+    const auto wears = [&](int m) {
+        const auto it = save.wear.find(m);
+        return it == save.wear.end() ? 0 : it->second;
+    };
+    const auto has_model = [&](int m, int dress) {
+        char path[64];
+        std::snprintf(path, sizeof(path), "chr/c%02d/d%03d/d%03d.pac", m, dress, dress);
+        return vfs.Exists(path);
+    };
     bool popped = false;
     const auto show = [&] {
         const std::vector<int>& list = lists[size_t(group)];
@@ -191,7 +205,12 @@ bool RunCostumes(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const s
             ui.HideNode(create + "/uip0006_CosInfo00", Two("status_label%02d", l), l != kLabelOf[state]);
             ui.HideNode(pop_part, Two("status_label_pop%02d", l), l != kLabelOf[state]);
         }
-        ui.SetInstanceText(create + "/common_uip0009_SelectInfoWin00", 0, r ? r->text[size_t(language)] : "");
+        // shortcut: member names are not read (no table found yet), so the member is shown by number
+        const int m = kMembers[member], worn = wears(m);
+        const std::string wearing = "Member " + std::to_string(m) + " wears: " + (worn ? name_of(worn) : std::string("own default")) +
+                                    (state == 0 && dress != worn ? (has_model(m, dress) ? "  (Enter: wear this)" : "  (no model)") : "");
+        ui.SetInstanceText(create + "/common_uip0009_SelectInfoWin00", 0,
+                           (r ? r->text[size_t(language)] : std::string()) + "\n\n" + wearing);
         ui.SetInstanceText(create + "/common_uip0009_SelectInfoWin00", 1, "");
         ui.HideInstance(pop, !popped);
         if (!popped) return;
@@ -245,13 +264,26 @@ bool RunCostumes(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const s
                 case SDL_SCANCODE_RIGHT: cursor = std::min(n - 1, cursor + 1); break;
                 case SDL_SCANCODE_UP: cursor = cursor >= kColumns ? cursor - kColumns : cursor; break;
                 case SDL_SCANCODE_DOWN: cursor = cursor + kColumns < n ? cursor + kColumns : cursor; break;
-                case SDL_SCANCODE_PAGEUP: group = (group + 2) % 3, cursor = 0; break;
-                case SDL_SCANCODE_PAGEDOWN: group = (group + 1) % 3, cursor = 0; break;
+                case SDL_SCANCODE_PAGEUP:
+                case SDL_SCANCODE_PAGEDOWN: {
+                    member = (member + (e.key.scancode == SDL_SCANCODE_PAGEUP ? kMemberCount - 1 : 1)) % kMemberCount;
+                    const int m = kMembers[member];
+                    group = m >= 20 ? 2 : m >= 10 ? 1 : 0;
+                    const std::vector<int>& now = lists[size_t(group)];
+                    const auto at = std::find(now.begin(), now.end(), wears(m));
+                    cursor = at == now.end() ? 0 : int(at - now.begin());  // on the costume the member wears
+                    SDL_SetWindowTitle(window, ("SIF port - costumes: member " + std::to_string(m)).c_str());
+                    break;
+                }
                 case SDL_SCANCODE_RETURN:
                 case SDL_SCANCODE_SPACE: {
                     if (e.key.repeat || !n) break;
-                    const int state = StateOf(data, addons, save, list[size_t(cursor)]);
-                    popped = state == 1 || state == 2;  // owned: nothing to make; add-on only: no recipe
+                    const int dress = list[size_t(cursor)], state = StateOf(data, addons, save, dress), m = kMembers[member];
+                    popped = state == 1 || state == 2;  // add-on only: no recipe
+                    if (state == 0 && has_model(m, dress)) {  // owned: the member wears it
+                        save.wear[m] = dress;
+                        LogInfo("costumes: member {} wears {} {}", m, dress, name_of(dress));
+                    }
                     break;
                 }
                 case SDL_SCANCODE_ESCAPE:

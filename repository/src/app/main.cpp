@@ -367,6 +367,12 @@ int main(int argc, char** argv) {
                 options.live_options.costume = choice.costume;
                 sif::LiveResult result;
                 loading.Show(renderer);
+                options.live_options.wear.clear();  // each member's own costume (Create/Change Costumes)
+                for (const auto& [member, dress] : save.wear) {
+                    char folder[16];
+                    std::snprintf(folder, sizeof(folder), "d%03d", dress);
+                    options.live_options.wear[member] = folder;
+                }
                 code = sif::RunLive(window, renderer, audio, vfs, settings, options.live_options, &result);
                 sif::save::NewBests news;
                 if (code == 0 && !result.closed && result.finished) {

@@ -22,9 +22,10 @@ bool RunMaterials(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const 
                   const save::SaveData& save, long max_frames);
 
 // Create/Change Costumes (uil0001_CosLayout00 > uil0002_CosCreate00): the group's costumes with their state (owned,
-// can be made, short of materials, add-on only). Arrows move, PageUp/PageDown (pad L1/R1) switch µ's / Aqours /
-// Saint Snow, Enter opens Confirm Costume Creation (materials needed and owned), where Enter makes it (costume::Craft)
-// and Esc goes back. `names`: costume names in the UI language. False if the window was closed.
+// can be made, short of materials, add-on only). Arrows move, PageUp/PageDown (pad L1/R1) switch the member being
+// dressed (the grid shows their group). Enter on an owned costume puts it on the member (save.wear); on one that can be
+// made it opens Confirm Costume Creation (materials needed and owned), where Enter makes it (costume::Craft) and Esc
+// goes back. `names`: costume names in the UI language. False if the window was closed.
 bool RunCostumes(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, const costume::Data& data,
                  const std::vector<std::pair<int, std::string>>& names, const dlc::Ownership* addons, save::SaveData& save,
                  long max_frames);

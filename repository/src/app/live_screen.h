@@ -3,6 +3,7 @@
 // calibration.
 
 #include <cstdint>
+#include <map>
 #include <string>
 
 struct SDL_Window;
@@ -23,7 +24,9 @@ struct LiveOptions {
     // live hall. The line-up is the members who have a dance file for the song
     std::string stage = "st017";
     std::string costume;  // "dNNN": chr/cNN/dNNN/dNNN.pac for each member who has it; "" = the base model
-    int member = 0;  // only chr/cNN (1-9 = mu's); 0 = every member who dances the song
+    std::map<int, std::string> wear;  // member -> "dNNN" they wear (Create/Change Costumes); wins over `costume` when the
+                                      // member has that model
+    int member = 0;  // only chr/cNN (1-9 µ's, 11-19 Aqours, 21-22 Saint Snow); 0 = every member who dances the song
     long max_frames = -1;
     std::string lang = "en";  // UI language of the in-game HUD (ui2/90_ingame_<lang>): en, cn, tw or "" (Japanese)
 };

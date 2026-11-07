@@ -28,6 +28,7 @@ struct SaveData {
     std::map<std::pair<int, int>, ChartRecord> records;  // (song id, chart variant)
     long long perfects = 0, greats = 0;                  // judged notes over every finished live
     std::map<int, int> costume_plays;                    // costume id (dNNN) -> finished lives wearing it
+    std::map<int, int> wear;                             // member (1-9, 11-19, 21-22) -> the costume id they wear
     std::vector<std::string> unknown;                    // lines of a newer version, written back unchanged
 };
 

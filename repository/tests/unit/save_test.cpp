@@ -41,6 +41,8 @@ int main() {
     s.claimed = {1, 2000};
     s.owned[{2, 4}] = 35;
     s.owned[{7, 31}] = 1;
+    s.wear[1] = 31;
+    s.wear[11] = 105;
     s.unknown.push_back("medal 3 gold");  // a line from a newer version
 
     std::string error;
@@ -53,6 +55,7 @@ int main() {
               back.perfects == 280 && back.greats == 20 && back.costume_plays[31] == 1 &&
               back.name_plate == 130201 && back.claimed == std::set<int>{1, 2000} && back.owned.size() == 2 &&
               back.owned[{2, 4}] == 35 && back.owned[{7, 31}] == 1 &&
+              back.wear.size() == 2 && back.wear[1] == 31 && back.wear[11] == 105 &&
               back.unknown.size() == 1 && back.unknown[0] == "medal 3 gold",
           "round trip keeps the name (with spaces), the record, the nameplate and unknown lines");
 
