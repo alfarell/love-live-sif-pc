@@ -55,6 +55,19 @@ int main(int argc, char** argv) {
         const auto p = mission::ProgressOf(*ten, data);
         Check(p.have == 1 && p.need == 10 && !p.Done(), "one play: mission 1 at 1/10");
     }
+    std::vector<mission::Award> accolades, badges;
+    Check(mission::LoadAwards(vfs, accolades, badges, &error), "awards: " + error);
+    Check(accolades.size() == 1665 && badges.size() == 229, "1665 accolades, 229 badges");
+    const mission::Award* debut = mission::FindAward(accolades, 1002);
+    const mission::Award* love = mission::FindAward(badges, 901001);
+    // "デビューシングル" (debut single) and "大好き" (love), written as UTF-8 bytes
+    Check(debut && debut->name == "\xe3\x83\x87\xe3\x83\x93\xe3\x83\xa5\xe3\x83\xbc\xe3\x82\xb7\xe3\x83\xb3\xe3\x82\xb0\xe3\x83\xab",
+          "accolade 1002 (debut single)");
+    Check(love && love->group == 901 && love->color == 0xff8636c5u &&
+              love->name.find("\xe5\xa4\xa7\xe5\xa5\xbd\xe3\x81\x8d") != std::string::npos,
+          "badge 901001: category 901, colour, name");
+    const mission::Mission* second = ById(all, 2001);
+    Check(second && second->reward_type == 4 && second->reward_id == 1002, "mission 2001 gives accolade 1002");
     std::printf("%s\n", failures ? "mission_test FAILED" : "mission_test ok");
     return failures ? 1 : 0;
 }

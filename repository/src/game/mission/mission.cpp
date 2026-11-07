@@ -66,6 +66,49 @@ bool Load(const Vfs& vfs, Missions& out, std::string* error) {
     return true;
 }
 
+bool LoadAwards(const Vfs& vfs, std::vector<Award>& accolades, std::vector<Award>& badges, std::string* error) {
+    accolades.clear(), badges.clear();
+    std::vector<uint8_t> f;
+    std::vector<blbn::Symbol> symbols;
+    const blbn::Symbol* s = nullptr;
+    // +0 id, +4 u32 1, +8 plate (Hypothesis), +0x10 u64 name offset, +0x18 four u32 not decoded
+    if (!vfs.Read("common/common.pac/honorific_title.pac/honorific_title_datas.bin", f, error) ||
+        !blbn::Parse(f, symbols, error) || !(s = blbn::Find(symbols, "s_honorific_title_datas"))) {
+        if (error && error->empty()) *error = "no s_honorific_title_datas";
+        return false;
+    }
+    for (size_t o = 0; o + 40 <= s->data.size(); o += 40) {
+        uint32_t v[4];
+        uint64_t name = 0;
+        std::memcpy(v, &s->data[o], 16);
+        std::memcpy(&name, &s->data[o + 16], 8);
+        accolades.push_back({int(v[0]), Str(f, name), int(v[2]), 0});
+    }
+    // +0 id, +4 category, +8 u64 name offset, +0x10 ARGB, +0x14 group mask (Hypothesis: 1 mu's, 2 Aqours, 4 Saint Snow)
+    std::vector<uint8_t> g;
+    if (!vfs.Read("common/common.pac/badge.pac/badge_datas.bin", g, error) || !blbn::Parse(g, symbols, error) ||
+        !(s = blbn::Find(symbols, "s_badge_datas"))) {
+        if (error && error->empty()) *error = "no s_badge_datas";
+        return false;
+    }
+    for (size_t o = 0; o + 32 <= s->data.size(); o += 32) {
+        uint32_t v[2], color = 0;
+        uint64_t name = 0;
+        std::memcpy(v, &s->data[o], 8);
+        std::memcpy(&name, &s->data[o + 8], 8);
+        std::memcpy(&color, &s->data[o + 16], 4);
+        badges.push_back({int(v[0]), Str(g, name), int(v[1]), color});
+    }
+    return true;
+}
+
+const Award* FindAward(const std::vector<Award>& awards, int id) {
+    for (const Award& a : awards) {
+        if (a.id == id) return &a;
+    }
+    return nullptr;
+}
+
 Progress ProgressOf(const Mission& m, const save::SaveData& save) {
     Progress p;
     p.need = std::max(1, m.p2);

@@ -31,3 +31,14 @@ Kinds, by their English titles:
 - 20-34 (member): plays with the member, phrases heard, skill cards, profile cards, Finale Focus, member camera, costumes, accolades, boosters, Friendship level, photos, birthday.
 - 35-39 (song): plays, viewings, medley, FULL COMBO, score.
 - 40-48 (costume): obtained, plays wearing it, main menu, viewing, profile card, photos, medley, special colour.
+
+## Awards
+
+Mission reward type 4 names an accolade: 1642 of the 1651 type-4 rows match an accolade id. Names are Japanese only: each id has one text symbol, and there are no language packages.
+
+- **Accolades** (`common/common.pac/honorific_title.pac/honorific_title_datas.bin`):
+  - `s_honorific_title_datas`: 1665 rows of 40 bytes. +0x00 id, +0x04 1, +0x08 *Hypothesis:* plate id (100, 110, 1802, …), +0x10 u64 file offset of the name (`s_title_text_<id>`), +0x18 four u32 not decoded.
+  - `s_honorific_title_plate_datas`: 16-byte rows (id, ARGB colour, two u32); *Hypothesis:* the plate colours.
+- **Badges** (`common/common.pac/badge.pac/badge_datas.bin`):
+  - `s_badge_datas`: 229 rows of 32 bytes. +0x00 id, +0x04 category (id / 1000, e.g. 901 for 901001 "μ’s大好き"), +0x08 u64 name offset (`s_text_<id>`), +0x10 ARGB colour, +0x14 *Hypothesis:* group mask (1 µ's, 2 Aqours, 4 Saint Snow), +0x18 flags.
+  - Reward type 3 ids also match badge ids (120 rows). Badges may come from Friendship levels instead (message: "Raise their levels to get different Badges!"); not checked.

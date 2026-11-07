@@ -35,6 +35,18 @@ struct Missions {
 };
 bool Load(const Vfs& vfs, Missions& out, std::string* error = nullptr);
 
+// Awards a mission can give. Names are Japanese only in the dump (one text symbol per id, no language packages).
+struct Award {
+    int id = 0;
+    std::string name;
+    int group = 0;        // accolades: +0x08 (Hypothesis: plate id); badges: +0x04 category (id / 1000)
+    unsigned color = 0;   // badges: ARGB; accolades: 0
+};
+// common/common.pac/honorific_title.pac s_honorific_title_datas (40-byte rows, 1665) and badge.pac s_badge_datas
+// (32-byte rows, 229). Reward type 4 names an accolade id.
+bool LoadAwards(const Vfs& vfs, std::vector<Award>& accolades, std::vector<Award>& badges, std::string* error = nullptr);
+const Award* FindAward(const std::vector<Award>& awards, int id);
+
 // How far the save is: have / need; have = -1 when the port does not track the condition yet.
 struct Progress {
     int have = -1, need = 1;
