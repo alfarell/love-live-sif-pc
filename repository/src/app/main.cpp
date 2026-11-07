@@ -36,6 +36,7 @@
 #include "engine/platform/os.h"
 #include "engine/platform/settings.h"
 #include "engine/render/renderer.h"
+#include "game/dlc/dlc.h"
 #include "game/live/song.h"
 #include "game/mission/mission.h"
 #include "game/save/save.h"
@@ -222,6 +223,24 @@ int main(int argc, char** argv) {
             std::vector<sif::mission::Award> accolades, badges;
             if (!sif::mission::LoadAwards(vfs, accolades, badges, &why)) sif::LogWarn("awards: {}", why);
             if (!sif::live::LoadSongList(vfs, language, songs, &why)) sif::LogWarn("missions: songs: {}", why);
+            // add-on ownership from the user's own add-ons; without the catalog nothing is locked
+            sif::dlc::Ownership owned;
+            sif::dlc::Catalog catalog;
+            if (sif::dlc::LoadCatalog(vfs, catalog, &why)) {
+                std::vector<std::filesystem::path> dlc_folders;
+                if (!settings.game.dlc_folder.empty()) {
+                    dlc_folders.push_back(sif::os::PathFromUtf8(settings.game.dlc_folder));
+                } else {
+                    for (const char* sibling : {"Extracted", "DLC"}) dlc_folders.push_back(game_root.parent_path() / sibling);
+                }
+                const auto labels = sif::dlc::ScanOwned(dlc_folders);
+                owned = sif::dlc::Resolve(catalog, labels);
+                sif::LogInfo("add-ons: {} found; {} of {} add-on songs and {} of {} add-on costumes locked", labels.size(),
+                             owned.locked_songs.size(), catalog.songs.size(), owned.locked_costumes.size(),
+                             catalog.costumes.size());
+            } else {
+                sif::LogWarn("add-ons: {}", why);
+            }
             for (bool menu = !options.select; open;) {
                 if (menu) loading.Show(renderer);
                 if (menu) {
@@ -242,7 +261,7 @@ int main(int argc, char** argv) {
                     }
                 }
                 loading.Show(renderer);
-                const sif::SongChoice choice = sif::RunSongSelect(window, renderer, vfs, lang, options.frames, last, &save);
+                const sif::SongChoice choice = sif::RunSongSelect(window, renderer, vfs, lang, options.frames, last, &save, &owned);
                 if (choice.closed || (choice.song < 0 && options.select)) break;
                 menu = choice.song < 0;
                 if (menu) continue;

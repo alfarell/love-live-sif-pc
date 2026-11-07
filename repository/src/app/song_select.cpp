@@ -293,12 +293,17 @@ void Apply(UiScreen& ui, const std::vector<SongInfo>& songs, int current, Step s
 }
 
 SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, long max_frames,
-                         const SongChoice& previous, const save::SaveData* save) {
+                         const SongChoice& previous, const save::SaveData* save, const dlc::Ownership* owned) {
     std::vector<SongInfo> songs;
     std::string error;
     const int language = lang == "en" ? 1 : lang == "cn" ? 2 : lang == "tw" ? 3 : 0;
     if (!LoadSongList(vfs, language, songs, &error) || songs.empty()) {
         LogError("song select: {}", songs.empty() ? "no songs in the dump" : error);
+        return {};
+    }
+    if (owned) std::erase_if(songs, [&](const SongInfo& s) { return !owned->Song(s.id); });
+    if (songs.empty()) {  // only when every song is an add-on the user does not have
+        LogError("song select: no owned songs");
         return {};
     }
     UiText text;
@@ -332,6 +337,7 @@ SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs,
     const auto open_costumes = [&] {
         const SongInfo& s = songs[size_t(current)];
         costumes = CostumesFor(vfs, s, dresses);
+        if (owned) std::erase_if(costumes, [&](const DressInfo& d) { return !owned->Costume(d.id); });
         const std::string want =
             previous.song == s.id && !previous.costume.empty() ? previous.costume : live::PickCostume(vfs, s, english);
         costume = 0;

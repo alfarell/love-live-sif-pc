@@ -21,6 +21,9 @@ struct AppSettings {
     } audio;
     struct Game {
         std::string folder;  // the user's CUSA24620 dump; empty = ask / detect
+        // the user's own add-ons (extracted folders with sce_sys/param.sfo, or .pkg files); empty = the "Extracted"
+        // and "DLC" folders next to the dump, if there are any
+        std::string dlc_folder;
     } game;
     struct Timing {
         int audio_offset_ms = 0;  // calibration: positive = notes later

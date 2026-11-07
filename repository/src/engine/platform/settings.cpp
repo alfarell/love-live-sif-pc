@@ -100,6 +100,7 @@ bool LoadAppSettings(const std::filesystem::path& path, AppSettings& out) {
     Read(v, "audio.output_device", out.audio.output_device);
     Read(v, "audio.buffer_frames", out.audio.buffer_frames);
     Read(v, "game.folder", out.game.folder);
+    Read(v, "game.dlc_folder", out.game.dlc_folder);
     Read(v, "timing.audio_offset_ms", out.timing.audio_offset_ms);
     Read(v, "timing.input_offset_ms", out.timing.input_offset_ms);
     Read(v, "play.approach_ms", out.play.approach_ms);
@@ -120,7 +121,7 @@ bool SaveAppSettings(const std::filesystem::path& path, const AppSettings& s) {
       << "\nfullscreen = " << s.display.fullscreen << "\nvsync = " << (s.display.vsync ? 1 : 0) << "\n\n";
     f << "[audio]\nvolume = " << s.audio.volume << "\noutput_device = \"" << s.audio.output_device
       << "\"\nbuffer_frames = " << s.audio.buffer_frames << "\n\n";
-    f << "[game]\nfolder = \"" << s.game.folder << "\"\n\n";
+    f << "[game]\nfolder = \"" << s.game.folder << "\"\ndlc_folder = \"" << s.game.dlc_folder << "\"\n\n";
     f << "[timing]\naudio_offset_ms = " << s.timing.audio_offset_ms << "\ninput_offset_ms = " << s.timing.input_offset_ms
       << "\n\n";
     f << "[play]\napproach_ms = " << s.play.approach_ms << "\n";

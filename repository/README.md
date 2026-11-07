@@ -40,6 +40,7 @@ sif.exe --game <your CUSA24620 dump folder> [--title|--menu|--select [--lang en|
 - `--title` runs the boot flow from the game's own UI data (`ui2/01_title`): CRI and Square Enix logos, the notice, then the title screen. Any key skips a logo; any key on the title opens the top menu (`ui2/10_top_menu`; `--menu` starts there). Left/Right turn the wheel, Up/Down pick an entry, Enter opens the song select (`ui2/20_setup`; `--select` starts there): Left/Right pick a song, Enter, then Left/Right pick an arcade difficulty, Enter, then Left/Right pick a stage, Enter, then Left/Right pick a costume for everyone (it starts on the song's own, else the school uniform), Enter starts it; Esc goes back one step. `--lang` picks the UI language (default `en`).
 - After a song played to its end from the boot flow, the result screen (`ui2/95_result`) shows the score, max combo and judgement counts; any key returns to the song select (Esc during a song returns at once; Esc in the song select goes back to the top menu). `--result-demo` (developer) shows it with fixed values.
 - Results are kept in `save.txt` in the data folder (the port's own plain-text save: best score, combo, rank and clear rate per chart, play counts). The song select shows each chart's best rank; the result screen marks new bests with NEW. A save the port cannot read is left untouched and the game plays without saving.
+- Add-ons: the song select lists the base game's songs and costumes plus those of the add-ons you have installed (`[game] dlc_folder`); `sif.log` says how many it found.
 - Missions: after each finished live, `sif.log` lists the missions it completed (plays, FULL COMBO, rank, score; general and per song) and the accolade each gives. There is no mission screen yet.
 - Talk: on the top menu the navigator (Honoka for now) greets by the time of day; T (pad Triangle) plays another of her lines.
 - Options: on the top menu, turn the wheel to Options and pick Sound Settings (volume) or Game Settings (note speed, timing offset). Up/Down pick a row, Left/Right change it (it applies at once), Enter or Esc goes back; the values are written to `settings.ini` (`[audio] volume`, `[play] approach_ms`, `[timing] audio_offset_ms`).
@@ -53,7 +54,7 @@ sif.exe --game <your CUSA24620 dump folder> [--title|--menu|--select [--lang en|
 - `--crash` forces an access violation and writes `sif-crash-*.dmp` to the data folder (crash-reporting test).
 - `--frames N` closes after N frames.
 
-`settings.ini` keys: `[display] width, height, fullscreen, vsync`, `[audio] volume, output_device (not used yet), buffer_frames`, `[game] folder`, `[timing] audio_offset_ms, input_offset_ms` (for M4).
+`settings.ini` keys: `[display] width, height, fullscreen, vsync`, `[audio] volume, output_device (not used yet), buffer_frames`, `[game] folder, dlc_folder` (your own add-ons: extracted add-on folders or `.pkg` files; empty = the `Extracted` and `DLC` folders next to the dump), `[timing] audio_offset_ms, input_offset_ms` (for M4).
 
 ## License
 
