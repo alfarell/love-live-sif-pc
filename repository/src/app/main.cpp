@@ -125,6 +125,7 @@ sif::Nameplate MakeNameplate(const sif::mission::Missions& missions, const std::
         add(plate.accolades, accolades, id);
         add(plate.badges, badges, id);
     }
+    for (int id : sif::mission::Owned(save, 3)) add(plate.badges, badges, id);  // type 3: badges (5003 "どさんこ")
     add(plate.accolades, accolades, save.accolade);
     add(plate.badges, badges, save.badge);
     // name plates: the id is the picture (name_plate_PPP_SSSS); shortcut: no names (the plates have none in the table)
