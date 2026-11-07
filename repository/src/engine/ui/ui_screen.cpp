@@ -374,6 +374,14 @@ void UiScreen::DrawNumbers(Renderer& renderer, const std::string& part, const st
     }
 }
 
+void UiScreen::MoveInstance(const std::string& path, float dx, float dy) {
+    if (dx == 0 && dy == 0) {
+        moved_paths_.erase(path);
+    } else {
+        moved_paths_[path] = {dx, dy};
+    }
+}
+
 void UiScreen::HideInstance(const std::string& path, bool hide) {
     if (hide) {
         hidden_paths_.insert(path);
@@ -532,7 +540,13 @@ void UiScreen::DrawLayoutAt(Renderer& renderer, const std::string& key, const Ma
         if (a <= 0) continue;
         const std::string& target = l.targets[i];
         if (target.empty() || hidden_paths_.contains(path + "/" + name)) continue;
-        const Mat4 node_clip = to_clip * l.world[i];
+        Mat4 node_clip = to_clip * l.world[i];
+        if (const auto m = moved_paths_.find(path + "/" + name); m != moved_paths_.end()) {
+            Mat4 move;
+            move(0, 3) = m->second[0];
+            move(1, 3) = m->second[1];
+            node_clip = to_clip * move * l.world[i];
+        }
         if (layouts_.contains(target)) {
             DrawLayoutAt(renderer, target, node_clip, path + "/" + name, a, nullptr);
         } else {
