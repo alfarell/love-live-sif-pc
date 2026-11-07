@@ -33,6 +33,17 @@ bool Load(const std::filesystem::path& path, SaveData& out, std::string* error) 
         in >> kind;
         if (kind == "player") {
             std::getline(in >> std::ws, out.player);
+        } else if (kind == "name_plate") {
+            in >> out.name_plate;
+        } else if (kind == "claimed") {
+            for (int id; in >> id;) out.claimed.insert(id);
+        } else if (kind == "own") {
+            int type = 0, id = 0, count = 0;
+            if (in >> type >> id >> count) {
+                out.owned[{type, id}] = count;
+            } else {
+                out.unknown.push_back(line);
+            }
         } else if (kind == "notes") {
             in >> out.perfects >> out.greats;
         } else if (kind == "costume") {
@@ -71,6 +82,13 @@ bool Write(const std::filesystem::path& path, const SaveData& data, std::string*
         f << "player " << data.player << "\n";
         if (data.accolade) f << "accolade " << data.accolade << "\n";
         if (data.badge) f << "badge " << data.badge << "\n";
+        if (data.name_plate) f << "name_plate " << data.name_plate << "\n";
+        if (!data.claimed.empty()) {
+            f << "claimed";
+            for (int id : data.claimed) f << " " << id;
+            f << "\n";
+        }
+        for (const auto& [key, count] : data.owned) f << "own " << key.first << " " << key.second << " " << count << "\n";
         f << "notes " << data.perfects << " " << data.greats << "\n";
         for (const auto& [id, plays] : data.costume_plays) f << "costume " << id << " " << plays << "\n";
         for (const auto& [key, r] : data.records) {

@@ -53,8 +53,11 @@ struct Progress {
     bool Done() const { return have >= need; }
 };
 Progress ProgressOf(const Mission& m, const save::SaveData& save);
-// The reward-type-4 ids (accolades, and a few badges) of the missions the save has completed, in table order, no repeats.
-std::vector<int> EarnedAwards(const Missions& missions, const save::SaveData& save);
+// Claims a completed mission: adds its reward to save.owned[(type, id)] (the amount, at least 1) and marks it claimed.
+// False, and nothing changes, if it is not complete or was claimed before.
+bool Claim(const Mission& m, save::SaveData& save);
+// The ids the save owns of one reward type (4 accolades and badges, 6 name plates, 7 costumes ...), ascending.
+std::vector<int> Owned(const save::SaveData& save, int reward_type);
 
 // The row's title or description in `language`, with [p2] filled in and [p1] replaced by `p1_name` (a song title,
 // member or costume name; the caller looks it up).

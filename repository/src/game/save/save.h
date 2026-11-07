@@ -4,6 +4,7 @@
 
 #include <filesystem>
 #include <map>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -19,7 +20,11 @@ struct ChartRecord {
 
 struct SaveData {
     std::string player = "Player";
-    int accolade = 0, badge = 0;  // the nameplate's accolade and badge ids (0 = not chosen)
+    int accolade = 0, badge = 0, name_plate = 0;  // the nameplate's choices (0 = not chosen)
+    std::set<int> claimed;                        // missions whose reward was taken
+    // rewards owned: (mission reward type, id) -> count. Types (M7 plan 202611071847): 2 item, 3 booster, 4 accolade
+    // or badge, 5 profile-card frame, 6 name plate, 7 costume; 1 card (Hypothesis)
+    std::map<std::pair<int, int>, int> owned;
     std::map<std::pair<int, int>, ChartRecord> records;  // (song id, chart variant)
     long long perfects = 0, greats = 0;                  // judged notes over every finished live
     std::map<int, int> costume_plays;                    // costume id (dNNN) -> finished lives wearing it

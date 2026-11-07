@@ -20,11 +20,11 @@ struct MissionData {
     const mission::Missions* missions = nullptr;
     const std::vector<mission::Award>* accolades = nullptr;
     const std::vector<live::SongInfo>* songs = nullptr;  // titles for [p1], in the UI language
-    const save::SaveData* save = nullptr;
+    save::SaveData* save = nullptr;  // claims change it; the caller writes it afterwards
     const dlc::Ownership* owned = nullptr;  // songs the user has no add-on for are left out
 };
 
-// Shows the Task List until Esc; false if the window was closed.
+// Shows the Task List until Esc; Enter (pad Cross) claims a completed mission's reward. False if the window was closed.
 bool RunMissions(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, const MissionData& data,
                  long max_frames);
 

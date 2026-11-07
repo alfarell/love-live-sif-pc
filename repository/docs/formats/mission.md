@@ -19,7 +19,7 @@ Four tables share one row layout: 28 bytes, seven 32-bit integers.
 | code | low byte = condition kind (index into `s_mission_condition`); high byte 0-3 not decoded (*Hypothesis:* 1 = counted, 2/3 = first of a series) |
 | p1 | song id (kinds 35-39), member (20-34), costume (40-48). In the common table it is 0 for rows 0-86 and 1 for rows 87-199 (*Hypothesis:* the group, µ's or Aqours: the reward ids are 71xxxx and 72xxxx) |
 | p2 | the target count or score (`[p2]` in the text) |
-| reward type, id, amount | *Hypothesis:* type 2 item, 3 booster, 4 accolade or badge, 6 card |
+| reward type, id, amount | 2 item (`s_item_datas` ids 1-60), 4 accolade or badge, 5 profile-card frame (`s_profile_card_frame_datas`), 6 name plate (`name_plate_%03d_%04d`), 7 costume (`s_dress_datas` id); *Hypothesis:* 1 card, 3 booster (always id 5003). Matched against the tables, M7 plan 202611071847 |
 
 ## `mission_condition.bin`
 

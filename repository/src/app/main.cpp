@@ -103,8 +103,9 @@ Options ParseOptions(int argc, char** argv) {
 
 // Logs the missions this live completed (done in `after`, not in `before`). shortcut: logged only; the game's mission
 // screen and result pop-up are not built
-// The choosable nameplate items: a starting accolade and the three group badges, then what the missions gave, then the
-// saved choice if it is none of those. shortcut: the starters are accolade 2 "新入生" (newcomer) and badges
+// The choosable nameplate items: a starting accolade, the three group badges and the layout's own name plate, then the
+// claimed mission rewards (type 4 accolades and badges, type 6 name plates), then the saved choice if it is none of
+// those. shortcut: the starters are accolade 2 "新入生" (newcomer) and badges
 // 901001-903001 ("<group> 大好き"), Hypothesis (not traced in the eboot); the game's other badge unlocks are not known.
 sif::Nameplate MakeNameplate(const sif::mission::Missions& missions, const std::vector<sif::mission::Award>& accolades,
                              const std::vector<sif::mission::Award>& badges, const sif::save::SaveData& save) {
@@ -116,12 +117,21 @@ sif::Nameplate MakeNameplate(const sif::mission::Missions& missions, const std::
     };
     add(plate.accolades, accolades, 2);
     for (int id : {901001, 902001, 903001}) add(plate.badges, badges, id);
-    for (int id : sif::mission::EarnedAwards(missions, save)) {
+    for (int id : sif::mission::Owned(save, 4)) {
         add(plate.accolades, accolades, id);
         add(plate.badges, badges, id);
     }
     add(plate.accolades, accolades, save.accolade);
     add(plate.badges, badges, save.badge);
+    // name plates: the id is the picture (name_plate_PPP_SSSS); shortcut: no names (the plates have none in the table)
+    plate.name_plates.push_back({110011, 110011, ""});  // 03_card's default (name_plate_011_0011)
+    std::vector<int> plates = sif::mission::Owned(save, 6);
+    if (save.name_plate) plates.push_back(save.name_plate);
+    for (int id : plates) {
+        if (std::none_of(plate.name_plates.begin(), plate.name_plates.end(), [&](const auto& i) { return i.id == id; })) {
+            plate.name_plates.push_back({id, id, ""});
+        }
+    }
     const auto index = [](const std::vector<sif::NameplateItem>& list, int id) {
         for (size_t i = 0; i < list.size(); ++i) {
             if (list[i].id == id) return i;
@@ -130,6 +140,7 @@ sif::Nameplate MakeNameplate(const sif::mission::Missions& missions, const std::
     };
     plate.accolade = index(plate.accolades, save.accolade);
     plate.badge = index(plate.badges, save.badge);
+    plate.name_plate = index(plate.name_plates, save.name_plate);
     return plate;
 }
 
@@ -291,10 +302,12 @@ int main(int argc, char** argv) {
                 if (menu) {
                     int mode = -1;
                     sif::Nameplate plate = MakeNameplate(missions, accolades, badges, save);
-                    const size_t shown_accolade = plate.accolade, shown_badge = plate.badge;
+                    const size_t shown_accolade = plate.accolade, shown_badge = plate.badge, shown_plate = plate.name_plate;
                     const int entry = sif::RunTopMenu(window, renderer, vfs, lang, options.frames, &mode, &audio, &plate);
-                    if (plate.accolade != shown_accolade || plate.badge != shown_badge) {  // only a real choice is saved
+                    // only a real choice is saved
+                    if (plate.accolade != shown_accolade || plate.badge != shown_badge || plate.name_plate != shown_plate) {
                         save.accolade = plate.accolades[plate.accolade].id, save.badge = plate.badges[plate.badge].id;
+                        save.name_plate = plate.name_plates[plate.name_plate].id;
                         if (can_save && !sif::save::Write(save_path, save, &save_error)) sif::LogWarn("save: {}", save_error);
                     }
                     if (entry < 0) break;
@@ -317,6 +330,7 @@ int main(int argc, char** argv) {
                         loading.Show(renderer);
                         open = sif::RunMissions(window, renderer, vfs, lang,
                                                 {&missions, &accolades, &songs, &save, &owned}, options.frames);
+                        if (can_save && !sif::save::Write(save_path, save, &save_error)) sif::LogWarn("save: {}", save_error);
                         continue;
                     }
                 }

@@ -109,12 +109,17 @@ const Award* FindAward(const std::vector<Award>& awards, int id) {
     return nullptr;
 }
 
-std::vector<int> EarnedAwards(const Missions& missions, const save::SaveData& save) {
+bool Claim(const Mission& m, save::SaveData& save) {
+    if (save.claimed.contains(m.id) || !ProgressOf(m, save).Done()) return false;
+    save.claimed.insert(m.id);
+    save.owned[{m.reward_type, m.reward_id}] += std::max(1, m.reward_amount);
+    return true;
+}
+
+std::vector<int> Owned(const save::SaveData& save, int reward_type) {
     std::vector<int> ids;
-    for (const Mission& m : missions.rows) {
-        if (m.reward_type == 4 && std::find(ids.begin(), ids.end(), m.reward_id) == ids.end() && ProgressOf(m, save).Done()) {
-            ids.push_back(m.reward_id);
-        }
+    for (const auto& [key, count] : save.owned) {
+        if (key.first == reward_type && count > 0) ids.push_back(key.second);
     }
     return ids;
 }

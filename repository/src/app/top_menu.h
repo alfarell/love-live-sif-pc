@@ -22,14 +22,14 @@ struct NameplateItem {
 };
 struct Nameplate {
     std::string player;
-    std::vector<NameplateItem> accolades, badges;  // the choosable ones
-    size_t accolade = 0, badge = 0;                // the chosen ones (indices); the menu changes them
+    std::vector<NameplateItem> accolades, badges, name_plates;  // the choosable ones (name plates: plate = id)
+    size_t accolade = 0, badge = 0, name_plate = 0;             // the chosen ones (indices); the menu changes them
 };
 
 // Shows the top menu until the player confirms a submenu entry (returns its entry id) or quits (returns -1).
 // `mode` (optional) gets the wheel mode the entry belongs to (0 Play .. 5 Event; entry ids repeat across modes).
 // With `plate`, the header shows the nameplate; Profile Card (entry 15) edits it in place: Up/Down accolade, Left/Right
-// badge, Enter or Esc done (shortcut: the game's Profile Card screen, 40_collection uil0031_PlateChangeMenu00, is not
+// badge, PageUp/PageDown (pad L1/R1) name plate, Enter or Esc done (shortcut: the game's Profile Card screen, 40_collection uil0031_PlateChangeMenu00, is not
 // built). With `audio`, the navigator greets by the time of day on entry and says another line on T (pad Triangle).
 int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, long max_frames,
                int* mode = nullptr, AudioOutput* audio = nullptr, Nameplate* plate = nullptr);

@@ -98,6 +98,13 @@ void ApplyNameplate(UiScreen& ui, const Nameplate& p) {
     char path[96];
     std::snprintf(path, sizeof(path), "ui/ui_honorific_title.pac/texture.pac/title_plate_%04d", a.plate);
     if (a.plate && !ui.SetMaterialTexture(title, "title_plate00_M", path)) LogWarn("nameplate: no {}", path);
+    if (p.name_plate < p.name_plates.size()) {  // id PPPSSSS -> name_plate_PPP_SSSS
+        const int id = p.name_plates[p.name_plate].id;
+        std::snprintf(path, sizeof(path), "ui/ui_name_plate.pac/texture.pac/name_plate_%03d_%04d", id / 10000, id % 10000);
+        // the layout's default plate is not in ui_name_plate.pac, only in the screen packages
+        if (id == 110011) std::snprintf(path, sizeof(path), "ui2/03_card.pac/texture.pac/name_plate_011_0011.btx");
+        if (!ui.SetMaterialTexture(name, "name_plate00_M", path)) LogWarn("nameplate: no {}", path);
+    }
     std::snprintf(path, sizeof(path), "ui/ui_badge.pac/texture.pac/badge_plate_%03d_0", b.plate);
     if (b.plate && !ui.SetMaterialTexture(badge, "badge00_M", path)) LogWarn("nameplate: no {}", path);
     // text boxes (probed): title 0 accolade name, name plate 0 player name, badge 0 badge name; box 1 of the title and
@@ -170,14 +177,17 @@ int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
                     case SDL_SCANCODE_DOWN: step(plate->accolade, plate->accolades.size(), 1); break;
                     case SDL_SCANCODE_LEFT: step(plate->badge, plate->badges.size(), -1); break;
                     case SDL_SCANCODE_RIGHT: step(plate->badge, plate->badges.size(), 1); break;
+                    case SDL_SCANCODE_PAGEUP: step(plate->name_plate, plate->name_plates.size(), -1); break;
+                    case SDL_SCANCODE_PAGEDOWN: step(plate->name_plate, plate->name_plates.size(), 1); break;
                     case SDL_SCANCODE_RETURN:
                     case SDL_SCANCODE_SPACE:
                     case SDL_SCANCODE_ESCAPE: editing = false; break;
                     default: break;
                 }
                 ApplyNameplate(ui, *plate);
-                LogInfo("nameplate: accolade {} of {}, badge {} of {}{}", plate->accolade + 1, plate->accolades.size(),
-                        plate->badge + 1, plate->badges.size(), editing ? "" : " (done)");
+                LogInfo("nameplate: accolade {} of {}, badge {} of {}, name plate {} of {}{}", plate->accolade + 1,
+                        plate->accolades.size(), plate->badge + 1, plate->badges.size(), plate->name_plate + 1,
+                        plate->name_plates.size(), editing ? "" : " (done)");
                 continue;
             }
             switch (e.key.scancode) {

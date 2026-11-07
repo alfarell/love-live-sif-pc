@@ -55,10 +55,13 @@ int main(int argc, char** argv) {
         Check(mission::ProgressOf(*song, data).Done(), "one play of 0010: 2000 done");
         const auto p = mission::ProgressOf(*ten, data);
         Check(p.have == 1 && p.need == 10 && !p.Done(), "one play: mission 1 at 1/10");
-        const auto earned = mission::EarnedAwards(all, data);
-        Check(std::find(earned.begin(), earned.end(), song->reward_id) != earned.end() || song->reward_type != 4,
-              "one play of 0010: mission 2000's award earned");
-        Check(mission::EarnedAwards(all, save::SaveData{}).empty(), "empty save: nothing earned");
+        save::SaveData fresh;
+        Check(!mission::Claim(*song, fresh), "empty save: 2000 cannot be claimed");
+        Check(mission::Claim(*song, data) && !mission::Claim(*song, data), "2000 claimed once");
+        Check(data.claimed.contains(2000) && data.owned[{song->reward_type, song->reward_id}] == std::max(1, song->reward_amount),
+              "the claim gives 2000's reward");
+        const auto owned = mission::Owned(data, song->reward_type);
+        Check(std::find(owned.begin(), owned.end(), song->reward_id) != owned.end(), "Owned lists it");
         save::Record(data, {10, 4, 500000, 300, 4, 0.9, true, 250, 40, 31});
         for (const mission::Mission& m : all.rows) {
             if (m.Kind() == 6) Check(mission::ProgressOf(m, data).have == 250, "kind 6: PERFECT total");
