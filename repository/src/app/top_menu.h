@@ -8,12 +8,14 @@ struct SDL_Window;
 
 namespace sif {
 
+class AudioOutput;
 class Renderer;
 class Vfs;
 
 // Shows the top menu until the player confirms a submenu entry (returns its entry id) or quits (returns -1).
 // `mode` (optional) gets the wheel mode the entry belongs to (0 Play .. 5 Event; entry ids repeat across modes).
+// With `audio`, the navigator greets by the time of day on entry and says another line on T (pad Triangle).
 int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, long max_frames,
-               int* mode = nullptr);
+               int* mode = nullptr, AudioOutput* audio = nullptr);
 
 }

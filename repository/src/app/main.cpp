@@ -195,7 +195,7 @@ int main(int argc, char** argv) {
                 if (menu) loading.Show(renderer);
                 if (menu) {
                     int mode = -1;
-                    const int entry = sif::RunTopMenu(window, renderer, vfs, lang, options.frames, &mode);
+                    const int entry = sif::RunTopMenu(window, renderer, vfs, lang, options.frames, &mode, &audio);
                     if (entry < 0) break;
                     // Options (mode 3): entry 8 Sound Settings, 10 Game Settings; the others still lead to the song
                     // select (shortcut: Costumes and Control Settings are not built)
