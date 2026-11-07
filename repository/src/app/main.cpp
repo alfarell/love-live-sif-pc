@@ -103,6 +103,36 @@ Options ParseOptions(int argc, char** argv) {
 
 // Logs the missions this live completed (done in `after`, not in `before`). shortcut: logged only; the game's mission
 // screen and result pop-up are not built
+// The choosable nameplate items: a starting accolade and the three group badges, then what the missions gave, then the
+// saved choice if it is none of those. shortcut: the starters are accolade 2 "新入生" (newcomer) and badges
+// 901001-903001 ("<group> 大好き"), Hypothesis (not traced in the eboot); the game's other badge unlocks are not known.
+sif::Nameplate MakeNameplate(const sif::mission::Missions& missions, const std::vector<sif::mission::Award>& accolades,
+                             const std::vector<sif::mission::Award>& badges, const sif::save::SaveData& save) {
+    sif::Nameplate plate{save.player};
+    const auto add = [](std::vector<sif::NameplateItem>& list, const std::vector<sif::mission::Award>& from, int id) {
+        const sif::mission::Award* a = sif::mission::FindAward(from, id);
+        const bool listed = std::any_of(list.begin(), list.end(), [&](const sif::NameplateItem& i) { return i.id == id; });
+        if (a && !listed) list.push_back({a->id, a->group, a->name});
+    };
+    add(plate.accolades, accolades, 2);
+    for (int id : {901001, 902001, 903001}) add(plate.badges, badges, id);
+    for (int id : sif::mission::EarnedAwards(missions, save)) {
+        add(plate.accolades, accolades, id);
+        add(plate.badges, badges, id);
+    }
+    add(plate.accolades, accolades, save.accolade);
+    add(plate.badges, badges, save.badge);
+    const auto index = [](const std::vector<sif::NameplateItem>& list, int id) {
+        for (size_t i = 0; i < list.size(); ++i) {
+            if (list[i].id == id) return i;
+        }
+        return size_t(0);
+    };
+    plate.accolade = index(plate.accolades, save.accolade);
+    plate.badge = index(plate.badges, save.badge);
+    return plate;
+}
+
 void LogNewMissions(const sif::mission::Missions& missions, const std::vector<sif::mission::Award>& accolades,
                     const std::vector<sif::live::SongInfo>& songs, int language, const sif::save::SaveData& before,
                     const sif::save::SaveData& after) {
@@ -246,7 +276,13 @@ int main(int argc, char** argv) {
                 if (menu) loading.Show(renderer);
                 if (menu) {
                     int mode = -1;
-                    const int entry = sif::RunTopMenu(window, renderer, vfs, lang, options.frames, &mode, &audio);
+                    sif::Nameplate plate = MakeNameplate(missions, accolades, badges, save);
+                    const size_t shown_accolade = plate.accolade, shown_badge = plate.badge;
+                    const int entry = sif::RunTopMenu(window, renderer, vfs, lang, options.frames, &mode, &audio, &plate);
+                    if (plate.accolade != shown_accolade || plate.badge != shown_badge) {  // only a real choice is saved
+                        save.accolade = plate.accolades[plate.accolade].id, save.badge = plate.badges[plate.badge].id;
+                        if (can_save && !sif::save::Write(save_path, save, &save_error)) sif::LogWarn("save: {}", save_error);
+                    }
                     if (entry < 0) break;
                     // Options (mode 3): entry 13 Sound, 10 Game Settings; the others still lead to the song
                     // select (shortcut: Costumes and Control Settings are not built)

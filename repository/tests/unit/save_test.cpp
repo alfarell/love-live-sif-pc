@@ -35,6 +35,7 @@ int main() {
     Check(r.best_score == 199220 && r.best_combo == 300 && r.best_rank == 4 && r.best_rate == 10000 && r.plays == 2 &&
               r.clears == 2 && r.full_combos == 1,
           "record keeps the bests and counts");
+    s.accolade = 2503, s.badge = 902001;
     s.unknown.push_back("medal 3 gold");  // a line from a newer version
 
     std::string error;
@@ -43,8 +44,9 @@ int main() {
     SaveData back;
     Check(Load(path, back, &error), "load: " + error);
     Check(back.player == "Ayumu Uehara" && back.records.size() == 1 && back.records[{10, 4}].best_score == 199220 &&
-              back.records[{10, 4}].full_combos == 1 && back.unknown.size() == 1 && back.unknown[0] == "medal 3 gold",
-          "round trip keeps the name (with spaces), the record and unknown lines");
+              back.records[{10, 4}].full_combos == 1 && back.accolade == 2503 && back.badge == 902001 &&
+              back.unknown.size() == 1 && back.unknown[0] == "medal 3 gold",
+          "round trip keeps the name (with spaces), the record, the nameplate and unknown lines");
 
     { std::ofstream(path) << "not a save\n"; }
     SaveData bad;

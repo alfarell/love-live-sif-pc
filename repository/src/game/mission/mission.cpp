@@ -109,6 +109,16 @@ const Award* FindAward(const std::vector<Award>& awards, int id) {
     return nullptr;
 }
 
+std::vector<int> EarnedAwards(const Missions& missions, const save::SaveData& save) {
+    std::vector<int> ids;
+    for (const Mission& m : missions.rows) {
+        if (m.reward_type == 4 && std::find(ids.begin(), ids.end(), m.reward_id) == ids.end() && ProgressOf(m, save).Done()) {
+            ids.push_back(m.reward_id);
+        }
+    }
+    return ids;
+}
+
 Progress ProgressOf(const Mission& m, const save::SaveData& save) {
     Progress p;
     p.need = std::max(1, m.p2);

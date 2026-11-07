@@ -33,6 +33,10 @@ bool Load(const std::filesystem::path& path, SaveData& out, std::string* error) 
         in >> kind;
         if (kind == "player") {
             std::getline(in >> std::ws, out.player);
+        } else if (kind == "accolade") {
+            in >> out.accolade;
+        } else if (kind == "badge") {
+            in >> out.badge;
         } else if (kind == "record") {
             int song = 0, variant = 0;
             ChartRecord r;
@@ -56,6 +60,8 @@ bool Write(const std::filesystem::path& path, const SaveData& data, std::string*
         std::ofstream f(tmp, std::ios::trunc);
         f << kHeader << "\n";
         f << "player " << data.player << "\n";
+        if (data.accolade) f << "accolade " << data.accolade << "\n";
+        if (data.badge) f << "badge " << data.badge << "\n";
         for (const auto& [key, r] : data.records) {
             f << "record " << key.first << " " << key.second << " " << r.best_score << " " << r.best_combo << " "
               << r.best_rank << " " << r.best_rate << " " << r.plays << " " << r.clears << " " << r.full_combos << "\n";

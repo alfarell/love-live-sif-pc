@@ -53,6 +53,8 @@ struct Progress {
     bool Done() const { return have >= need; }
 };
 Progress ProgressOf(const Mission& m, const save::SaveData& save);
+// The reward-type-4 ids (accolades, and a few badges) of the missions the save has completed, in table order, no repeats.
+std::vector<int> EarnedAwards(const Missions& missions, const save::SaveData& save);
 
 // The row's title or description in `language`, with [p2] filled in and [p1] replaced by `p1_name` (a song title,
 // member or costume name; the caller looks it up).

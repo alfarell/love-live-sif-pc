@@ -1,4 +1,5 @@
 // Missions (src/game/mission/mission.cpp) against the user's own dump: table sizes, rows, condition text, progress.
+#include <algorithm>
 #include <cstdio>
 #include <string>
 
@@ -54,6 +55,10 @@ int main(int argc, char** argv) {
         Check(mission::ProgressOf(*song, data).Done(), "one play of 0010: 2000 done");
         const auto p = mission::ProgressOf(*ten, data);
         Check(p.have == 1 && p.need == 10 && !p.Done(), "one play: mission 1 at 1/10");
+        const auto earned = mission::EarnedAwards(all, data);
+        Check(std::find(earned.begin(), earned.end(), song->reward_id) != earned.end() || song->reward_type != 4,
+              "one play of 0010: mission 2000's award earned");
+        Check(mission::EarnedAwards(all, save::SaveData{}).empty(), "empty save: nothing earned");
     }
     std::vector<mission::Award> accolades, badges;
     Check(mission::LoadAwards(vfs, accolades, badges, &error), "awards: " + error);

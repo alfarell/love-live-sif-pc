@@ -19,6 +19,7 @@ struct ChartRecord {
 
 struct SaveData {
     std::string player = "Player";
+    int accolade = 0, badge = 0;  // the nameplate's accolade and badge ids (0 = not chosen)
     std::map<std::pair<int, int>, ChartRecord> records;  // (song id, chart variant)
     std::vector<std::string> unknown;                    // lines of a newer version, written back unchanged
 };

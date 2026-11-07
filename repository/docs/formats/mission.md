@@ -37,8 +37,15 @@ Kinds, by their English titles:
 Mission reward type 4 names an accolade: 1642 of the 1651 type-4 rows match an accolade id. Names are Japanese only: each id has one text symbol, and there are no language packages.
 
 - **Accolades** (`common/common.pac/honorific_title.pac/honorific_title_datas.bin`):
-  - `s_honorific_title_datas`: 1665 rows of 40 bytes. +0x00 id, +0x04 1, +0x08 *Hypothesis:* plate id (100, 110, 1802, …), +0x10 u64 file offset of the name (`s_title_text_<id>`), +0x18 four u32 not decoded.
+  - `s_honorific_title_datas`: 1665 rows of 40 bytes. +0x00 id, +0x04 1, +0x08 plate id (100, 110, 1802, …; all 368 values have a picture `ui/ui_honorific_title.pac/texture.pac/title_plate_%04d`, M7), +0x10 u64 file offset of the name (`s_title_text_<id>`), +0x18 four u32 not decoded.
   - `s_honorific_title_plate_datas`: 16-byte rows (id, ARGB colour, two u32); *Hypothesis:* the plate colours.
 - **Badges** (`common/common.pac/badge.pac/badge_datas.bin`):
   - `s_badge_datas`: 229 rows of 32 bytes. +0x00 id, +0x04 category (id / 1000, e.g. 901 for 901001 "μ’s大好き"), +0x08 u64 name offset (`s_text_<id>`), +0x10 ARGB colour, +0x14 *Hypothesis:* group mask (1 µ's, 2 Aqours, 4 Saint Snow), +0x18 flags.
+  - Picture: `ui/ui_badge.pac/texture.pac/badge_plate_%03d_0` by category (every category has one, M7).
   - Reward type 3 ids also match badge ids (120 rows). Badges may come from Friendship levels instead (message: "Raise their levels to get different Badges!"); not checked.
+
+## Nameplate
+
+The top-menu header (`ui2/10_top_menu` `uil0009_PlayerDataTop00`) places three `ui2/03_card` parts: `ctg03_uip0004_Title00` (material `title_plate00_M`, text box 0 the accolade name), and inside `ctg03_uil0005_NameSet00` the `uip0005_NamePlate00` (`name_plate00_M`, box 0 the player name) and `uip0006_Badge00` (`badge00_M`, box 0 the badge name). Box 1 of the title and name plates is not known.
+
+- **Name plates** (`common/common.pac/name_plate.pac/name_plate_datas.bin`, `s_name_plate_datas`): 12-byte rows starting with a u32 id; id `PPPSSSS` has the picture `ui/ui_name_plate.pac/texture.pac/name_plate_%03d_%04d` (PPP = id / 10000, SSSS = id % 10000; e.g. 130201 → `name_plate_013_0201`). The rest of the row is not decoded.
