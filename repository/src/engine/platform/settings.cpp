@@ -104,6 +104,7 @@ bool LoadAppSettings(const std::filesystem::path& path, AppSettings& out) {
     Read(v, "timing.audio_offset_ms", out.timing.audio_offset_ms);
     Read(v, "timing.input_offset_ms", out.timing.input_offset_ms);
     Read(v, "play.approach_ms", out.play.approach_ms);
+    Read(v, "controls.pad_lanes", out.controls.pad_lanes);
     out.play.approach_ms = std::clamp(out.play.approach_ms, 400, 3000);
     out.display.width = std::clamp(out.display.width, 320, 16384);
     out.display.height = std::clamp(out.display.height, 240, 16384);
@@ -124,7 +125,8 @@ bool SaveAppSettings(const std::filesystem::path& path, const AppSettings& s) {
     f << "[game]\nfolder = \"" << s.game.folder << "\"\ndlc_folder = \"" << s.game.dlc_folder << "\"\n\n";
     f << "[timing]\naudio_offset_ms = " << s.timing.audio_offset_ms << "\ninput_offset_ms = " << s.timing.input_offset_ms
       << "\n\n";
-    f << "[play]\napproach_ms = " << s.play.approach_ms << "\n";
+    f << "[play]\napproach_ms = " << s.play.approach_ms << "\n\n";
+    f << "[controls]\npad_lanes = \"" << s.controls.pad_lanes << "\"\n";
     return static_cast<bool>(f);
 }
 

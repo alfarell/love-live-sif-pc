@@ -32,6 +32,9 @@ struct AppSettings {
     struct Play {
         int approach_ms = 1300;  // note travel time from the centre circle to the ring (note speed)
     } play;
+    struct Controls {
+        std::string pad_lanes;  // the pad's 9-lane Button Controls, 10 button names; empty = the game's defaults
+    } controls;
 };
 
 bool LoadAppSettings(const std::filesystem::path& path, AppSettings& out);

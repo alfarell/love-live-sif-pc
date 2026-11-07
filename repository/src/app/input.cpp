@@ -1,5 +1,6 @@
 #include "app/input.h"
 
+#include <sstream>
 #include <utility>
 
 #include "engine/core/log.h"
@@ -8,6 +9,8 @@ namespace sif {
 namespace {
 
 PadLayout g_layout = PadLayout::Menu;
+PadSlots g_slots = DefaultPadSlots();
+std::array<bool, 2> g_trigger_down{};  // L2, R2
 
 constexpr std::pair<SDL_GamepadButton, SDL_Scancode> kMenu[] = {
     {SDL_GAMEPAD_BUTTON_DPAD_LEFT, SDL_SCANCODE_LEFT}, {SDL_GAMEPAD_BUTTON_DPAD_RIGHT, SDL_SCANCODE_RIGHT},
@@ -17,19 +20,29 @@ constexpr std::pair<SDL_GamepadButton, SDL_Scancode> kMenu[] = {
     {SDL_GAMEPAD_BUTTON_LEFT_SHOULDER, SDL_SCANCODE_PAGEUP}, {SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER, SDL_SCANCODE_PAGEDOWN},
 };
 // the live screen's lane keys (A S D F Space J K L ;), left to right
-constexpr std::pair<SDL_GamepadButton, SDL_Scancode> kLive[] = {
-    {SDL_GAMEPAD_BUTTON_DPAD_LEFT, SDL_SCANCODE_A},      {SDL_GAMEPAD_BUTTON_DPAD_UP, SDL_SCANCODE_S},
-    {SDL_GAMEPAD_BUTTON_DPAD_RIGHT, SDL_SCANCODE_D},     {SDL_GAMEPAD_BUTTON_DPAD_DOWN, SDL_SCANCODE_F},
-    {SDL_GAMEPAD_BUTTON_LEFT_SHOULDER, SDL_SCANCODE_SPACE}, {SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER, SDL_SCANCODE_SPACE},
-    {SDL_GAMEPAD_BUTTON_WEST, SDL_SCANCODE_J},           {SDL_GAMEPAD_BUTTON_NORTH, SDL_SCANCODE_K},
-    {SDL_GAMEPAD_BUTTON_EAST, SDL_SCANCODE_L},           {SDL_GAMEPAD_BUTTON_SOUTH, SDL_SCANCODE_SEMICOLON},
-    {SDL_GAMEPAD_BUTTON_START, SDL_SCANCODE_ESCAPE},
-};
+constexpr SDL_Scancode kLaneKeys[9] = {SDL_SCANCODE_A, SDL_SCANCODE_S, SDL_SCANCODE_D, SDL_SCANCODE_F, SDL_SCANCODE_SPACE,
+                                       SDL_SCANCODE_J, SDL_SCANCODE_K, SDL_SCANCODE_L, SDL_SCANCODE_SEMICOLON};
+constexpr const char* kNames[] = {"UP",     "LEFT",  "DOWN", "RIGHT", "TRIANGLE", "SQUARE",
+                                  "CROSS",  "CIRCLE", "L1",  "L2",    "R1",       "R2"};
+// SDL's button for each PadButton (L2/R2 are axes, handled apart)
+constexpr SDL_GamepadButton kSdlButton[] = {
+    SDL_GAMEPAD_BUTTON_DPAD_UP, SDL_GAMEPAD_BUTTON_DPAD_LEFT, SDL_GAMEPAD_BUTTON_DPAD_DOWN, SDL_GAMEPAD_BUTTON_DPAD_RIGHT,
+    SDL_GAMEPAD_BUTTON_NORTH,   SDL_GAMEPAD_BUTTON_WEST,      SDL_GAMEPAD_BUTTON_SOUTH,     SDL_GAMEPAD_BUTTON_EAST,
+    SDL_GAMEPAD_BUTTON_LEFT_SHOULDER, SDL_GAMEPAD_BUTTON_INVALID, SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER,
+    SDL_GAMEPAD_BUTTON_INVALID};
+
+SDL_Scancode LiveKey(PadButton b) {
+    for (int s = 0; s < kPadSlots; ++s) {  // a button in two slots plays the first one's lane
+        if (g_slots[size_t(s)] == b) return kLaneKeys[kLaneOfSlot[size_t(s)]];
+    }
+    return SDL_SCANCODE_UNKNOWN;
+}
 
 SDL_Scancode Mapped(Uint8 button) {
     if (g_layout == PadLayout::Live) {
-        for (const auto& [b, key] : kLive) {
-            if (b == button) return key;
+        if (button == SDL_GAMEPAD_BUTTON_START) return SDL_SCANCODE_ESCAPE;
+        for (int b = 0; b < int(PadButton::Count); ++b) {
+            if (kSdlButton[b] == button) return LiveKey(PadButton(b));
         }
     } else {
         for (const auto& [b, key] : kMenu) {
@@ -39,7 +52,47 @@ SDL_Scancode Mapped(Uint8 button) {
     return SDL_SCANCODE_UNKNOWN;
 }
 
+void ToKey(SDL_Event& e, SDL_Scancode key, bool down, Uint64 timestamp) {
+    e = {};
+    e.key.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+    e.key.timestamp = timestamp;
+    e.key.scancode = key;
+    e.key.key = SDL_GetKeyFromScancode(key, SDL_KMOD_NONE, false);
+    e.key.down = down;
 }
+
+}
+
+const char* PadButtonName(PadButton b) { return b < PadButton::Count ? kNames[int(b)] : "?"; }
+
+PadSlots DefaultPadSlots() {
+    using B = PadButton;
+    return {B::L2, B::L1, B::Left, B::Down, B::Right, B::Square, B::Cross, B::Circle, B::R1, B::R2};
+}
+
+std::string PadSlotsToText(const PadSlots& slots) {
+    std::string s;
+    for (PadButton b : slots) s += (s.empty() ? "" : " ") + std::string(PadButtonName(b));
+    return s;
+}
+
+bool PadSlotsFromText(const std::string& text, PadSlots& out) {
+    std::istringstream in(text);
+    PadSlots slots{};
+    std::string word;
+    for (PadButton& slot : slots) {
+        if (!(in >> word)) return false;
+        int b = 0;
+        while (b < int(PadButton::Count) && word != kNames[b]) ++b;
+        if (b == int(PadButton::Count)) return false;
+        slot = PadButton(b);
+    }
+    if (in >> word) return false;
+    out = slots;
+    return true;
+}
+
+void SetPadSlots(const PadSlots& slots) { g_slots = slots; }
 
 void SetPadLayout(PadLayout layout) { g_layout = layout; }
 
@@ -56,15 +109,16 @@ bool PollEvent(SDL_Event& e) {
         }
     } else if (e.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN || e.type == SDL_EVENT_GAMEPAD_BUTTON_UP) {
         const SDL_Scancode key = Mapped(e.gbutton.button);
-        if (key != SDL_SCANCODE_UNKNOWN) {
-            const bool down = e.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN;
-            const Uint64 timestamp = e.gbutton.timestamp;
-            e = {};
-            e.key.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
-            e.key.timestamp = timestamp;
-            e.key.scancode = key;
-            e.key.key = SDL_GetKeyFromScancode(key, SDL_KMOD_NONE, false);
-            e.key.down = down;
+        if (key != SDL_SCANCODE_UNKNOWN) ToKey(e, key, e.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN, e.gbutton.timestamp);
+    } else if (e.type == SDL_EVENT_GAMEPAD_AXIS_MOTION && (e.gaxis.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER ||
+                                                           e.gaxis.axis == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER)) {
+        const int t = e.gaxis.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER ? 0 : 1;
+        const bool down = e.gaxis.value > SDL_JOYSTICK_AXIS_MAX / 2;
+        if (down != g_trigger_down[size_t(t)]) {
+            g_trigger_down[size_t(t)] = down;
+            const SDL_Scancode key = g_layout == PadLayout::Live ? LiveKey(t ? PadButton::R2 : PadButton::L2)
+                                                                  : SDL_SCANCODE_UNKNOWN;
+            if (key != SDL_SCANCODE_UNKNOWN) ToKey(e, key, down, e.gaxis.timestamp);
         }
     }
     return true;
