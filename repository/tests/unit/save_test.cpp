@@ -29,12 +29,14 @@ int main() {
     s.player = "Ayumu Uehara";
     NewBests n = Record(s, {10, 4, 150000, 300, 2, 0.75, false});
     Check(n.score && n.combo && n.rate, "first play: every best is new");
-    n = Record(s, {10, 4, 199220, 250, 4, 1.00001, true});
+    n = Record(s, {10, 4, 199220, 250, 4, 1.00001, true, 280, 20, 31});
     Check(n.score && !n.combo && n.rate, "second play: better score and rate, worse combo");
     const ChartRecord& r = s.records[{10, 4}];
     Check(r.best_score == 199220 && r.best_combo == 300 && r.best_rank == 4 && r.best_rate == 10000 && r.plays == 2 &&
               r.clears == 2 && r.full_combos == 1,
           "record keeps the bests and counts");
+    Check(s.perfects == 280 && s.greats == 20 && s.costume_plays[31] == 1 && s.costume_plays.size() == 1,
+          "note totals and costume plays (none counted without a costume)");
     s.accolade = 2503, s.badge = 902001;
     s.unknown.push_back("medal 3 gold");  // a line from a newer version
 
@@ -45,6 +47,7 @@ int main() {
     Check(Load(path, back, &error), "load: " + error);
     Check(back.player == "Ayumu Uehara" && back.records.size() == 1 && back.records[{10, 4}].best_score == 199220 &&
               back.records[{10, 4}].full_combos == 1 && back.accolade == 2503 && back.badge == 902001 &&
+              back.perfects == 280 && back.greats == 20 && back.costume_plays[31] == 1 &&
               back.unknown.size() == 1 && back.unknown[0] == "medal 3 gold",
           "round trip keeps the name (with spaces), the record, the nameplate and unknown lines");
 

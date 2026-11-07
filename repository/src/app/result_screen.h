@@ -22,6 +22,7 @@ struct LiveResult {
     bool closed = false;    // the window was closed
     double clear_rate = 0;  // score / maximum score
     int rank = 0;           // 0 D, 1 C, 2 B, 3 A, 4 S, 5 SS, 6 SSS (the result atlas's order)
+    std::string costume;    // the costume worn, "dNNN" ("" = the base model)
 };
 
 // Shows the result until a key or pad button (or `max_frames`); false if the window was closed. `news`: which

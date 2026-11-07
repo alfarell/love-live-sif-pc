@@ -59,6 +59,14 @@ int main(int argc, char** argv) {
         Check(std::find(earned.begin(), earned.end(), song->reward_id) != earned.end() || song->reward_type != 4,
               "one play of 0010: mission 2000's award earned");
         Check(mission::EarnedAwards(all, save::SaveData{}).empty(), "empty save: nothing earned");
+        save::Record(data, {10, 4, 500000, 300, 4, 0.9, true, 250, 40, 31});
+        for (const mission::Mission& m : all.rows) {
+            if (m.Kind() == 6) Check(mission::ProgressOf(m, data).have == 250, "kind 6: PERFECT total");
+            if (m.Kind() == 5) Check(mission::ProgressOf(m, data).have == 40, "kind 5: GREAT total");
+            if (m.Kind() == 41) {
+                Check(mission::ProgressOf(m, data).have == (m.p1 == 31 ? 1 : 0), "kind 41: plays wearing the costume");
+            }
+        }
     }
     std::vector<mission::Award> accolades, badges;
     Check(mission::LoadAwards(vfs, accolades, badges, &error), "awards: " + error);

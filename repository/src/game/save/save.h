@@ -21,6 +21,8 @@ struct SaveData {
     std::string player = "Player";
     int accolade = 0, badge = 0;  // the nameplate's accolade and badge ids (0 = not chosen)
     std::map<std::pair<int, int>, ChartRecord> records;  // (song id, chart variant)
+    long long perfects = 0, greats = 0;                  // judged notes over every finished live
+    std::map<int, int> costume_plays;                    // costume id (dNNN) -> finished lives wearing it
     std::vector<std::string> unknown;                    // lines of a newer version, written back unchanged
 };
 
@@ -30,6 +32,8 @@ struct Play {
     int score = 0, combo = 0, rank = 0;
     double rate = 0;   // clear rate (1.0 = all Perfect)
     bool full_combo = false;
+    int perfects = 0, greats = 0;
+    int costume = -1;  // dNNN worn; -1 = none (the base model)
 };
 struct NewBests {
     bool score = false, combo = false, rate = false;

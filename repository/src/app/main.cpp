@@ -134,7 +134,8 @@ sif::Nameplate MakeNameplate(const sif::mission::Missions& missions, const std::
 }
 
 void LogNewMissions(const sif::mission::Missions& missions, const std::vector<sif::mission::Award>& accolades,
-                    const std::vector<sif::live::SongInfo>& songs, int language, const sif::save::SaveData& before,
+                    const std::vector<sif::live::SongInfo>& songs, const std::vector<sif::live::DressInfo>& dresses,
+                    int language, const sif::save::SaveData& before,
                     const sif::save::SaveData& after) {
     for (const sif::mission::Mission& m : missions.rows) {
         if (size_t(m.Kind()) >= missions.conditions.size() || !sif::mission::ProgressOf(m, after).Done() ||
@@ -144,6 +145,9 @@ void LogNewMissions(const sif::mission::Missions& missions, const std::vector<si
         std::string p1 = std::to_string(m.p1);
         for (const auto& s : songs) {
             if (m.Kind() >= 35 && m.Kind() <= 39 && s.id == m.p1) p1 = s.title;
+        }
+        for (const auto& d : dresses) {
+            if (m.Kind() >= 40 && d.id == m.p1) p1 = d.name;
         }
         const auto& c = missions.conditions[size_t(m.Kind())];
         const sif::mission::Award* accolade = m.reward_type == 4 ? sif::mission::FindAward(accolades, m.reward_id) : nullptr;
@@ -262,6 +266,8 @@ int main(int argc, char** argv) {
             std::vector<sif::mission::Award> accolades, badges;
             if (!sif::mission::LoadAwards(vfs, accolades, badges, &why)) sif::LogWarn("awards: {}", why);
             if (!sif::live::LoadSongList(vfs, language, songs, &why)) sif::LogWarn("missions: songs: {}", why);
+            std::vector<sif::live::DressInfo> dresses;
+            if (!sif::live::LoadDressList(vfs, language, dresses, &why)) sif::LogWarn("missions: costumes: {}", why);
             // add-on ownership from the user's own add-ons; without the catalog nothing is locked
             sif::dlc::Ownership owned;
             sif::dlc::Catalog catalog;
@@ -332,10 +338,12 @@ int main(int argc, char** argv) {
                     loading.Show(renderer);
                     const bool full_combo = result.counts[2] + result.counts[3] + result.counts[4] == 0;
                     const sif::save::SaveData before = save;
+                    const int costume = result.costume.size() == 4 && result.costume[0] == 'd'
+                                            ? std::atoi(result.costume.c_str() + 1) : -1;
                     news = sif::save::Record(save, {result.song, result.variant, int(result.score), result.max_combo, result.rank,
-                                                    result.clear_rate, full_combo});
+                                                    result.clear_rate, full_combo, result.counts[0], result.counts[1], costume});
                     if (can_save && !sif::save::Write(save_path, save, &save_error)) sif::LogWarn("save: {}", save_error);
-                    LogNewMissions(missions, accolades, songs, language, before, save);
+                    LogNewMissions(missions, accolades, songs, dresses, language, before, save);
                 }
                 open = code == 0 && !result.closed &&
                        (!result.finished || sif::RunResult(window, renderer, vfs, options.live_options.lang, result,

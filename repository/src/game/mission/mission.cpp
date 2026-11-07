@@ -144,7 +144,14 @@ Progress ProgressOf(const Mission& m, const save::SaveData& save) {
         case 39:  // a score of [p2] on "[p1]"
             p.have = best_score;
             break;
-        // shortcut: GREAT/PERFECT totals, costumes, items, viewing mode, medleys, cards, likes and member counters
+        case 5: p.have = int(std::min<long long>(save.greats, 2000000000)); break;    // [p2] GREAT notes
+        case 6: p.have = int(std::min<long long>(save.perfects, 2000000000)); break;  // [p2] PERFECT notes
+        case 41: {  // play wearing "[p1]" [p2] times
+            const auto it = save.costume_plays.find(m.p1);
+            p.have = it == save.costume_plays.end() ? 0 : it->second;
+            break;
+        }
+        // shortcut: costumes obtained, items, viewing mode, medleys, cards, likes and member counters
         // are not in the save yet; add them with the screens that count them
         default: break;
     }

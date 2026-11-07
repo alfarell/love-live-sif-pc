@@ -740,6 +740,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
         *result = {opt.song, opt.variant, {}, judge.max_combo, judge.score, judge.Finished(), closed, judge.ClearRate(),
                    judge.Rank()};
         std::copy(judge.counts.begin(), judge.counts.end(), result->counts.begin());
+        result->costume = dressed.costume;
     }
     return 0;
 }

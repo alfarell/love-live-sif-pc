@@ -33,6 +33,15 @@ bool Load(const std::filesystem::path& path, SaveData& out, std::string* error) 
         in >> kind;
         if (kind == "player") {
             std::getline(in >> std::ws, out.player);
+        } else if (kind == "notes") {
+            in >> out.perfects >> out.greats;
+        } else if (kind == "costume") {
+            int id = 0, plays = 0;
+            if (in >> id >> plays) {
+                out.costume_plays[id] = plays;
+            } else {
+                out.unknown.push_back(line);
+            }
         } else if (kind == "accolade") {
             in >> out.accolade;
         } else if (kind == "badge") {
@@ -62,6 +71,8 @@ bool Write(const std::filesystem::path& path, const SaveData& data, std::string*
         f << "player " << data.player << "\n";
         if (data.accolade) f << "accolade " << data.accolade << "\n";
         if (data.badge) f << "badge " << data.badge << "\n";
+        f << "notes " << data.perfects << " " << data.greats << "\n";
+        for (const auto& [id, plays] : data.costume_plays) f << "costume " << id << " " << plays << "\n";
         for (const auto& [key, r] : data.records) {
             f << "record " << key.first << " " << key.second << " " << r.best_score << " " << r.best_combo << " "
               << r.best_rank << " " << r.best_rate << " " << r.plays << " " << r.clears << " " << r.full_combos << "\n";
@@ -83,6 +94,8 @@ NewBests Record(SaveData& data, const Play& p) {
     ++r.plays;
     ++r.clears;  // shortcut: every finished live counts as a clear; the game decides by its life gauge, not built yet
     if (p.full_combo) ++r.full_combos;
+    data.perfects += p.perfects, data.greats += p.greats;
+    if (p.costume >= 0) ++data.costume_plays[p.costume];
     if (n.score) r.best_score = p.score;
     if (n.combo) r.best_combo = p.combo;
     if (n.rate) r.best_rate = rate;
