@@ -4,6 +4,7 @@
 
 #include <string>
 
+#include "game/costume/costume.h"
 #include "game/dlc/dlc.h"
 #include "game/save/save.h"
 
@@ -24,9 +25,10 @@ struct SongChoice {
 
 // `previous`: the last choice, focused again (song and difficulty) when coming back from a live. `save` (optional):
 // the records shown on the difficulty cards and plates. `owned` (optional): only the songs and costumes it owns are
-// listed (shortcut: add-ons the user has not installed are left out; the game shows them locked).
+// listed (shortcut: add-ons the user has not installed are left out; the game shows them locked). `costumes` (optional,
+// with `save`): only the costumes the player owns (costume::Owns: from the start, rewarded, crafted or an add-on).
 SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, long max_frames,
                          const SongChoice& previous = {}, const save::SaveData* save = nullptr,
-                         const dlc::Ownership* owned = nullptr);
+                         const dlc::Ownership* owned = nullptr, const costume::Data* costumes = nullptr);
 
 }

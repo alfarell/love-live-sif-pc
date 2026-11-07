@@ -15,9 +15,11 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <random>
 #include <string>
 #include <vector>
 
+#include "app/costume_screen.h"
 #include "app/fade.h"
 #include "app/input.h"
 #include "app/live_screen.h"
@@ -37,6 +39,7 @@
 #include "engine/platform/os.h"
 #include "engine/platform/settings.h"
 #include "engine/render/renderer.h"
+#include "game/costume/costume.h"
 #include "game/dlc/dlc.h"
 #include "game/live/song.h"
 #include "game/mission/mission.h"
@@ -279,6 +282,10 @@ int main(int argc, char** argv) {
             if (!sif::live::LoadSongList(vfs, language, songs, &why)) sif::LogWarn("missions: songs: {}", why);
             std::vector<sif::live::DressInfo> dresses;
             if (!sif::live::LoadDressList(vfs, language, dresses, &why)) sif::LogWarn("missions: costumes: {}", why);
+            sif::costume::Data costume_data;
+            const bool has_costumes = sif::costume::Load(vfs, costume_data, &why);
+            if (!has_costumes) sif::LogWarn("costumes: {}", why);
+            std::mt19937 drop_random{std::random_device{}()};
             // add-on ownership from the user's own add-ons; without the catalog nothing is locked
             sif::dlc::Ownership owned;
             sif::dlc::Catalog catalog;
@@ -326,6 +333,19 @@ int main(int argc, char** argv) {
                         }
                         continue;
                     }
+                    if (mode == 1 && entry == 5 && has_costumes) {  // Costumes: Create/Change Costumes
+                        loading.Show(renderer);
+                        std::vector<std::pair<int, std::string>> names;
+                        for (const auto& d : dresses) names.push_back({d.id, d.name});
+                        open = sif::RunCostumes(window, renderer, vfs, lang, costume_data, names, &owned, save, options.frames);
+                        if (can_save && !sif::save::Write(save_path, save, &save_error)) sif::LogWarn("save: {}", save_error);
+                        continue;
+                    }
+                    if (mode == 1 && entry == 7 && has_costumes) {  // Costumes: Costume Materials
+                        loading.Show(renderer);
+                        open = sif::RunMaterials(window, renderer, vfs, lang, costume_data, save, options.frames);
+                        continue;
+                    }
                     if (mode == 5 && entry == 20) {  // Event: Task List
                         loading.Show(renderer);
                         open = sif::RunMissions(window, renderer, vfs, lang,
@@ -335,7 +355,8 @@ int main(int argc, char** argv) {
                     }
                 }
                 loading.Show(renderer);
-                const sif::SongChoice choice = sif::RunSongSelect(window, renderer, vfs, lang, options.frames, last, &save, &owned);
+                const sif::SongChoice choice = sif::RunSongSelect(window, renderer, vfs, lang, options.frames, last, &save, &owned,
+                                                                  has_costumes ? &costume_data : nullptr);
                 if (choice.closed || (choice.song < 0 && options.select)) break;
                 menu = choice.song < 0;
                 if (menu) continue;
@@ -356,6 +377,15 @@ int main(int argc, char** argv) {
                                             ? std::atoi(result.costume.c_str() + 1) : -1;
                     news = sif::save::Record(save, {result.song, result.variant, int(result.score), result.max_combo, result.rank,
                                                     result.clear_rate, full_combo, result.counts[0], result.counts[1], costume});
+                    if (has_costumes) {  // the song's materials (costume::RollDrops)
+                        std::string got;
+                        for (const auto& [item, amount] : sif::costume::RollDrops(costume_data, result.song, drop_random, save)) {
+                            const sif::costume::Item* i = sif::costume::FindItem(costume_data, item);
+                            got += (got.empty() ? "" : ", ") + (i ? i->name[size_t(language)] : std::to_string(item)) + " x" +
+                                   std::to_string(amount);
+                        }
+                        sif::LogInfo("materials: {}", got.empty() ? "none" : got);
+                    }
                     if (can_save && !sif::save::Write(save_path, save, &save_error)) sif::LogWarn("save: {}", save_error);
                     LogNewMissions(missions, accolades, songs, dresses, language, before, save);
                 }

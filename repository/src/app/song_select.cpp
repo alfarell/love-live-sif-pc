@@ -293,7 +293,8 @@ void Apply(UiScreen& ui, const std::vector<SongInfo>& songs, int current, Step s
 }
 
 SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, long max_frames,
-                         const SongChoice& previous, const save::SaveData* save, const dlc::Ownership* owned) {
+                         const SongChoice& previous, const save::SaveData* save, const dlc::Ownership* owned,
+                         const costume::Data* costume_data) {
     std::vector<SongInfo> songs;
     std::string error;
     const int language = lang == "en" ? 1 : lang == "cn" ? 2 : lang == "tw" ? 3 : 0;
@@ -337,7 +338,11 @@ SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs,
     const auto open_costumes = [&] {
         const SongInfo& s = songs[size_t(current)];
         costumes = CostumesFor(vfs, s, dresses);
-        if (owned) std::erase_if(costumes, [&](const DressInfo& d) { return !owned->Costume(d.id); });
+        if (costume_data && save) {
+            std::erase_if(costumes, [&](const DressInfo& d) { return !costume::Owns(*costume_data, *save, owned, d.id); });
+        } else if (owned) {
+            std::erase_if(costumes, [&](const DressInfo& d) { return !owned->Costume(d.id); });
+        }
         const std::string want =
             previous.song == s.id && !previous.costume.empty() ? previous.costume : live::PickCostume(vfs, s, english);
         costume = 0;
