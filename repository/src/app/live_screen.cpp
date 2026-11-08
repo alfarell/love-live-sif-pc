@@ -596,7 +596,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
         for (int k = 0; k < 9; ++k) hud.HideInstance("uil0001_Ingame00/uip0007_FFmark_ef_0" + std::to_string(k), true);
         // the LOVELIVE! marks: the layout's texture is the mu's set; the other groups use their own
         if (song.group == 1 || song.group == 2) {
-            const std::string tex = std::string("ui2/90_ingame.pac/texture.pac/ingame_ffmark_") + (song.group == 1 ? "aq" : "ss");
+            const std::string tex = std::string("ui2/90_ingame.pac/texture.pac/ingame_ffmark_") + (song.group == 1 ? "aq.btx" : "ss.btx");
             for (int k = 0; k < 9; ++k) hud.SetMaterialTexture("uil0001_Ingame00/uip0003_FFmark", "M_FFmark_0" + std::to_string(k), tex);
         }
         std::vector<live::SongInfo> songs;
