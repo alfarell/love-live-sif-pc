@@ -177,6 +177,7 @@ struct Playfield {
     static constexpr float kBandAlpha = 0.62f;
     static constexpr std::array<float, 4> kHeldTint{1.0f, 0.78f, 0.79f, 1.0f};
     static constexpr float kCapDisc = 152.0f / 256.0f;  // the cap's opaque disc within its cell
+    static constexpr float kNoteRing = 163.0f / 256.0f;  // the note ring's outer edge within its cell (1, 0)
     static constexpr size_t kMaxBands = 32;
     Texture connect, connect_finale;  // connect_finale: common_tex connect_note_finale, for finale holds
     std::array<GpuMesh, 2> end_cap;   // white, pink (held)
@@ -184,6 +185,7 @@ struct Playfield {
     struct Tail {
         float x, y, size;
         bool held, finale;
+        int group;  // Note::end_group: brackets around the cap when the tail ends with others
     };
     std::array<Tail, kMaxBands> tails{};
     size_t bands = 0;
@@ -220,7 +222,7 @@ struct Playfield {
                                      {{hx - nx * wh, -(hy - ny * wh), 0}, {0, 0, 1}, {1, 0.45f}},
                                      {{hx + nx * wh, -(hy + ny * wh), 0}, {0, 0, 1}, {0, 0.45f}}};
             r.UpdateMesh(band[bands], v);
-            tails[bands++] = {tx, ty, ts, held, judge.finale && n.time_ms >= chart.finale_ms};
+            tails[bands++] = {tx, ty, ts, held, judge.finale && n.time_ms >= chart.finale_ms, n.end_group};
         }
     }
     // The bands and their end discs, under the notes
@@ -229,8 +231,13 @@ struct Playfield {
         for (size_t b = 0; b < bands; ++b) {
             const std::array<float, 4> tint = tails[b].held ? kHeldTint : std::array<float, 4>{1, 1, 1, 1};
             r.DrawUiMesh(band[b], tails[b].finale ? &connect_finale : &connect, to_clip, {tint[0], tint[1], tint[2], kBandAlpha});
-            Draw(r, end_cap[tails[b].held ? 1 : 0], atlas, tails[b].x, tails[b].y, tails[b].size * kBandWidth / kCapDisc,
-                 {1, 1, 1, 1});
+            const float cap = tails[b].size * kBandWidth;  // the cap's disc diameter
+            Draw(r, end_cap[tails[b].held ? 1 : 0], atlas, tails[b].x, tails[b].y, cap / kCapDisc, {1, 1, 1, 1});
+            // simultaneous tails: the brackets sit on the cap as on a note whose ring is the cap (image 4)
+            if (tails[b].group >= 0) {
+                Draw(r, bracket[size_t(tails[b].group % 2)], atlas, tails[b].x, tails[b].y,
+                     cap / kNoteRing * kBracketScale, {1, 1, 1, 1});
+            }
         }
     }
     GpuMesh corner_centered;  // centred unit quad over a whole texture

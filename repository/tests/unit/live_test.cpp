@@ -81,6 +81,23 @@ static void Groups() {
     std::string got;
     for (const Note& n : c.notes) got += std::to_string(n.group) + " ";
     Check(got == "0 0 -1 1 1 1 -1 2 2 ", "simultaneous groups numbered in song order, lone notes -1: " + got);
+    // heads and hold tails are numbered together in time order (H4, rule A)
+    const auto groups = [](std::initializer_list<Note> notes) {
+        Chart h;
+        h.notes = notes;
+        GroupNotes(h);
+        std::string s;
+        for (const Note& n : h.notes) s += std::to_string(n.group) + "/" + std::to_string(n.end_group) + " ";
+        return s;
+    };
+    got = groups({{0, 100, 200}, {1, 100, 200}, {0, 300, 400}, {1, 300, 400}});
+    Check(got == "0/1 0/1 2/3 2/3 ", "two hold pairs: heads orange (even), tails blue (odd): " + got);
+    got = groups({{0, 100, 300}, {1, 100, 300}, {2, 200, -1}, {3, 200, -1}});
+    Check(got == "0/2 0/2 1/-1 1/-1 ", "a tap pair between a hold pair's heads and tails takes the next number: " + got);
+    got = groups({{0, 100, 200}, {1, 100, 250}});
+    Check(got == "0/-1 0/-1 ", "holds that start together but end apart: no tail group: " + got);
+    got = groups({{0, 100, 200}, {1, 200, -1}});
+    Check(got == "-1/-1 -1/-1 ", "a tail and a head at the same time do not form a group: " + got);
 }
 
 static void Real(const char* root) {

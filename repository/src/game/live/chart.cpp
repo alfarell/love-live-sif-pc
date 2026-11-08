@@ -104,14 +104,46 @@ void MarkIcons(Chart& chart) {
 }
 
 void GroupNotes(Chart& chart) {
-    int groups = 0;
-    auto& n = chart.notes;
-    for (size_t i = 0; i < n.size();) {
-        size_t j = i + 1;
-        while (j < n.size() && n[j].time_ms - n[j - 1].time_ms <= 1) ++j;
-        for (size_t k = i; k < j; ++k) n[k].group = j - i > 1 ? groups : -1;
-        if (j - i > 1) ++groups;
-        i = j;
+    struct Event {
+        double t;
+        bool tail;
+        size_t note;
+    };
+    std::vector<Event> heads, tails;
+    for (size_t i = 0; i < chart.notes.size(); ++i) {
+        Note& n = chart.notes[i];
+        n.group = n.end_group = -1;
+        heads.push_back({n.time_ms, false, i});
+        if (n.IsHold()) tails.push_back({n.end_ms, true, i});
+    }
+    const auto by_time = [](const Event& a, const Event& b) { return a.t < b.t; };
+    std::stable_sort(heads.begin(), heads.end(), by_time);
+    std::stable_sort(tails.begin(), tails.end(), by_time);
+    // chains of 2+ events of one kind, each 1 ms or less after the previous: [first, last) into its list
+    struct Span {
+        double t;
+        bool tail;
+        const std::vector<Event>* list;
+        size_t first, last;
+    };
+    std::vector<Span> spans;
+    for (const std::vector<Event>* list : {&heads, &tails}) {
+        const auto& e = *list;
+        for (size_t i = 0; i < e.size();) {
+            size_t j = i + 1;
+            while (j < e.size() && e[j].t - e[j - 1].t <= 1) ++j;
+            if (j - i > 1) spans.push_back({e[i].t, e[i].tail, list, i, j});
+            i = j;
+        }
+    }
+    std::stable_sort(spans.begin(), spans.end(), [](const Span& a, const Span& b) {
+        return a.t != b.t ? a.t < b.t : !a.tail && b.tail;
+    });
+    for (size_t g = 0; g < spans.size(); ++g) {
+        for (size_t k = spans[g].first; k < spans[g].last; ++k) {
+            const Event& e = (*spans[g].list)[k];
+            (e.tail ? chart.notes[e.note].end_group : chart.notes[e.note].group) = int(g);
+        }
     }
 }
 

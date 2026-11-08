@@ -19,7 +19,8 @@ struct Note {
     int lane = 0;
     double time_ms = 0;     // audio time of the press
     double end_ms = -1;     // audio time of the release for holds, < 0 for taps
-    int group = -1;         // simultaneous group, numbered 0, 1, 2 ... in song order; -1 for a note alone
+    int group = -1;         // simultaneous group of the press; -1 for a note alone (see GroupNotes)
+    int end_group = -1;     // simultaneous group of a hold's release; -1 if the tail ends alone or for taps
     int channel = 1;        // chart file _chN: 1 the main notes, 2-4 the extra notes of the three phases
     bool icon = false;      // carries the Finale Rhythm Icon (one of the nine LOVELIVE! letters)
     bool IsHold() const { return end_ms >= 0; }
@@ -37,8 +38,11 @@ struct Chart {
 
 bool ParseChart(std::span<const uint8_t> scor, Chart& out, std::string* error = nullptr);
 
-// Sets Note::group: notes (sorted by time) within 1 ms of the previous one share a group. ParseChart calls it; call it
-// again after adding notes.
+// Sets Note::group and Note::end_group. Heads within 1 ms of the previous head form a group, and so do hold tails
+// within 1 ms of the previous tail (heads and tails never mix). All groups are then numbered 0, 1, 2 ... in time order
+// (a head group before a tail group at the same time), so brackets coloured by number % 2 alternate over heads and
+// tails: a hold pair's heads and tails get opposite colours (user feedback, image 4; analysis 202611082306, rule A).
+// ParseChart calls it; call it again after adding notes.
 void GroupNotes(Chart& chart);
 
 // Channel 5, the timeline: notes 60-68 start phases 1-3 (60/63/66, 61/64/67, 62/65/68), note 69 the finale. Sets
