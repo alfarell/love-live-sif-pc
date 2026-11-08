@@ -68,10 +68,12 @@ struct Layout {
 // 256-pixel cells: texture.pac/ui_ingame_notes (5 x 6: note ring, fill, finale discs, brackets ...) and
 // texture.pac/ui_ingame_judgering_all_mark (4 x 5: the indicator ring and the button icons). Cells and sizes were
 // matched to shadPS4 frames (analysis/202611072212-gameplay-feedback/): the indicator cell draws 1:1 (its orange ring
-// is 177 px in the cell and on screen), a note arrives at 0.95 of a cell, icons share their base's scale
+// is 177 px in the cell and on screen), a note arrives at 1:1 too, icons share their base's scale
 struct Playfield {
     static constexpr float kCell = 256, kAtlasW = 1280, kAtlasH = 1536, kMarkW = 1024, kMarkH = 1280;
-    static constexpr float kNoteSize = 0.95f * kCell;  // a note's quad when it reaches its indicator
+    // a note's quad when it reaches its indicator: 1:1 like the indicator, so the note ring ((1, 0): 163 px, rows
+    // 47-209 of its cell) is exactly the indicator's grey body inside the orange outline (mark (0, 0): rows 47-209)
+    static constexpr float kNoteSize = kCell;
     static constexpr float kIconGap = 30;               // two icons in one lane (→ □): centres ±30 px at 1:1
     Texture atlas, mark, center_gauge, center_mic, combo_tex;
     GpuMesh indicator, note_ring, note_fill, combo_label, gauge_fan;
@@ -144,13 +146,27 @@ struct Playfield {
             Draw(r, m, mark, left + step * float(i), y, kCell * scale, {1, 1, 1, 1});
         }
     }
+    // Measured in shadPS4 frames (analysis 202611082335): a note leaves the centre circle at about 0.8 of its size at
+    // the ring and grows linearly to full size; its brackets span 1.26x its ring (the user's PS4 still, analysis
+    // 202611082356; the cell's own ratio is 1.24)
+    static constexpr float kNoteStart = 0.8f;
+    static constexpr float kBracketScale = 1.02f;
+    // How far a note due at `t` is along its path at `now`: 0 at the centre circle, 1 at its ring
+    static float Progress(double t, double now, double approach_ms) {
+        return float(std::clamp(1.0 - (t - now) / approach_ms, 0.0, 1.0));
+    }
     // Where a note due at `t` is at `now`: on the line from the centre circle to its ring, growing as it comes
     void Path(int lane, double t, double now, double approach_ms, float& x, float& y, float& size) const {
-        const float k = float(std::clamp(1.0 - (t - now) / approach_ms, 0.0, 1.0));
+        const float k = Progress(t, now, approach_ms);
         const auto& p = this->lane[size_t(lane)];
         x = center[0] + (p[0] - center[0]) * k;
         y = center[1] + (p[1] - center[1]) * k;
-        size = kNoteSize * (0.2f + 0.8f * k);
+        size = kNoteSize * (kNoteStart + (1 - kNoteStart) * k);
+    }
+    // A hold tail's size: it narrows toward the centre circle much more than a note does (the band is about 35 px wide
+    // at the mic in 1280 px frames), so it keeps the steeper G3 curve
+    static float TailSize(double t, double now, double approach_ms) {
+        return kNoteSize * (0.2f + 0.8f * Progress(t, now, approach_ms));
     }
     // Hold bands (shadPS4 frames, analysis/202611072212-gameplay-feedback/): common_tex connect_note, a flat grey strip,
     // stretched from the note head back to the tail as a band that tapers with the path (as wide as the end disc at
@@ -194,6 +210,7 @@ struct Playfield {
             float hx, hy, hs, tx, ty, ts;
             Path(n.lane, held ? now : n.time_ms, now, approach_ms, hx, hy, hs);
             Path(n.lane, n.end_ms, now, approach_ms, tx, ty, ts);
+            ts = TailSize(n.end_ms, now, approach_ms);
             const float dx = hx - tx, dy = hy - ty, len = std::hypot(dx, dy);
             const float nx = len > 0 ? -dy / len : 0, ny = len > 0 ? dx / len : 1;  // across the band
             const float wh = hs * kBandWidth / 2, wt = ts * kBandWidth / 2;
@@ -731,11 +748,11 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                     at(n.lane, judge.Held(i) ? now : n.time_ms, x, y, size);
                     field.DrawNote(renderer, n.lane, x, y, size, 1.0f, judge.finale && n.time_ms >= chart.finale_ms);
                     // a simultaneous note wears the brackets, orange and blue by turns per group; a held one keeps them
-                    // on its ring (the user's "vertical line"). The cell's ring-to-bracket ratio is 1.21, the game
-                    // frames show about 1.41, so the cell is drawn 1.17x the note (measured, analysis 202611082103)
+                    // on its ring (the user's "vertical line"), drawn kBracketScale x the note
                     if (n.icon) field.Draw(renderer, field.icon_mark, field.atlas, x, y, size, {1, 1, 1, 1});
                     if (n.group >= 0) {
-                        field.Draw(renderer, field.bracket[size_t(n.group % 2)], field.atlas, x, y, size * 1.17f, {1, 1, 1, 1});
+                        field.Draw(renderer, field.bracket[size_t(n.group % 2)], field.atlas, x, y,
+                                   size * Playfield::kBracketScale, {1, 1, 1, 1});
                     }
                     if (judge.Held(i)) {  // a held long note: a glowing ring over it, pulsing (pulse rate is a guess)
                         const auto& p = field.lane[size_t(n.lane)];
