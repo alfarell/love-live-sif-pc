@@ -155,14 +155,15 @@ struct Playfield {
     // Hold bands (shadPS4 frames, analysis/202611072212-gameplay-feedback/): common_tex connect_note, a flat grey strip,
     // stretched from the note head back to the tail as a band that tapers with the path (as wide as the end disc at
     // the tail, 0.8 of the note ring's pink diameter at each end), drawn at 62% opacity, tinted pink while held; a
-    // white end disc (ui_ingame_common_circle_05's solid core, pink while held) at the tail. Band meshes are rebuilt
-    // each frame before it starts (UpdateMesh needs that)
+    // solid end cap at the tail as wide as the band: ui_ingame_notes (3, 1) white, (4, 1) pink while held (analysis
+    // 202611082306). Band meshes are rebuilt each frame before it starts (UpdateMesh needs that)
     static constexpr float kBandWidth = 0.8f * 150.0f / 256.0f;  // of a note quad
     static constexpr float kBandAlpha = 0.62f;
     static constexpr std::array<float, 4> kHeldTint{1.0f, 0.78f, 0.79f, 1.0f};
-    static constexpr float kDiscCore = 110.0f / 260.0f;  // circle_05: its solid white core within the 260 px texture
+    static constexpr float kCapDisc = 152.0f / 256.0f;  // the cap's opaque disc within its cell
     static constexpr size_t kMaxBands = 32;
-    Texture connect, connect_finale, end_disc;  // connect_finale: common_tex connect_note_finale, for finale holds
+    Texture connect, connect_finale;  // connect_finale: common_tex connect_note_finale, for finale holds
+    std::array<GpuMesh, 2> end_cap;   // white, pink (held)
     std::array<GpuMesh, kMaxBands> band;
     struct Tail {
         float x, y, size;
@@ -173,7 +174,7 @@ struct Playfield {
     bool LoadBands(Renderer& r, const Vfs& vfs) {
         if (!LoadTexture(r, vfs, "common/common.pac/common_tex.pac/connect_note", connect) ||
             !LoadTexture(r, vfs, "common/common.pac/common_tex.pac/connect_note_finale", connect_finale) ||
-            !LoadTexture(r, vfs, "ui/ui_ingame.pac/texture.pac/ui_ingame_common_circle_05", end_disc)) {
+            !Cell(r, 3, 1, end_cap[0]) || !Cell(r, 4, 1, end_cap[1])) {
             return false;
         }
         const MeshVertex v[4]{};
@@ -211,8 +212,8 @@ struct Playfield {
         for (size_t b = 0; b < bands; ++b) {
             const std::array<float, 4> tint = tails[b].held ? kHeldTint : std::array<float, 4>{1, 1, 1, 1};
             r.DrawUiMesh(band[b], tails[b].finale ? &connect_finale : &connect, to_clip, {tint[0], tint[1], tint[2], kBandAlpha});
-            const float disc = tails[b].size * kBandWidth / kDiscCore;
-            Draw(r, corner_centered, end_disc, tails[b].x, tails[b].y, disc, tint);
+            Draw(r, end_cap[tails[b].held ? 1 : 0], atlas, tails[b].x, tails[b].y, tails[b].size * kBandWidth / kCapDisc,
+                 {1, 1, 1, 1});
         }
     }
     GpuMesh corner_centered;  // centred unit quad over a whole texture
@@ -395,12 +396,12 @@ struct Playfield {
              kLabelY1 - kLabelY0, {1, 1, 1, alpha});
     }
     void Release(Renderer& r) {
-        for (Texture* t : {&atlas, &mark, &center_gauge, &center_mic, &combo_tex, &connect, &connect_finale, &end_disc}) r.Release(*t);
+        for (Texture* t : {&atlas, &mark, &center_gauge, &center_mic, &combo_tex, &connect, &connect_finale}) r.Release(*t);
         for (GpuMesh& m : band) r.Release(m);
         r.Release(corner_centered);
         for (auto& [name, t] : fad_textures) r.Release(t);
         r.Release(corner);
-        for (GpuMesh* m : {&indicator, &note_ring, &note_fill, &combo_label, &gauge_fan, &bracket[0], &bracket[1], &icon_mark, &finale_disc}) r.Release(*m);
+        for (GpuMesh* m : {&indicator, &note_ring, &note_fill, &combo_label, &gauge_fan, &bracket[0], &bracket[1], &icon_mark, &finale_disc, &end_cap[0], &end_cap[1]}) r.Release(*m);
         for (GpuMesh& m : icon) r.Release(m);
         for (GpuMesh& m : note_icon) r.Release(m);
         r.Release(hold_glow);
