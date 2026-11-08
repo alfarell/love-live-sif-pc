@@ -52,6 +52,14 @@ void Judge::Reset(const Chart& chart, const WindowSet& windows, const ScoreRules
     counts = {};
     combo = max_combo = 0;
     score = 0;
+    icons = 0;
+    finale = finale_checked_ = false;
+}
+
+void Judge::CheckFinale(double now) {
+    if (finale_checked_ || chart_->finale_ms < 0 || now < chart_->finale_ms) return;
+    finale_checked_ = true;
+    finale = icons >= kFinaleIcons;
 }
 
 Grade Judge::Classify(const Windows& w, double dt) const {
@@ -67,14 +75,16 @@ Grade Judge::Classify(const Windows& w, double dt) const {
 void Judge::Record(int note, bool release, Grade grade, double offset) {
     log_.push_back({note, release, grade, offset});
     ++counts[size_t(grade)];
-    AddPoints(1.0, grade);
+    if (!release && grade != Grade::Miss && chart_->notes[size_t(note)].icon) ++icons;
+    AddPoints(size_t(note), 1.0, grade);
     combo = KeepsCombo(grade) ? combo + 1 : 0;
     if (combo > max_combo) max_combo = combo;
 }
 
-void Judge::AddPoints(double note_fraction, Grade grade, int count) {
+void Judge::AddPoints(size_t note, double note_fraction, Grade grade, int count) {
+    const double finale_factor = finale && chart_->notes[note].time_ms >= chart_->finale_ms ? rules_.finale_multiplier : 1.0;
     // std::round is half away from zero, like the eboot's sign/floor(|x| + 0.5)
-    const double each = std::round(rules_.multiplier * note_fraction * kWeight[int(grade)] * kBasePoints);
+    const double each = std::round(rules_.multiplier * finale_factor * note_fraction * kWeight[int(grade)] * kBasePoints);
     score = std::min(kMaxScore, score + each * count);
 }
 
@@ -85,12 +95,13 @@ void Judge::Ticks(size_t i, double now) {
     now = std::min(now, chart_->notes[i].end_ms);
     while (h.ticked < h.ticks && now - h.press_ms - (h.ticked + 1) * rules_.tick_ms > 0) {
         ++h.ticked;
-        AddPoints(rules_.tick_rate, h.press);  // ticks score with the press grade; no combo or count change
+        AddPoints(i, rules_.tick_rate, h.press);  // ticks score with the press grade; no combo or count change
     }
 }
 
 void Judge::Press(int lane, double t) {
     if (!chart_ || lane < 0 || lane >= kLanes || holding_[size_t(lane)] >= 0) return;
+    CheckFinale(t);
     // the earliest pending note of the lane that is inside its press window
     for (size_t i = 0; i < chart_->notes.size(); ++i) {
         const Note& n = chart_->notes[i];
@@ -116,6 +127,7 @@ void Judge::Release(int lane, double t) {
     if (!chart_ || lane < 0 || lane >= kLanes) return;
     const int i = holding_[size_t(lane)];
     if (i < 0) return;
+    CheckFinale(t);
     Ticks(size_t(i), t);
     holding_[size_t(lane)] = -1;
     state_[size_t(i)] = State::Done;
@@ -125,11 +137,12 @@ void Judge::Release(int lane, double t) {
     Record(i, true, g, dt);
     // a Perfect or Great release awards the ticks not yet given, at the release grade (eboot 0x9ECC0)
     Hold& h = holds_[size_t(i)];
-    if (g <= Grade::Great) AddPoints(rules_.tick_rate, g, h.ticks - h.ticked);
+    if (g <= Grade::Great) AddPoints(size_t(i), rules_.tick_rate, g, h.ticks - h.ticked);
 }
 
 void Judge::Update(double now) {
     if (!chart_) return;
+    CheckFinale(now);
     for (size_t i = 0; i < chart_->notes.size(); ++i) {
         const Note& n = chart_->notes[i];
         if (state_[i] == State::Pending && now - n.time_ms > win_.press.LateLimit()) {
@@ -159,7 +172,7 @@ double Judge::MaxScore() const {
 
 double Judge::ClearRate() const {
     const double max = MaxScore();
-    return max > 0 ? score / max + 1e-5 : 0;
+    return max > 0 ? std::min(score / max + 1e-5, rules_.rank_rates.back()) : 0;
 }
 
 int Judge::Rank() const {

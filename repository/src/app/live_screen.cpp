@@ -26,7 +26,6 @@
 #include "engine/ui/ui_screen.h"
 #include "engine/render/renderer.h"
 #include "engine/render/scene_model.h"
-#include "game/live/finale.h"
 #include "game/live/song.h"
 
 namespace sif {
@@ -77,6 +76,7 @@ struct Playfield {
     Texture atlas, mark, center_gauge, center_mic, combo_tex;
     GpuMesh indicator, note_ring, note_fill, combo_label, gauge_fan;
     std::array<GpuMesh, 2> bracket;  // simultaneous-note brackets: orange (3, 3), blue (4, 3)
+    GpuMesh finale_disc;  // the finale note's yellow disc: star (0, 1), anchor (1, 1) or snowman (2, 1) by group
     GpuMesh icon_mark;  // the Finale Rhythm Icon on a note: two stars (3, 2), anchors (4, 2) or snowmen (0, 3) by group
     // button icons per PadButton: rows 1-3 of the mark atlas, and the smaller shoulder icons of row 4 (used on notes;
     // Hypothesis: row 3 on indicators, row 4 on notes, from their sizes on screen)
@@ -162,16 +162,17 @@ struct Playfield {
     static constexpr std::array<float, 4> kHeldTint{1.0f, 0.78f, 0.79f, 1.0f};
     static constexpr float kDiscCore = 110.0f / 260.0f;  // circle_05: its solid white core within the 260 px texture
     static constexpr size_t kMaxBands = 32;
-    Texture connect, end_disc;
+    Texture connect, connect_finale, end_disc;  // connect_finale: common_tex connect_note_finale, for finale holds
     std::array<GpuMesh, kMaxBands> band;
     struct Tail {
         float x, y, size;
-        bool held;
+        bool held, finale;
     };
     std::array<Tail, kMaxBands> tails{};
     size_t bands = 0;
     bool LoadBands(Renderer& r, const Vfs& vfs) {
         if (!LoadTexture(r, vfs, "common/common.pac/common_tex.pac/connect_note", connect) ||
+            !LoadTexture(r, vfs, "common/common.pac/common_tex.pac/connect_note_finale", connect_finale) ||
             !LoadTexture(r, vfs, "ui/ui_ingame.pac/texture.pac/ui_ingame_common_circle_05", end_disc)) {
             return false;
         }
@@ -201,7 +202,7 @@ struct Playfield {
                                      {{hx - nx * wh, -(hy - ny * wh), 0}, {0, 0, 1}, {1, 0.45f}},
                                      {{hx + nx * wh, -(hy + ny * wh), 0}, {0, 0, 1}, {0, 0.45f}}};
             r.UpdateMesh(band[bands], v);
-            tails[bands++] = {tx, ty, ts, held};
+            tails[bands++] = {tx, ty, ts, held, judge.finale && n.time_ms >= chart.finale_ms};
         }
     }
     // The bands and their end discs, under the notes
@@ -209,15 +210,16 @@ struct Playfield {
         const Mat4 to_clip = UiScreen::CanvasToClip(r.Width(), r.Height());
         for (size_t b = 0; b < bands; ++b) {
             const std::array<float, 4> tint = tails[b].held ? kHeldTint : std::array<float, 4>{1, 1, 1, 1};
-            r.DrawUiMesh(band[b], &connect, to_clip, {tint[0], tint[1], tint[2], kBandAlpha});
+            r.DrawUiMesh(band[b], tails[b].finale ? &connect_finale : &connect, to_clip, {tint[0], tint[1], tint[2], kBandAlpha});
             const float disc = tails[b].size * kBandWidth / kDiscCore;
             Draw(r, corner_centered, end_disc, tails[b].x, tails[b].y, disc, tint);
         }
     }
     GpuMesh corner_centered;  // centred unit quad over a whole texture
     // A normal note: fill (its cell has 40% alpha built in), ring, then the lane's icons; `size` is its quad
-    void DrawNote(Renderer& r, int lane, float x, float y, float size, float alpha) const {
-        Draw(r, note_fill, atlas, x, y, size, {1, 1, 1, alpha});
+    // `finale`: a note of the finale section, on the yellow group disc instead of the pink fill (shadPS4 run 1)
+    void DrawNote(Renderer& r, int lane, float x, float y, float size, float alpha, bool finale = false) const {
+        Draw(r, finale ? finale_disc : note_fill, atlas, x, y, size, {1, 1, 1, alpha});
         Draw(r, note_ring, atlas, x, y, size, {1, 1, 1, alpha});
         DrawIcons(r, lane, x, y, size / kCell, true);
     }
@@ -302,7 +304,7 @@ struct Playfield {
                  Cell(r, 1, 0, note_ring) && Cell(r, 2, 0, note_fill) && LoadGauge(r) &&
                  LoadTexture(r, vfs, "ui/ui_ingame.pac/texture.pac/ui_ingame_longnote_circle_01", hold_glow) &&
                  Cell(r, 3, 3, bracket[0]) && Cell(r, 4, 3, bracket[1]) &&
-                 Cell(r, group == 2 ? 0 : 3 + group, group == 2 ? 3 : 2, icon_mark);
+                 Cell(r, group == 2 ? 0 : 3 + group, group == 2 ? 3 : 2, icon_mark) && Cell(r, group, 1, finale_disc);
         if (!loaded) LogWarn("live: game play field not loaded; drawing the placeholder lanes");
         if (loaded && !LoadCombo(r, vfs)) LogWarn("live: combo digits not loaded");
         if (loaded && !LoadJudgeTexts(r, vfs)) LogWarn("live: judgement texts not loaded");
@@ -393,12 +395,12 @@ struct Playfield {
              kLabelY1 - kLabelY0, {1, 1, 1, alpha});
     }
     void Release(Renderer& r) {
-        for (Texture* t : {&atlas, &mark, &center_gauge, &center_mic, &combo_tex, &connect, &end_disc}) r.Release(*t);
+        for (Texture* t : {&atlas, &mark, &center_gauge, &center_mic, &combo_tex, &connect, &connect_finale, &end_disc}) r.Release(*t);
         for (GpuMesh& m : band) r.Release(m);
         r.Release(corner_centered);
         for (auto& [name, t] : fad_textures) r.Release(t);
         r.Release(corner);
-        for (GpuMesh* m : {&indicator, &note_ring, &note_fill, &combo_label, &gauge_fan, &bracket[0], &bracket[1], &icon_mark}) r.Release(*m);
+        for (GpuMesh* m : {&indicator, &note_ring, &note_fill, &combo_label, &gauge_fan, &bracket[0], &bracket[1], &icon_mark, &finale_disc}) r.Release(*m);
         for (GpuMesh& m : icon) r.Release(m);
         for (GpuMesh& m : note_icon) r.Release(m);
         r.Release(hold_glow);
@@ -691,7 +693,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
             // uip0003_FFmark: nine 68 px cells of ingame_ffmark_<group> (4 x 2); each collected icon lights the next
             // letter of L O V E L I V E !, the rest show the grey symbol (0, 0)
             static constexpr int kLetter[9][2] = {{1, 0}, {2, 0}, {3, 0}, {0, 1}, {1, 0}, {1, 1}, {3, 0}, {0, 1}, {2, 1}};
-            const int lit = live::CollectedIcons(chart, judge);
+            const int lit = judge.icons;
             for (int k = 0; k < 9; ++k) {
                 hud.SetMaterialUv("uil0001_Ingame00/uip0003_FFmark", "M_FFmark_0" + std::to_string(k),
                                   k < lit ? 0.25f * float(kLetter[k][0]) : 0, k < lit ? 0.5f * float(kLetter[k][1]) : 0);
@@ -729,7 +731,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                     if (!judge.Active(i) || n.time_ms - now > opt.approach_ms) continue;
                     float x, y, size;
                     at(n.lane, judge.Held(i) ? now : n.time_ms, x, y, size);
-                    field.DrawNote(renderer, n.lane, x, y, size, 1.0f);
+                    field.DrawNote(renderer, n.lane, x, y, size, 1.0f, judge.finale && n.time_ms >= chart.finale_ms);
                     // a simultaneous note wears the brackets, orange and blue by turns per group; a held one keeps them
                     // on its ring (the user's "vertical line"). The cell's ring-to-bracket ratio is 1.21, the game
                     // frames show about 1.41, so the cell is drawn 1.17x the note (measured, analysis 202611082103)

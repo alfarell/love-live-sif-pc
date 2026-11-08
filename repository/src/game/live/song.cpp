@@ -60,6 +60,7 @@ bool LoadScoreRules(const Vfs& vfs, int id, int variant, ScoreRules& out, std::s
         const int level = std::clamp(At<int32_t>(datas, r + 0x14), 0, 8);  // clamped like eboot 0xCA910
         out.multiplier = At<float>(param, 0xD0 + size_t(level) * 4);
         out.tick_rate = At<float>(param, 0x128);
+        out.finale_multiplier = At<float>(param, 0x120);
         out.tick_ms = int(At<float>(param, 0x130) * 1000.0f);
         for (size_t k = 0; k < out.rank_rates.size(); ++k) out.rank_rates[k] = At<float>(param, 0x138 + k * 4);
         return true;

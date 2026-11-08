@@ -5,7 +5,6 @@
 #include <string>
 
 #include "game/live/chart.h"
-#include "game/live/finale.h"
 #include "game/live/judge.h"
 #include "game/live/song.h"
 #include "engine/fs/vfs.h"
@@ -105,7 +104,7 @@ static void Real(const char* root) {
     Check(p.counts[1] + p.counts[2] + p.counts[3] + p.counts[4] == 0, "song 0010 autoplay: all Perfect");
     Check(song.rules.multiplier == 3.0f && song.rules.tick_ms == 41, "song 0010/04 (ac_challenge): multiplier 3.0");
     Check(song.rules.rank_rates[0] == 0.45f && song.rules.rank_rates[5] == 1.2f, "rank thresholds read (+0x138..+0x14C)");
-    Check(p.MaxScore() == p.score, "song 0010/04: all Perfect = maximum score");
+    Check(p.finale && p.score > p.MaxScore(), "song 0010/04: all Perfect with the finale passes the maximum (finale points x3)");
     Check(song.group == 0, "song 0010: group 0 (mu's)");
     Check(song.dance_start_frame == 972, "song 0010: music starts at dance frame 972 (s_music_datas +0x104)");
     std::printf("song 0010/04 all Perfect: score %.0f\n", p.score);
@@ -127,8 +126,17 @@ static void Real(const char* root) {
               std::abs(normal.chart.finale_ms - 108700) < 500,
           "song 0340: phase 1 and finale times from channel 5");
     const Judge all = Autoplay(normal.chart, w, 0, 0, normal.rules);
-    Check(CollectedIcons(normal.chart, all) == kFinaleIcons, "autoplay collects all nine icons");
-    Check(CollectedIcons(normal.chart, Autoplay(normal.chart, w, 1000)) == 0, "no hit, no icon");
+    Check(all.icons == kFinaleIcons && all.finale, "autoplay collects all nine icons and plays the finale");
+    Check(Autoplay(normal.chart, w, 1000).icons == 0, "no hit, no icon");
+    Check(normal.rules.finale_multiplier == 3.0f, "finale multiplier 3.0 (s_CommonParam +0x120)");
+    // the same play without the finale (icons taken off): every point before the finale is equal, after it x3
+    Chart plain = normal.chart;
+    for (Note& n : plain.notes) n.icon = false;
+    const Judge no_finale = Autoplay(plain, w, 0, 0, normal.rules);
+    Check(!no_finale.finale && no_finale.score == no_finale.MaxScore(), "no icons: no finale, all Perfect = maximum");
+    std::printf("song 0340/01 all Perfect: %.0f without the finale, %.0f with it (clear rate %.3f); game run 1: HUD 49865\n",
+                no_finale.score, all.score, all.ClearRate());
+    Check(all.score > no_finale.score && all.ClearRate() <= 1.2, "the finale raises the score; clear rate capped at 1.2");
     std::vector<SongInfo> list;
     Check(LoadSongList(vfs, 1, list), "song list");
     for (const SongInfo& i : list) {

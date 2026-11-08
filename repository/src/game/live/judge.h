@@ -42,7 +42,14 @@ struct ScoreRules {
     // +0x138..+0x14C: clear-rate thresholds (score / maximum score) of the ranks above the lowest (eboot 0xAAC50);
     // the letters (C, B, A, S, then two above S) are a Hypothesis
     std::array<double, 6> rank_rates{0.45, 0.65, 0.825, 0.925, 1.025, 1.2};
+    // +0x120: notes of the finale section score this many times their points (measured about x3 in shadPS4, G0;
+    // Hypothesis: eboot check 0x93D00 is "finale active")
+    double finale_multiplier = 3.0;
 };
+
+// Finale Rhythm Icons (analysis/202611072212-gameplay-feedback/): nine notes per play carry an icon (Note::icon); each
+// one pressed better than Miss lights the next LOVELIVE! letter, and all nine by Chart::finale_ms start the finale.
+constexpr int kFinaleIcons = 9;
 
 struct Judgement {
     int note = -1;
@@ -64,6 +71,7 @@ public:
     // capped like the score (eboot 0xA94F0)
     double MaxScore() const;
     // score / MaxScore() (+1e-5, as eboot 0xAAC50) and the rank index: 0 below rank_rates[0], k above rank_rates[k-1]
+    // capped at the top rank threshold (the game shows 120.0% for a finale score 1.48x the maximum, G0)
     double ClearRate() const;
     int Rank() const;
     bool Active(size_t note) const { return note < state_.size() && state_[note] != State::Done; }  // still drawn
@@ -73,11 +81,18 @@ public:
     std::array<int, kGrades> counts{};
     int combo = 0, max_combo = 0;
     double score = 0;  // game points: judgements plus hold ticks (see judge.cpp)
+    int icons = 0;       // icon notes pressed better than Miss. shortcut: a missed icon only leaves its letter unlit;
+                         // whether it alone cancels the finale is unknown (G0 Q5)
+    // The finale section is running: decided once, at Chart::finale_ms, from `icons`. Notes from that time on score
+    // x finale_multiplier. MaxScore() stays without it (Hypothesis), so the clear rate can pass 1.0.
+    bool finale = false;
 
 private:
     enum class State { Pending, Holding, Done };
     void Record(int note, bool release, Grade grade, double offset);
-    void AddPoints(double note_fraction, Grade grade, int count = 1);
+    void AddPoints(size_t note, double note_fraction, Grade grade, int count = 1);
+    void CheckFinale(double now);
+    bool finale_checked_ = false;
     void Ticks(size_t note, double now);
 
     struct Hold { Grade press = Grade::Miss; double press_ms = 0; int ticks = 0, ticked = 0; };
