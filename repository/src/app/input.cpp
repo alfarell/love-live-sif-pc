@@ -93,6 +93,7 @@ bool PadSlotsFromText(const std::string& text, PadSlots& out) {
 }
 
 void SetPadSlots(const PadSlots& slots) { g_slots = slots; }
+const PadSlots& CurrentPadSlots() { return g_slots; }
 
 void SetPadLayout(PadLayout layout) { g_layout = layout; }
 

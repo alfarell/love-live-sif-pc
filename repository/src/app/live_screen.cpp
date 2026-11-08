@@ -64,14 +64,21 @@ struct Layout {
 };
 
 // The game's play field (ui/ui_ingame.pac): positions from layout.pac/ui_ingame_layout.bin (BLBN "layout_datas",
-// 32-byte records: u32, u32, u64 name*, f32 rect x0 y0 x1 y1 in 1920 x 1080 pixels), sprites from the 5 x 6 atlas
-// texture.pac/ui_ingame_notes (256-pixel cells). shortcut: which atlas cell the game uses for buttons, notes and
-// holds is not traced (the eboot's note drawing and the .fad animations are not decoded); the cells below are
-// picked by eye
+// 32-byte records: u32, u32, u64 name*, f32 rect x0 y0 x1 y1 in 1920 x 1080 pixels), sprites from two atlases of
+// 256-pixel cells: texture.pac/ui_ingame_notes (5 x 6: note ring, fill, finale discs, brackets ...) and
+// texture.pac/ui_ingame_judgering_all_mark (4 x 5: the indicator ring and the button icons). Cells and sizes were
+// matched to shadPS4 frames (analysis/202611072212-gameplay-feedback/): the indicator cell draws 1:1 (its orange ring
+// is 177 px in the cell and on screen), a note arrives at 0.95 of a cell, icons share their base's scale
 struct Playfield {
-    static constexpr float kCell = 256, kAtlasW = 1280, kAtlasH = 1536;
-    Texture atlas, center_gauge, center_mic, combo_tex;
-    GpuMesh ring, note, trail, combo_label, gauge_fan, bar;
+    static constexpr float kCell = 256, kAtlasW = 1280, kAtlasH = 1536, kMarkW = 1024, kMarkH = 1280;
+    static constexpr float kNoteSize = 0.95f * kCell;  // a note's quad when it reaches its indicator
+    static constexpr float kIconGap = 30;               // two icons in one lane (→ □): centres ±30 px at 1:1
+    Texture atlas, mark, center_gauge, center_mic, combo_tex;
+    GpuMesh indicator, note_ring, note_fill, trail, combo_label, gauge_fan, bar;
+    // button icons per PadButton: rows 1-3 of the mark atlas, and the smaller shoulder icons of row 4 (used on notes;
+    // Hypothesis: row 3 on indicators, row 4 on notes, from their sizes on screen)
+    std::array<GpuMesh, size_t(PadButton::Count)> icon, note_icon;
+    std::array<std::vector<PadButton>, kLanes> lane_buttons;  // the pad buttons of each lane (Button Controls)
     Texture hold_glow;  // ui_ingame_longnote_circle_01: a glowing ring (240 px; the ring is about 0.71 of it)
     float gauge_progress = 0;
     std::array<GpuMesh, 10> digits;
@@ -101,6 +108,44 @@ struct Playfield {
     static bool Cell(Renderer& r, int col, int row, GpuMesh& out) {
         return Quad(r, col * kCell / kAtlasW, row * kCell / kAtlasH, (col + 1) * kCell / kAtlasW,
                     (row + 1) * kCell / kAtlasH, out);
+    }
+    static bool MarkCell(Renderer& r, int col, int row, GpuMesh& out) {
+        return Quad(r, col * kCell / kMarkW, row * kCell / kMarkH, (col + 1) * kCell / kMarkW,
+                    (row + 1) * kCell / kMarkH, out);
+    }
+    // The mark atlas cell of a button: rows 1-2 in PadButton order (↑ ← ↓ →, △ □ × ○), row 3 L1 L2 R2 R1; `small`
+    // takes row 4 (the same shoulder icons, smaller) for L1-R2
+    static std::array<int, 2> IconCell(PadButton b, bool small) {
+        const int i = int(b);
+        if (i < 8) return {i % 4, 1 + i / 4};
+        static constexpr int kShoulderCol[4] = {0, 1, 3, 2};  // L1 L2 R1 R2
+        return {kShoulderCol[i - 8], small ? 4 : 3};
+    }
+    bool LoadIcons(Renderer& r) {
+        for (int b = 0; b < int(PadButton::Count); ++b) {
+            const auto big = IconCell(PadButton(b), false), small = IconCell(PadButton(b), true);
+            if (!MarkCell(r, big[0], big[1], icon[size_t(b)]) || !MarkCell(r, small[0], small[1], note_icon[size_t(b)])) {
+                return false;
+            }
+        }
+        const PadSlots& slots = CurrentPadSlots();
+        for (int s = 0; s < kPadSlots; ++s) lane_buttons[size_t(kLaneOfSlot[size_t(s)])].push_back(slots[size_t(s)]);
+        return true;
+    }
+    // The lane's button icons centred at (x, y), `scale` of their 1:1 size
+    void DrawIcons(Renderer& r, int lane, float x, float y, float scale, bool on_note) const {
+        const auto& buttons = lane_buttons[size_t(lane)];
+        const float step = kIconGap * scale * 2, left = x - step * float(buttons.size() - 1) / 2;
+        for (size_t i = 0; i < buttons.size(); ++i) {
+            const GpuMesh& m = (on_note ? note_icon : icon)[size_t(buttons[i])];
+            Draw(r, m, mark, left + step * float(i), y, kCell * scale, {1, 1, 1, 1});
+        }
+    }
+    // A normal note: fill (its cell has 40% alpha built in), ring, then the lane's icons; `size` is its quad
+    void DrawNote(Renderer& r, int lane, float x, float y, float size, float alpha) const {
+        Draw(r, note_fill, atlas, x, y, size, {1, 1, 1, alpha});
+        Draw(r, note_ring, atlas, x, y, size, {1, 1, 1, alpha});
+        DrawIcons(r, lane, x, y, size / kCell, true);
     }
     // ui_ingame_combo_num (840 x 200): digits 0-9 in 84 x 100 cells on the top row, the "COMBO" label below
     // (measured from the alpha: about (0, 136)-(184, 196))
@@ -144,9 +189,10 @@ struct Playfield {
         const auto v = FanVertices(progress);
         r.UpdateMesh(gauge_fan, v);
     }
-    // `group`: the song's group (0 mu's, 1 Aqours, 2 Saint Snow) picks the note face of atlas row 1: star, anchor or
-    // snowman (Hypothesis from the faces and the group field; the game's choice is not traced)
-    bool Load(Renderer& r, const Vfs& vfs, int group) {
+    // `group`: the song's group (0 mu's, 1 Aqours, 2 Saint Snow), kept for the finale and icon looks (M7.5 G5-G6)
+    int group = 0;
+    bool Load(Renderer& r, const Vfs& vfs, int song_group) {
+        group = std::clamp(song_group, 0, 2);
         std::vector<uint8_t> file;
         std::vector<blbn::Symbol> symbols;
         if (!vfs.Read("ui/ui_ingame.pac/layout.pac/ui_ingame_layout.bin", file) || !blbn::Parse(file, symbols)) return false;
@@ -173,11 +219,13 @@ struct Playfield {
             }
         }
         loaded = LoadTexture(r, vfs, "ui/ui_ingame.pac/texture.pac/ui_ingame_notes", atlas) &&
+                 LoadTexture(r, vfs, "ui/ui_ingame.pac/texture.pac/ui_ingame_judgering_all_mark", mark) &&
+                 MarkCell(r, 0, 0, indicator) && LoadIcons(r) &&
                  // the HUD song gauge's own colour ring (ui2/90_ingame part uip0006_Songgage, 188 px), so the fill
                  // lines up with the HUD's track
                  LoadTexture(r, vfs, "ui2/90_ingame.pac/uip0006_Songgage.pac/texture.pac/IngamesonggageCol.btx", center_gauge) &&
                  LoadTexture(r, vfs, "ui/ui_ingame.pac/texture.pac/ui_ingame_centercircle_mic_aq", center_mic) &&
-                 Cell(r, 1, 0, ring) && Cell(r, std::clamp(group, 0, 2), 1, note) && Cell(r, 2, 0, trail) && LoadGauge(r) &&
+                 Cell(r, 1, 0, note_ring) && Cell(r, 2, 0, note_fill) && Cell(r, 2, 0, trail) && LoadGauge(r) &&
                  LoadTexture(r, vfs, "ui/ui_ingame.pac/texture.pac/ui_ingame_longnote_circle_01", hold_glow) &&
                  // the orange bar of atlas cell (1, 3): x 71-188, y 112-144 of the 256 px cell
                  Quad(r, (kCell + 71) / kAtlasW, (3 * kCell + 112) / kAtlasH, (kCell + 188) / kAtlasW,
@@ -283,10 +331,12 @@ struct Playfield {
              kLabelY1 - kLabelY0, {1, 1, 1, 1});
     }
     void Release(Renderer& r) {
-        for (Texture* t : {&atlas, &center_gauge, &center_mic, &combo_tex}) r.Release(*t);
+        for (Texture* t : {&atlas, &mark, &center_gauge, &center_mic, &combo_tex}) r.Release(*t);
         for (auto& [name, t] : fad_textures) r.Release(t);
         r.Release(corner);
-        for (GpuMesh* m : {&ring, &note, &trail, &combo_label, &gauge_fan, &bar}) r.Release(*m);
+        for (GpuMesh* m : {&indicator, &note_ring, &note_fill, &trail, &combo_label, &gauge_fan, &bar}) r.Release(*m);
+        for (GpuMesh& m : icon) r.Release(m);
+        for (GpuMesh& m : note_icon) r.Release(m);
         r.Release(hold_glow);
         for (GpuMesh& m : digits) r.Release(m);
     }
@@ -588,7 +638,8 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                 field.Draw(renderer, unit_quad, field.center_mic, field.center[0], field.center[1], field.center_size * 0.55f, {1, 1, 1, 1});
                 for (int l = 0; l < kLanes; ++l) {
                     const auto& p = field.lane[size_t(l)];
-                    field.Draw(renderer, field.ring, field.atlas, p[0], p[1], field.ring_size * 1.68f, {1, 1, 1, 1});
+                    field.Draw(renderer, field.indicator, field.mark, p[0], p[1], Playfield::kCell, {1, 1, 1, 1});
+                    field.DrawIcons(renderer, l, p[0], p[1], 1.0f, false);
                     if (now - flash[size_t(l)] < 150) {
                         field.Draw(renderer, field.trail, field.atlas, p[0], p[1], field.ring_size * 2.0f, grade_tint(l));
                     }
@@ -605,7 +656,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                     const auto& p = field.lane[size_t(lane)];
                     x = field.center[0] + (p[0] - field.center[0]) * k;
                     y = field.center[1] + (p[1] - field.center[1]) * k;
-                    size = field.ring_size * 1.68f * (0.2f + 0.8f * k);  // the atlas cell has a margin round the art
+                    size = Playfield::kNoteSize * (0.2f + 0.8f * k);
                 };
                 // notes due at the same moment are joined by a bar under them (shortcut: the orange bar of atlas row 3
                 // and this rule are guesses from how SIF looks; the game's note drawing is not traced)
@@ -633,10 +684,10 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                             field.Draw(renderer, field.trail, field.atlas, x, y, size * 0.7f, {1, 1, 1, 0.45f});
                         }
                         at(n.lane, n.end_ms, x, y, size);
-                        field.Draw(renderer, field.note, field.atlas, x, y, size * 0.8f, {1, 1, 1, 0.8f});
+                        field.Draw(renderer, field.note_fill, field.atlas, x, y, size * 0.8f, {1, 1, 1, 1});  // G3 replaces this
                     }
                     at(n.lane, judge.Held(i) ? now : n.time_ms, x, y, size);
-                    field.Draw(renderer, field.note, field.atlas, x, y, size, {1, 1, 1, 1});
+                    field.DrawNote(renderer, n.lane, x, y, size, 1.0f);
                     if (judge.Held(i)) {  // a held long note: a glowing ring over it, pulsing (pulse rate is a guess)
                         const auto& p = field.lane[size_t(n.lane)];
                         const float pulse = float(0.7 + 0.3 * std::sin(now / 60.0));

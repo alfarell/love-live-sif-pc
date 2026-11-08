@@ -27,6 +27,7 @@ PadSlots DefaultPadSlots();
 std::string PadSlotsToText(const PadSlots& slots);               // "L2 L1 LEFT ..."
 bool PadSlotsFromText(const std::string& text, PadSlots& out);  // false (out unchanged) unless 10 known names
 void SetPadSlots(const PadSlots& slots);
+const PadSlots& CurrentPadSlots();  // the mapping SetPadSlots last set (the defaults before)
 
 // SDL_PollEvent that also opens pads as they connect and delivers a mapped pad button as a key event (same
 // timestamp, so live judgement timing is unchanged). L2/R2 (analog triggers in SDL) count as pressed past half way.
