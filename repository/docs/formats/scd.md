@@ -46,3 +46,18 @@ Status: **structure verified on all 11,589 files** (size and event count consist
 - The note `type` field takes 21 values in `ch1` (mostly 1).
 
 Times in ms are computed through the tempo map.
+
+## Channels 2-5: Finale Rhythm Icons and phases (2026-11-08)
+
+Checked on songs 0010, 0020, 0050 and 0340 (all variants), in the eboot, and in shadPS4. Notes: `analysis/202611072212-gameplay-feedback/202611081816-analysis.md`.
+
+- **`ch2`, `ch3`, `ch4`** each hold 9 tap notes, 3 in each of three phases. Their note type field equals the channel number.
+  - The game loads them like `ch1` (eboot `0x8F670`: channels 1, then 2, 3, 4, 6, 7 from the table at `0x5E7830`).
+  - They are **played as extra notes**: song 0340 Normal has 167 `ch1` notes, and the result counts 194.
+  - In each phase the notes of one channel carry the Finale Rhythm Icon mark (seen: phase 1 `ch2`, phase 2 `ch4`, phase 3 `ch3`). The others are plain.
+- **`ch5`** is a timeline, opened separately (`0x98A50` → `0xABAC0`). It has 10 long notes:
+  - phases 1-3 start with three notes each, at the same time: 60/63/66, then 61/64/67, then 62/65/68;
+  - **note 69 starts the finale section**, which runs to the end of the song.
+
+  Phase times are the same for all variants of a song.
+- `ch6` and `ch7` are also loaded as notes. They were empty in every chart checked.
