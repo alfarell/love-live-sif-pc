@@ -61,3 +61,4 @@ Checked on songs 0010, 0020, 0050 and 0340 (all variants), in the eboot, and in 
 
   Phase times are the same for all variants of a song.
 - `ch6` and `ch7` are also loaded as notes. They were empty in every chart checked.
+- **In the port** (M7.5 G5): `live::LoadSong` appends `ch2`-`ch4` as notes (`Note::channel`), reads `ch5` with `ParseTimeline` (`Chart::phase_ms`, `Chart::finale_ms`) and marks the icon notes with `MarkIcons`. Song 0340 then has 128 (Easy) and 194 (Normal) notes, as on the game's result screens.

@@ -211,6 +211,28 @@ bool LoadSong(const Vfs& vfs, int id, int variant, Song& out, std::string* error
     if (out.chart_name.empty()) return Fail(error, "no chart " + prefix + "*_ch1.scd in " + folder);
     std::vector<uint8_t> scor;
     if (!vfs.Read(std::string(folder) + "/" + out.chart_name, scor, error) || !ParseChart(scor, out.chart, error)) return false;
+    // channels 2-4: the extra notes of the three phases (the game plays them: song 0340 Normal counts 167 + 27);
+    // channel 5: the phase and finale times. A chart without them plays channel 1 alone.
+    const std::string stem = out.chart_name.substr(0, out.chart_name.size() - 8);  // without "_ch1.scd"
+    const auto has = [&](const std::string& name) {
+        return std::any_of(entries.begin(), entries.end(), [&](const pac::ArcEntry& e) { return e.name == name; });
+    };
+    for (int ch = 2; ch <= 5; ++ch) {
+        const std::string name = stem + "_ch" + std::to_string(ch) + ".scd";
+        if (!has(name)) continue;
+        Chart extra;
+        if (!vfs.Read(std::string(folder) + "/" + name, scor, error)) return false;
+        if (ch == 5) {
+            if (!ParseTimeline(scor, out.chart, error)) return false;
+            continue;
+        }
+        if (!ParseChart(scor, extra, error)) return false;
+        for (Note n : extra.notes) {
+            n.channel = ch;
+            out.chart.notes.push_back(n);
+        }
+    }
+    MarkIcons(out.chart);
     return LoadWindows(vfs, out.windows, error) && LoadScoreRules(vfs, id, variant, out.rules, error) &&
            LoadMusicRecord(vfs, id, out, error);
 }

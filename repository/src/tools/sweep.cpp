@@ -2,7 +2,7 @@
 // matched against our own decode of the same cue), then presses the lane keys at chart time + a fixed offset.
 // Run it once per offset against the original game (shadPS4) and against sif.exe; compare which offsets give Perfect.
 // Usage: sif_sweep --game DIR --live ID:VARIANT --offset MS --keys shadps4|port [--window TITLE_PART]
-//        [--post] [--mirror] [--extra] [--tap-ms MS]
+//        [--post] [--mirror] [--tap-ms MS]
 // Times: every press happens at song_start + note audio time (chart time + lead-in) + offset, where song_start is
 // the QPC time at which audio sample 0 of the cue entered the system mix.
 #include <windows.h>  // WIN32_LEAN_AND_MEAN comes from the sif_engine target
@@ -119,14 +119,13 @@ int main(int argc, char** argv) {
     double lane_offset[9];
     bool lane_set[9] = {}, lane_skip[9] = {}, tap_only = false;
     // --post: PostMessage to the window instead of SendInput; --mirror: lane k pressed as 8 - k (the game sometimes
-    // plays a chart mirrored); --extra: also press the notes of chart channels 2-4 (the game plays them as notes)
-    bool post = false, mirror = false, extra = false;
+    // plays a chart mirrored). The notes of chart channels 2-4 are part of the chart (LoadSong).
+    bool post = false, mirror = false;
     double tap_ms = 50;
     for (int i = 1; i < argc; ++i) {
         if (!std::strcmp(argv[i], "--tap-only")) tap_only = true;
         if (!std::strcmp(argv[i], "--post")) post = true;
         if (!std::strcmp(argv[i], "--mirror")) mirror = true;
-        if (!std::strcmp(argv[i], "--extra")) extra = true;
         if (!std::strcmp(argv[i], "--tap-ms") && i + 1 < argc) tap_ms = std::atof(argv[i + 1]);
     }
     for (int i = 1; i + 1 < argc; ++i) {
@@ -166,21 +165,6 @@ int main(int argc, char** argv) {
         return 1;
     }
     std::vector<sif::live::Note> notes = song.chart.notes;
-    if (extra) {
-        for (int ch = 2; ch <= 4; ++ch) {
-            std::string name = song.chart_name;
-            name.replace(name.size() - 8, 8, "_ch" + std::to_string(ch) + ".scd");
-            char folder[64];
-            std::snprintf(folder, sizeof(folder), "live/%04d/%04d.pac/score.pac/", song_id, song_id);
-            std::vector<uint8_t> scor;
-            sif::live::Chart c;
-            if (!vfs.Read(folder + name, scor, &error) || !sif::live::ParseChart(scor, c, &error)) {
-                std::fprintf(stderr, "channel %d: %s\n", ch, error.c_str());
-                return 1;
-            }
-            notes.insert(notes.end(), c.notes.begin(), c.notes.end());
-        }
-    }
     // reference: mono 4 kHz; a 1.5 s segment starting at the first clearly audible second of the cue
     std::vector<float> ref_all;
     Decimator dec_ref{music.rate / kRate};

@@ -5,6 +5,7 @@
 #include <string>
 
 #include "game/live/chart.h"
+#include "game/live/finale.h"
 #include "game/live/judge.h"
 #include "game/live/song.h"
 #include "engine/fs/vfs.h"
@@ -91,7 +92,7 @@ static void Real(const char* root) {
     Check(LoadSong(vfs, 10, 4, song, &error), "load song 0010 variant 04: " + error);
     std::printf("chart %s: %zu notes, lead-in %.0f ms, %.0f BPM, %d skipped\n", song.chart_name.c_str(),
                 song.chart.notes.size(), song.chart.lead_in_ms, song.chart.first_bpm, song.chart.skipped);
-    Check(song.chart.notes.size() == 466 && song.chart.lead_in_ms == 3428, "song 0010/04: 466 notes, lead-in 3428 ms");
+    Check(song.chart.notes.size() == 466 + 27 && song.chart.lead_in_ms == 3428, "song 0010/04: 466 + 27 extra notes, lead-in 3428 ms");
     const WindowSet& w = song.windows;
     Check(w.press.early[0] == 40 && w.press.late[3] == 267 && w.release.late[3] == 333, "windows read from live_params.bin");
     for (double off : {0.0, 30.0, -100.0, 180.0}) {
@@ -111,6 +112,23 @@ static void Real(const char* root) {
     // song 0340 ac_easy: the chart measured on the game's result screens in shadPS4
     Song easy;
     Check(LoadSong(vfs, 340, 0, easy, &error), "load song 0340 variant 00: " + error);
+    // channels 2-4 are played: the game's result counts 101 + 27 = 128 (Easy) and 167 + 27 = 194 (Normal) notes
+    Check(easy.chart.notes.size() == 128, "song 0340/00: 101 + 27 extra notes = 128, got " + std::to_string(easy.chart.notes.size()));
+    Song normal;
+    Check(LoadSong(vfs, 340, 1, normal, &error) && normal.chart.notes.size() == 194, "song 0340/01: 167 + 27 = 194 notes");
+    int icons = 0;
+    for (const Note& n : normal.chart.notes) icons += n.icon;
+    Check(icons == kFinaleIcons, "song 0340/01: nine icon notes, got " + std::to_string(icons));
+    std::printf("song 0340/01 phases %.0f %.0f %.0f ms, finale %.0f ms\n", normal.chart.phase_ms[0], normal.chart.phase_ms[1],
+                normal.chart.phase_ms[2], normal.chart.finale_ms);
+    // G0: finale at audio 108.7 s; phases in order before it
+    const auto& ph = normal.chart.phase_ms;
+    Check(ph[0] > 0 && ph[0] < ph[1] && ph[1] < ph[2] && ph[2] < normal.chart.finale_ms &&
+              std::abs(normal.chart.finale_ms - 108700) < 500,
+          "song 0340: phase 1 and finale times from channel 5");
+    const Judge all = Autoplay(normal.chart, w, 0, 0, normal.rules);
+    Check(CollectedIcons(normal.chart, all) == kFinaleIcons, "autoplay collects all nine icons");
+    Check(CollectedIcons(normal.chart, Autoplay(normal.chart, w, 1000)) == 0, "no hit, no icon");
     std::vector<SongInfo> list;
     Check(LoadSongList(vfs, 1, list), "song list");
     for (const SongInfo& i : list) {

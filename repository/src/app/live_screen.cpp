@@ -26,6 +26,7 @@
 #include "engine/ui/ui_screen.h"
 #include "engine/render/renderer.h"
 #include "engine/render/scene_model.h"
+#include "game/live/finale.h"
 #include "game/live/song.h"
 
 namespace sif {
@@ -76,6 +77,7 @@ struct Playfield {
     Texture atlas, mark, center_gauge, center_mic, combo_tex;
     GpuMesh indicator, note_ring, note_fill, combo_label, gauge_fan;
     std::array<GpuMesh, 2> bracket;  // simultaneous-note brackets: orange (3, 3), blue (4, 3)
+    GpuMesh icon_mark;  // the Finale Rhythm Icon on a note: two stars (3, 2), anchors (4, 2) or snowmen (0, 3) by group
     // button icons per PadButton: rows 1-3 of the mark atlas, and the smaller shoulder icons of row 4 (used on notes;
     // Hypothesis: row 3 on indicators, row 4 on notes, from their sizes on screen)
     std::array<GpuMesh, size_t(PadButton::Count)> icon, note_icon;
@@ -299,7 +301,8 @@ struct Playfield {
                  LoadTexture(r, vfs, "ui/ui_ingame.pac/texture.pac/ui_ingame_centercircle_mic_aq", center_mic) &&
                  Cell(r, 1, 0, note_ring) && Cell(r, 2, 0, note_fill) && LoadGauge(r) &&
                  LoadTexture(r, vfs, "ui/ui_ingame.pac/texture.pac/ui_ingame_longnote_circle_01", hold_glow) &&
-                 Cell(r, 3, 3, bracket[0]) && Cell(r, 4, 3, bracket[1]);
+                 Cell(r, 3, 3, bracket[0]) && Cell(r, 4, 3, bracket[1]) &&
+                 Cell(r, group == 2 ? 0 : 3 + group, group == 2 ? 3 : 2, icon_mark);
         if (!loaded) LogWarn("live: game play field not loaded; drawing the placeholder lanes");
         if (loaded && !LoadCombo(r, vfs)) LogWarn("live: combo digits not loaded");
         if (loaded && !LoadJudgeTexts(r, vfs)) LogWarn("live: judgement texts not loaded");
@@ -395,7 +398,7 @@ struct Playfield {
         r.Release(corner_centered);
         for (auto& [name, t] : fad_textures) r.Release(t);
         r.Release(corner);
-        for (GpuMesh* m : {&indicator, &note_ring, &note_fill, &combo_label, &gauge_fan, &bracket[0], &bracket[1]}) r.Release(*m);
+        for (GpuMesh* m : {&indicator, &note_ring, &note_fill, &combo_label, &gauge_fan, &bracket[0], &bracket[1], &icon_mark}) r.Release(*m);
         for (GpuMesh& m : icon) r.Release(m);
         for (GpuMesh& m : note_icon) r.Release(m);
         r.Release(hold_glow);
@@ -589,6 +592,11 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
         hud.HideInstance("uil0001_Ingame00/uip0008_FinaleON00", true);
         hud.HideNode("IngamesonggageCol", true);  // the play field draws the filled part of this ring
         for (int k = 0; k < 9; ++k) hud.HideInstance("uil0001_Ingame00/uip0007_FFmark_ef_0" + std::to_string(k), true);
+        // the LOVELIVE! marks: the layout's texture is the mu's set; the other groups use their own
+        if (song.group == 1 || song.group == 2) {
+            const std::string tex = std::string("ui2/90_ingame.pac/texture.pac/ingame_ffmark_") + (song.group == 1 ? "aq" : "ss");
+            for (int k = 0; k < 9; ++k) hud.SetMaterialTexture("uil0001_Ingame00/uip0003_FFmark", "M_FFmark_0" + std::to_string(k), tex);
+        }
         std::vector<live::SongInfo> songs;
         const int language = opt.lang == "en" ? 1 : opt.lang == "cn" ? 2 : opt.lang == "tw" ? 3 : 0;
         if (live::LoadSongList(vfs, language, songs)) {
@@ -680,6 +688,14 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
             const std::string gauge = "uil0001_Ingame00/uip0002_Ingame00Topscgage";
             hud.SetMaterialClip(gauge, "M_Ingame00Topscgage", fill);
             hud.SetMaterialUv(gauge, "M_Ingame00Topscgage", 0, 0.125f * float(std::min(judge.Rank(), 4)));
+            // uip0003_FFmark: nine 68 px cells of ingame_ffmark_<group> (4 x 2); each collected icon lights the next
+            // letter of L O V E L I V E !, the rest show the grey symbol (0, 0)
+            static constexpr int kLetter[9][2] = {{1, 0}, {2, 0}, {3, 0}, {0, 1}, {1, 0}, {1, 1}, {3, 0}, {0, 1}, {2, 1}};
+            const int lit = live::CollectedIcons(chart, judge);
+            for (int k = 0; k < 9; ++k) {
+                hud.SetMaterialUv("uil0001_Ingame00/uip0003_FFmark", "M_FFmark_0" + std::to_string(k),
+                                  k < lit ? 0.25f * float(kLetter[k][0]) : 0, k < lit ? 0.5f * float(kLetter[k][1]) : 0);
+            }
         }
         if (field.loaded) {
             field.SetGauge(renderer, float(now / audio_ms));
@@ -717,6 +733,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                     // a simultaneous note wears the brackets, orange and blue by turns per group; a held one keeps them
                     // on its ring (the user's "vertical line"). The cell's ring-to-bracket ratio is 1.21, the game
                     // frames show about 1.41, so the cell is drawn 1.17x the note (measured, analysis 202611082103)
+                    if (n.icon) field.Draw(renderer, field.icon_mark, field.atlas, x, y, size, {1, 1, 1, 1});
                     if (n.group >= 0) {
                         field.Draw(renderer, field.bracket[size_t(n.group % 2)], field.atlas, x, y, size * 1.17f, {1, 1, 1, 1});
                     }

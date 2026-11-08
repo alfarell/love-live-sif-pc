@@ -13,9 +13,8 @@ struct Event {
     uint32_t kind, tick, a, b, c, d;
 };
 
-}
-
-bool ParseChart(std::span<const uint8_t> s, Chart& out, std::string* error) {
+// Every note-on event as (note number, audio ms) goes to `raw` when given (channel 5 uses numbers 60-69).
+bool ParseScor(std::span<const uint8_t> s, Chart& out, std::vector<std::pair<int, double>>* raw, std::string* error) {
     out = {};
     if (s.size() < 0x40 || std::memcmp(s.data(), "Scor", 4) != 0) {
         if (error) *error = "not a Scor chart";
@@ -53,6 +52,7 @@ bool ParseChart(std::span<const uint8_t> s, Chart& out, std::string* error) {
     };
     for (const Event& e : events) {
         if (e.kind != 0) continue;
+        if (raw) raw->push_back({int(e.a), to_ms(e.tick) + out.lead_in_ms});
         const int lane = int(e.a) - kFirstNoteNumber;
         if (lane < 0 || lane >= kLanes) {
             ++out.skipped;
@@ -67,6 +67,40 @@ bool ParseChart(std::span<const uint8_t> s, Chart& out, std::string* error) {
     }
     GroupNotes(out);
     return true;
+}
+
+}
+
+bool ParseChart(std::span<const uint8_t> s, Chart& out, std::string* error) { return ParseScor(s, out, nullptr, error); }
+
+bool ParseTimeline(std::span<const uint8_t> s, Chart& chart, std::string* error) {
+    Chart timeline;
+    std::vector<std::pair<int, double>> raw;
+    if (!ParseScor(s, timeline, &raw, error)) return false;
+    for (const auto& [number, ms] : raw) {
+        if (number >= 60 && number <= 68) {
+            double& p = chart.phase_ms[size_t((number - 60) % 3)];
+            if (p < 0 || ms < p) p = ms;
+        } else if (number == 69) {
+            chart.finale_ms = ms;
+        }
+    }
+    return true;
+}
+
+void MarkIcons(Chart& chart) {
+    std::stable_sort(chart.notes.begin(), chart.notes.end(), [](const Note& a, const Note& b) { return a.time_ms < b.time_ms; });
+    // shortcut: the icon channel per phase (2, 4, 3) is what song 0340 showed in shadPS4 (G0); the game's rule
+    // (eboot 0xABAC0) is not traced
+    constexpr int kIconChannel[3] = {2, 4, 3};
+    for (Note& n : chart.notes) {
+        int phase = -1;
+        for (int k = 0; k < 3; ++k) {
+            if (chart.phase_ms[size_t(k)] >= 0 && n.time_ms >= chart.phase_ms[size_t(k)]) phase = k;
+        }
+        n.icon = phase >= 0 && n.channel == kIconChannel[phase];
+    }
+    GroupNotes(chart);
 }
 
 void GroupNotes(Chart& chart) {
