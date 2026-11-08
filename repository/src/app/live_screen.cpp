@@ -316,19 +316,21 @@ struct Playfield {
         m(1, 3) = -(y1 + y2) / 2;
         r.DrawUiMesh(bar, &atlas, UiScreen::CanvasToClip(r.Width(), r.Height()) * m, {1, 1, 1, 1});
     }
-    // The combo count centred at canvas x, digits centred on `y`, the label under them (shortcut: position, glyph
-    // spacing and the "from 2 notes" rule are guesses; the game's combo drawing is not traced)
-    void DrawCombo(Renderer& r, int combo, float x, float y) const {
-        if (!combo_tex.width || combo < 2) return;
+    // The combo as the game lays it out (shadPS4 frames, analysis/202611072212-gameplay-feedback/): digits at 1:1, 80 px
+    // apart, centred on `y`; the "COMBO" label to their right, 13 px after them, 13 px lower; the whole line centred on
+    // `x`; shown from the first note. `alpha`: the user's 40% (the game looks about 50%)
+    static constexpr float kDigitAdvance = 80, kLabelGap = 13, kLabelDrop = 13;
+    void DrawCombo(Renderer& r, int combo, float x, float y, float alpha) const {
+        if (!combo_tex.width || combo < 1) return;
         const std::string text = std::to_string(combo);
-        const float advance = kDigitW * 0.86f;
-        float left = x - advance * float(text.size()) / 2 + advance / 2;
-        for (const char c : text) {
-            Draw(r, digits[size_t(c - '0')], combo_tex, left, y, kDigitW, kDigitH, {1, 1, 1, 1});
-            left += advance;
+        const float digits_w = kDigitAdvance * float(text.size());
+        float left = x - (digits_w + kLabelGap + kLabelW) / 2;
+        for (size_t i = 0; i < text.size(); ++i) {
+            Draw(r, digits[size_t(text[i] - '0')], combo_tex, left + kDigitAdvance * (float(i) + 0.5f), y, kDigitW, kDigitH,
+                 {1, 1, 1, alpha});
         }
-        Draw(r, combo_label, combo_tex, x, y + kDigitH * 0.5f + (kLabelY1 - kLabelY0) * 0.4f, kLabelW,
-             kLabelY1 - kLabelY0, {1, 1, 1, 1});
+        Draw(r, combo_label, combo_tex, left + digits_w + kLabelGap + kLabelW / 2, y + kLabelDrop, kLabelW,
+             kLabelY1 - kLabelY0, {1, 1, 1, alpha});
     }
     void Release(Renderer& r) {
         for (Texture* t : {&atlas, &mark, &center_gauge, &center_mic, &combo_tex}) r.Release(*t);
@@ -547,9 +549,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
     }
     std::vector<double> flash(kLanes, -1e9);
     std::vector<Grade> flash_grade(kLanes, Grade::Miss);
-    double judged_at = -1e9;  // the latest judgement, for its text
     std::vector<double> missed(kLanes, -1e9);  // the latest Miss per lane, for the ring break
-    Grade judged = Grade::Miss;
     size_t log_seen = 0, auto_next = 0;
     std::vector<std::pair<double, int>> auto_releases;  // autoplay: (time, lane)
     uint64_t end_ticks = 0;  // when every note was judged (0: not yet)
@@ -600,8 +600,6 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
             const int lane = chart.notes[size_t(j.note)].lane;
             flash[size_t(lane)] = now;
             flash_grade[size_t(lane)] = j.grade;
-            judged_at = now;
-            judged = j.grade;
             if (j.grade == Grade::Miss) missed[size_t(lane)] = now;
         }
 
@@ -630,19 +628,12 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
             scene.Draw(renderer, now, song.dance_start_frame);
             if (has_hud) hud.DrawLayout(renderer, "uil0001_Ingame00", 1.0f);
             if (field.loaded) {
-                const auto grade_tint = [&](int l) {
-                    const float* c = kGradeColor[int(flash_grade[size_t(l)])];
-                    return std::array<float, 4>{c[0], c[1], c[2], float(1.0 - (now - flash[size_t(l)]) / 150.0)};
-                };
                 field.Draw(renderer, field.gauge_fan, field.center_gauge, field.center[0], field.center[1], Playfield::kGaugeSize, {1, 1, 1, 1});
                 field.Draw(renderer, unit_quad, field.center_mic, field.center[0], field.center[1], field.center_size * 0.55f, {1, 1, 1, 1});
                 for (int l = 0; l < kLanes; ++l) {
                     const auto& p = field.lane[size_t(l)];
                     field.Draw(renderer, field.indicator, field.mark, p[0], p[1], Playfield::kCell, {1, 1, 1, 1});
                     field.DrawIcons(renderer, l, p[0], p[1], 1.0f, false);
-                    if (now - flash[size_t(l)] < 150) {
-                        field.Draw(renderer, field.trail, field.atlas, p[0], p[1], field.ring_size * 2.0f, grade_tint(l));
-                    }
                 }
                 // a Miss breaks the lane's ring (shortcut: the trigger is a guess from the animation's name and its
                 // ring-sized shards; the game's use is not traced)
@@ -694,9 +685,13 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                         field.Draw(renderer, unit_quad, field.hold_glow, p[0], p[1], field.ring_size * 1.58f, {1, 1, 1, pulse});
                     }
                 }
-                // the animation's canvas centre (its rings' centre) on the combo (Hypothesis)
-                field.DrawFad(renderer, field.judge_fad[size_t(judged)], now - judged_at, 960, 470);
-                field.DrawCombo(renderer, judge.combo, 960, 470);  // below the centre circle (Hypothesis)
+                field.DrawCombo(renderer, judge.combo, 960, 722, 0.4f);
+                // each lane's latest judgement at its own ring: the animation's canvas centre (its ring bursts' centre)
+                // on the ring centre, so the text arches over the ring as in the game
+                for (int l = 0; l < kLanes; ++l) {
+                    const auto& p = field.lane[size_t(l)];
+                    field.DrawFad(renderer, field.judge_fad[size_t(flash_grade[size_t(l)])], now - flash[size_t(l)], p[0], p[1]);
+                }
                 // LIVE CLEAR once every note is judged, on the full-combo banner's spot, over the combo (Hypothesis)
                 if (end_ticks) {
                     field.DrawFad(renderer, field.live_clear, double(SDL_GetTicksNS() - end_ticks) / 1e6, field.banner[0],
