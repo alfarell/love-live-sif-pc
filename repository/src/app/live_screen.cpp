@@ -74,7 +74,7 @@ struct Playfield {
     static constexpr float kNoteSize = 0.95f * kCell;  // a note's quad when it reaches its indicator
     static constexpr float kIconGap = 30;               // two icons in one lane (→ □): centres ±30 px at 1:1
     Texture atlas, mark, center_gauge, center_mic, combo_tex;
-    GpuMesh indicator, note_ring, note_fill, trail, combo_label, gauge_fan, bar;
+    GpuMesh indicator, note_ring, note_fill, combo_label, gauge_fan, bar;
     // button icons per PadButton: rows 1-3 of the mark atlas, and the smaller shoulder icons of row 4 (used on notes;
     // Hypothesis: row 3 on indicators, row 4 on notes, from their sizes on screen)
     std::array<GpuMesh, size_t(PadButton::Count)> icon, note_icon;
@@ -141,6 +141,77 @@ struct Playfield {
             Draw(r, m, mark, left + step * float(i), y, kCell * scale, {1, 1, 1, 1});
         }
     }
+    // Where a note due at `t` is at `now`: on the line from the centre circle to its ring, growing as it comes
+    void Path(int lane, double t, double now, double approach_ms, float& x, float& y, float& size) const {
+        const float k = float(std::clamp(1.0 - (t - now) / approach_ms, 0.0, 1.0));
+        const auto& p = this->lane[size_t(lane)];
+        x = center[0] + (p[0] - center[0]) * k;
+        y = center[1] + (p[1] - center[1]) * k;
+        size = kNoteSize * (0.2f + 0.8f * k);
+    }
+    // Hold bands (shadPS4 frames, analysis/202611072212-gameplay-feedback/): common_tex connect_note, a flat grey strip,
+    // stretched from the note head back to the tail as a band that tapers with the path (as wide as the end disc at
+    // the tail, 0.8 of the note ring's pink diameter at each end), drawn at 62% opacity, tinted pink while held; a
+    // white end disc (ui_ingame_common_circle_05's solid core, pink while held) at the tail. Band meshes are rebuilt
+    // each frame before it starts (UpdateMesh needs that)
+    static constexpr float kBandWidth = 0.8f * 150.0f / 256.0f;  // of a note quad
+    static constexpr float kBandAlpha = 0.62f;
+    static constexpr std::array<float, 4> kHeldTint{1.0f, 0.78f, 0.79f, 1.0f};
+    static constexpr float kDiscCore = 110.0f / 260.0f;  // circle_05: its solid white core within the 260 px texture
+    static constexpr size_t kMaxBands = 32;
+    Texture connect, end_disc;
+    std::array<GpuMesh, kMaxBands> band;
+    struct Tail {
+        float x, y, size;
+        bool held;
+    };
+    std::array<Tail, kMaxBands> tails{};
+    size_t bands = 0;
+    bool LoadBands(Renderer& r, const Vfs& vfs) {
+        if (!LoadTexture(r, vfs, "common/common.pac/common_tex.pac/connect_note", connect) ||
+            !LoadTexture(r, vfs, "ui/ui_ingame.pac/texture.pac/ui_ingame_common_circle_05", end_disc)) {
+            return false;
+        }
+        const MeshVertex v[4]{};
+        const uint16_t indices[6] = {0, 1, 2, 0, 2, 3};
+        for (GpuMesh& m : band) {
+            if (!r.CreateMesh(v, indices, true, m, nullptr)) return false;
+        }
+        return true;
+    }
+    // Call outside a frame: one band per hold on screen, from its head (held: pinned on the ring) to its tail
+    void SetBands(Renderer& r, const live::Chart& chart, const live::Judge& judge, double now, double approach_ms) {
+        bands = 0;
+        for (size_t i = 0; i < chart.notes.size() && bands < kMaxBands; ++i) {
+            const live::Note& n = chart.notes[i];
+            if (!n.IsHold() || !judge.Active(i) || n.time_ms - now > approach_ms) continue;
+            const bool held = judge.Held(i);
+            float hx, hy, hs, tx, ty, ts;
+            Path(n.lane, held ? now : n.time_ms, now, approach_ms, hx, hy, hs);
+            Path(n.lane, n.end_ms, now, approach_ms, tx, ty, ts);
+            const float dx = hx - tx, dy = hy - ty, len = std::hypot(dx, dy);
+            const float nx = len > 0 ? -dy / len : 0, ny = len > 0 ? dx / len : 1;  // across the band
+            const float wh = hs * kBandWidth / 2, wt = ts * kBandWidth / 2;
+            // canvas pixels with y up (drawn through CanvasToClip); the strip's opaque half (v 0-0.45) is uniform
+            const MeshVertex v[4] = {{{tx + nx * wt, -(ty + ny * wt), 0}, {0, 0, 1}, {0, 0}},
+                                     {{tx - nx * wt, -(ty - ny * wt), 0}, {0, 0, 1}, {1, 0}},
+                                     {{hx - nx * wh, -(hy - ny * wh), 0}, {0, 0, 1}, {1, 0.45f}},
+                                     {{hx + nx * wh, -(hy + ny * wh), 0}, {0, 0, 1}, {0, 0.45f}}};
+            r.UpdateMesh(band[bands], v);
+            tails[bands++] = {tx, ty, ts, held};
+        }
+    }
+    // The bands and their end discs, under the notes
+    void DrawBands(Renderer& r) const {
+        const Mat4 to_clip = UiScreen::CanvasToClip(r.Width(), r.Height());
+        for (size_t b = 0; b < bands; ++b) {
+            const std::array<float, 4> tint = tails[b].held ? kHeldTint : std::array<float, 4>{1, 1, 1, 1};
+            r.DrawUiMesh(band[b], &connect, to_clip, {tint[0], tint[1], tint[2], kBandAlpha});
+            const float disc = tails[b].size * kBandWidth / kDiscCore;
+            Draw(r, corner_centered, end_disc, tails[b].x, tails[b].y, disc, tint);
+        }
+    }
+    GpuMesh corner_centered;  // centred unit quad over a whole texture
     // A normal note: fill (its cell has 40% alpha built in), ring, then the lane's icons; `size` is its quad
     void DrawNote(Renderer& r, int lane, float x, float y, float size, float alpha) const {
         Draw(r, note_fill, atlas, x, y, size, {1, 1, 1, alpha});
@@ -220,12 +291,12 @@ struct Playfield {
         }
         loaded = LoadTexture(r, vfs, "ui/ui_ingame.pac/texture.pac/ui_ingame_notes", atlas) &&
                  LoadTexture(r, vfs, "ui/ui_ingame.pac/texture.pac/ui_ingame_judgering_all_mark", mark) &&
-                 MarkCell(r, 0, 0, indicator) && LoadIcons(r) &&
+                 MarkCell(r, 0, 0, indicator) && LoadIcons(r) && LoadBands(r, vfs) && Quad(r, 0, 0, 1, 1, corner_centered) &&
                  // the HUD song gauge's own colour ring (ui2/90_ingame part uip0006_Songgage, 188 px), so the fill
                  // lines up with the HUD's track
                  LoadTexture(r, vfs, "ui2/90_ingame.pac/uip0006_Songgage.pac/texture.pac/IngamesonggageCol.btx", center_gauge) &&
                  LoadTexture(r, vfs, "ui/ui_ingame.pac/texture.pac/ui_ingame_centercircle_mic_aq", center_mic) &&
-                 Cell(r, 1, 0, note_ring) && Cell(r, 2, 0, note_fill) && Cell(r, 2, 0, trail) && LoadGauge(r) &&
+                 Cell(r, 1, 0, note_ring) && Cell(r, 2, 0, note_fill) && LoadGauge(r) &&
                  LoadTexture(r, vfs, "ui/ui_ingame.pac/texture.pac/ui_ingame_longnote_circle_01", hold_glow) &&
                  // the orange bar of atlas cell (1, 3): x 71-188, y 112-144 of the 256 px cell
                  Quad(r, (kCell + 71) / kAtlasW, (3 * kCell + 112) / kAtlasH, (kCell + 188) / kAtlasW,
@@ -333,10 +404,12 @@ struct Playfield {
              kLabelY1 - kLabelY0, {1, 1, 1, alpha});
     }
     void Release(Renderer& r) {
-        for (Texture* t : {&atlas, &mark, &center_gauge, &center_mic, &combo_tex}) r.Release(*t);
+        for (Texture* t : {&atlas, &mark, &center_gauge, &center_mic, &combo_tex, &connect, &end_disc}) r.Release(*t);
+        for (GpuMesh& m : band) r.Release(m);
+        r.Release(corner_centered);
         for (auto& [name, t] : fad_textures) r.Release(t);
         r.Release(corner);
-        for (GpuMesh* m : {&indicator, &note_ring, &note_fill, &trail, &combo_label, &gauge_fan, &bar}) r.Release(*m);
+        for (GpuMesh* m : {&indicator, &note_ring, &note_fill, &combo_label, &gauge_fan, &bar}) r.Release(*m);
         for (GpuMesh& m : icon) r.Release(m);
         for (GpuMesh& m : note_icon) r.Release(m);
         r.Release(hold_glow);
@@ -622,7 +695,10 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
             hud.SetMaterialClip(gauge, "M_Ingame00Topscgage", fill);
             hud.SetMaterialUv(gauge, "M_Ingame00Topscgage", 0, 0.125f * float(std::min(judge.Rank(), 4)));
         }
-        if (field.loaded) field.SetGauge(renderer, float(now / audio_ms));
+        if (field.loaded) {
+            field.SetGauge(renderer, float(now / audio_ms));
+            field.SetBands(renderer, chart, judge, now, opt.approach_ms);
+        }
         if (renderer.BeginFrame()) {
             const uint64_t draw_start = SDL_GetTicksNS();
             scene.Draw(renderer, now, song.dance_start_frame);
@@ -643,12 +719,9 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                 }
                 // notes fly from the centre circle to their ring, growing (far notes first, nearer ones on top)
                 const auto at = [&](int lane, double t, float& x, float& y, float& size) {
-                    const float k = float(std::clamp(1.0 - (t - now) / opt.approach_ms, 0.0, 1.0));
-                    const auto& p = field.lane[size_t(lane)];
-                    x = field.center[0] + (p[0] - field.center[0]) * k;
-                    y = field.center[1] + (p[1] - field.center[1]) * k;
-                    size = Playfield::kNoteSize * (0.2f + 0.8f * k);
+                    field.Path(lane, t, now, opt.approach_ms, x, y, size);
                 };
+                field.DrawBands(renderer);  // hold bands and their end discs, under every note
                 // notes due at the same moment are joined by a bar under them (shortcut: the orange bar of atlas row 3
                 // and this rule are guesses from how SIF looks; the game's note drawing is not traced)
                 for (size_t i = 0; i + 1 < chart.notes.size(); ++i) {
@@ -667,16 +740,6 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                     const live::Note& n = chart.notes[i];
                     if (!judge.Active(i) || n.time_ms - now > opt.approach_ms) continue;
                     float x, y, size;
-                    if (n.IsHold()) {
-                        const double head = judge.Held(i) ? now : n.time_ms;
-                        for (double t = n.end_ms; t > head; t -= 40) {  // shortcut: trail of discs, not the long-note bar
-                            if (t - now > opt.approach_ms) continue;
-                            at(n.lane, t, x, y, size);
-                            field.Draw(renderer, field.trail, field.atlas, x, y, size * 0.7f, {1, 1, 1, 0.45f});
-                        }
-                        at(n.lane, n.end_ms, x, y, size);
-                        field.Draw(renderer, field.note_fill, field.atlas, x, y, size * 0.8f, {1, 1, 1, 1});  // G3 replaces this
-                    }
                     at(n.lane, judge.Held(i) ? now : n.time_ms, x, y, size);
                     field.DrawNote(renderer, n.lane, x, y, size, 1.0f);
                     if (judge.Held(i)) {  // a held long note: a glowing ring over it, pulsing (pulse rate is a guess)
