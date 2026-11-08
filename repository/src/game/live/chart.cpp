@@ -65,7 +65,20 @@ bool ParseChart(std::span<const uint8_t> s, Chart& out, std::string* error) {
         if (e.c > 120) n.end_ms = to_ms(e.tick + e.c) + out.lead_in_ms;
         out.notes.push_back(n);
     }
+    GroupNotes(out);
     return true;
+}
+
+void GroupNotes(Chart& chart) {
+    int groups = 0;
+    auto& n = chart.notes;
+    for (size_t i = 0; i < n.size();) {
+        size_t j = i + 1;
+        while (j < n.size() && n[j].time_ms - n[j - 1].time_ms <= 1) ++j;
+        for (size_t k = i; k < j; ++k) n[k].group = j - i > 1 ? groups : -1;
+        if (j - i > 1) ++groups;
+        i = j;
+    }
 }
 
 std::string ChartPrefix(int song_id, int variant) {

@@ -18,6 +18,7 @@ struct Note {
     int lane = 0;
     double time_ms = 0;     // audio time of the press
     double end_ms = -1;     // audio time of the release for holds, < 0 for taps
+    int group = -1;         // simultaneous group, numbered 0, 1, 2 ... in song order; -1 for a note alone
     bool IsHold() const { return end_ms >= 0; }
 };
 
@@ -29,6 +30,10 @@ struct Chart {
 };
 
 bool ParseChart(std::span<const uint8_t> scor, Chart& out, std::string* error = nullptr);
+
+// Sets Note::group: notes (sorted by time) within 1 ms of the previous one share a group. ParseChart calls it; call it
+// again after adding notes.
+void GroupNotes(Chart& chart);
 
 // Chart names carry the song's short title ("score_0010_04_bokurara_ch1.scd"), so callers list
 // live/<id>/<id>.pac/score.pac and pick the entry that starts with this prefix and ends with "_ch1.scd".

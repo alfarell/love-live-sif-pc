@@ -74,7 +74,8 @@ struct Playfield {
     static constexpr float kNoteSize = 0.95f * kCell;  // a note's quad when it reaches its indicator
     static constexpr float kIconGap = 30;               // two icons in one lane (→ □): centres ±30 px at 1:1
     Texture atlas, mark, center_gauge, center_mic, combo_tex;
-    GpuMesh indicator, note_ring, note_fill, combo_label, gauge_fan, bar;
+    GpuMesh indicator, note_ring, note_fill, combo_label, gauge_fan;
+    std::array<GpuMesh, 2> bracket;  // simultaneous-note brackets: orange (3, 3), blue (4, 3)
     // button icons per PadButton: rows 1-3 of the mark atlas, and the smaller shoulder icons of row 4 (used on notes;
     // Hypothesis: row 3 on indicators, row 4 on notes, from their sizes on screen)
     std::array<GpuMesh, size_t(PadButton::Count)> icon, note_icon;
@@ -298,9 +299,7 @@ struct Playfield {
                  LoadTexture(r, vfs, "ui/ui_ingame.pac/texture.pac/ui_ingame_centercircle_mic_aq", center_mic) &&
                  Cell(r, 1, 0, note_ring) && Cell(r, 2, 0, note_fill) && LoadGauge(r) &&
                  LoadTexture(r, vfs, "ui/ui_ingame.pac/texture.pac/ui_ingame_longnote_circle_01", hold_glow) &&
-                 // the orange bar of atlas cell (1, 3): x 71-188, y 112-144 of the 256 px cell
-                 Quad(r, (kCell + 71) / kAtlasW, (3 * kCell + 112) / kAtlasH, (kCell + 188) / kAtlasW,
-                      (3 * kCell + 144) / kAtlasH, bar);
+                 Cell(r, 3, 3, bracket[0]) && Cell(r, 4, 3, bracket[1]);
         if (!loaded) LogWarn("live: game play field not loaded; drawing the placeholder lanes");
         if (loaded && !LoadCombo(r, vfs)) LogWarn("live: combo digits not loaded");
         if (loaded && !LoadJudgeTexts(r, vfs)) LogWarn("live: judgement texts not loaded");
@@ -374,19 +373,6 @@ struct Playfield {
             r.DrawUiMesh(corner, &t->second, to_clip * place, {c.mul[0], c.mul[1], c.mul[2], c.mul[3]}, {0, 0}, 1e9f, c.add);
         }
     }
-    // The orange bar stretched from (x1, y1) to (x2, y2), `thickness` px across (canvas pixels, y down)
-    void DrawBar(Renderer& r, float x1, float y1, float x2, float y2, float thickness) const {
-        const float dx = x2 - x1, dy = -(y2 - y1);  // canvas y up
-        const float len = std::hypot(dx, dy), cs = len > 0 ? dx / len : 1, sn = len > 0 ? dy / len : 0;
-        Mat4 m;
-        m(0, 0) = len * cs;
-        m(0, 1) = -thickness * sn;
-        m(1, 0) = len * sn;
-        m(1, 1) = thickness * cs;
-        m(0, 3) = (x1 + x2) / 2;
-        m(1, 3) = -(y1 + y2) / 2;
-        r.DrawUiMesh(bar, &atlas, UiScreen::CanvasToClip(r.Width(), r.Height()) * m, {1, 1, 1, 1});
-    }
     // The combo as the game lays it out (shadPS4 frames, analysis/202611072212-gameplay-feedback/): digits at 1:1, 80 px
     // apart, centred on `y`; the "COMBO" label to their right, 13 px after them, 13 px lower; the whole line centred on
     // `x`; shown from the first note. `alpha`: the user's 40% (the game looks about 50%)
@@ -409,7 +395,7 @@ struct Playfield {
         r.Release(corner_centered);
         for (auto& [name, t] : fad_textures) r.Release(t);
         r.Release(corner);
-        for (GpuMesh* m : {&indicator, &note_ring, &note_fill, &combo_label, &gauge_fan, &bar}) r.Release(*m);
+        for (GpuMesh* m : {&indicator, &note_ring, &note_fill, &combo_label, &gauge_fan, &bracket[0], &bracket[1]}) r.Release(*m);
         for (GpuMesh& m : icon) r.Release(m);
         for (GpuMesh& m : note_icon) r.Release(m);
         r.Release(hold_glow);
@@ -722,26 +708,18 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                     field.Path(lane, t, now, opt.approach_ms, x, y, size);
                 };
                 field.DrawBands(renderer);  // hold bands and their end discs, under every note
-                // notes due at the same moment are joined by a bar under them (shortcut: the orange bar of atlas row 3
-                // and this rule are guesses from how SIF looks; the game's note drawing is not traced)
-                for (size_t i = 0; i + 1 < chart.notes.size(); ++i) {
-                    const live::Note& a = chart.notes[i];
-                    const live::Note& b = chart.notes[i + 1];
-                    if (std::abs(a.time_ms - b.time_ms) > 1 || a.time_ms - now > opt.approach_ms || judge.Held(i) ||
-                        judge.Held(i + 1) || !judge.Active(i) || !judge.Active(i + 1)) {
-                        continue;
-                    }
-                    float x1, y1, x2, y2, size;
-                    at(a.lane, a.time_ms, x1, y1, size);
-                    at(b.lane, b.time_ms, x2, y2, size);
-                    field.DrawBar(renderer, x1, y1, x2, y2, size * 32 / 256);
-                }
                 for (size_t i = chart.notes.size(); i-- > 0;) {
                     const live::Note& n = chart.notes[i];
                     if (!judge.Active(i) || n.time_ms - now > opt.approach_ms) continue;
                     float x, y, size;
                     at(n.lane, judge.Held(i) ? now : n.time_ms, x, y, size);
                     field.DrawNote(renderer, n.lane, x, y, size, 1.0f);
+                    // a simultaneous note wears the brackets, orange and blue by turns per group; a held one keeps them
+                    // on its ring (the user's "vertical line"). The cell's ring-to-bracket ratio is 1.21, the game
+                    // frames show about 1.41, so the cell is drawn 1.17x the note (measured, analysis 202611082103)
+                    if (n.group >= 0) {
+                        field.Draw(renderer, field.bracket[size_t(n.group % 2)], field.atlas, x, y, size * 1.17f, {1, 1, 1, 1});
+                    }
                     if (judge.Held(i)) {  // a held long note: a glowing ring over it, pulsing (pulse rate is a guess)
                         const auto& p = field.lane[size_t(n.lane)];
                         const float pulse = float(0.7 + 0.3 * std::sin(now / 60.0));

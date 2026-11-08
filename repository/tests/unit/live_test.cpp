@@ -74,6 +74,15 @@ static void Synthetic() {
     Check(Autoplay(c, w, 0, -400).counts[3] == 1, "hold released before its release window: Bad");
 }
 
+static void Groups() {
+    Chart c;
+    for (double t : {100.0, 100.0, 200.0, 300.0, 300.5, 301.0, 400.0, 500.0, 500.0}) c.notes.push_back({0, t, -1});
+    GroupNotes(c);
+    std::string got;
+    for (const Note& n : c.notes) got += std::to_string(n.group) + " ";
+    Check(got == "0 0 -1 1 1 1 -1 2 2 ", "simultaneous groups numbered in song order, lone notes -1: " + got);
+}
+
 static void Real(const char* root) {
     sif::Vfs vfs;
     Check(vfs.Mount(sif::os::PathFromUtf8(root)), "mount");
@@ -140,6 +149,7 @@ static void Real(const char* root) {
 
 int main(int argc, char** argv) {
     Synthetic();
+    Groups();
     if (argc > 1) Real(argv[1]);
     std::printf("%s\n", failures ? "live_test FAILED" : "live_test ok");
     return failures ? 1 : 0;
