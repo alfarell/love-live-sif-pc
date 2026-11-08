@@ -706,10 +706,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
         if (renderer.BeginFrame()) {
             const uint64_t draw_start = SDL_GetTicksNS();
             scene.Draw(renderer, now, song.dance_start_frame);
-            if (has_hud) hud.DrawLayout(renderer, "uil0001_Ingame00", 1.0f);
             if (field.loaded) {
-                field.Draw(renderer, field.gauge_fan, field.center_gauge, field.center[0], field.center[1], Playfield::kGaugeSize, {1, 1, 1, 1});
-                field.Draw(renderer, unit_quad, field.center_mic, field.center[0], field.center[1], field.center_size * 0.55f, {1, 1, 1, 1});
                 for (int l = 0; l < kLanes; ++l) {
                     const auto& p = field.lane[size_t(l)];
                     field.Draw(renderer, field.indicator, field.mark, p[0], p[1], Playfield::kCell, {1, 1, 1, 1});
@@ -745,6 +742,12 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                         field.Draw(renderer, unit_quad, field.hold_glow, p[0], p[1], field.ring_size * 1.58f, {1, 1, 1, pulse});
                     }
                 }
+            }
+            // the HUD and the centre circle (gauge track, fan, mic) over the notes: notes come out from under the mic
+            if (has_hud) hud.DrawLayout(renderer, "uil0001_Ingame00", 1.0f);
+            if (field.loaded) {
+                field.Draw(renderer, field.gauge_fan, field.center_gauge, field.center[0], field.center[1], Playfield::kGaugeSize, {1, 1, 1, 1});
+                field.Draw(renderer, unit_quad, field.center_mic, field.center[0], field.center[1], field.center_size * 0.55f, {1, 1, 1, 1});
                 field.DrawCombo(renderer, judge.combo, 960, 722, 0.4f);
                 // each lane's latest judgement at its own ring: the animation's canvas centre (its ring bursts' centre)
                 // on the ring centre, so the text arches over the ring as in the game
