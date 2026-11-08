@@ -2,6 +2,7 @@
 // matched against our own decode of the same cue), then presses the lane keys at chart time + a fixed offset.
 // Run it once per offset against the original game (shadPS4) and against sif.exe; compare which offsets give Perfect.
 // Usage: sif_sweep --game DIR --live ID:VARIANT --offset MS --keys shadps4|port [--window TITLE_PART]
+//        [--post] [--mirror] [--extra] [--tap-ms MS]
 // Times: every press happens at song_start + note audio time (chart time + lead-in) + offset, where song_start is
 // the QPC time at which audio sample 0 of the cue entered the system mix.
 #include <windows.h>  // WIN32_LEAN_AND_MEAN comes from the sif_engine target
@@ -75,6 +76,15 @@ struct KeyEvent {
     bool down;
 };
 
+// --post: the key goes to `target` only (WM_KEYDOWN/WM_KEYUP), never into the global input stream
+void PostKey(HWND target, WORD vk, bool down) {
+    const UINT scan = MapVirtualKeyW(vk, MAPVK_VK_TO_VSC);
+    LPARAM l = 1 | LPARAM(scan) << 16;
+    if (vk == VK_LEFT || vk == VK_RIGHT || vk == VK_UP || vk == VK_DOWN) l |= LPARAM(1) << 24;
+    if (!down) l |= LPARAM(0xC0000000);
+    PostMessageW(target, down ? WM_KEYDOWN : WM_KEYUP, vk, l);
+}
+
 void SendKey(WORD vk, bool down) {
     INPUT in{};
     in.type = INPUT_KEYBOARD;
@@ -108,8 +118,16 @@ int main(int argc, char** argv) {
     // diagnostics: a different offset per lane (so each lane lands in its own grade), skipped lanes, taps only
     double lane_offset[9];
     bool lane_set[9] = {}, lane_skip[9] = {}, tap_only = false;
+    // --post: PostMessage to the window instead of SendInput; --mirror: lane k pressed as 8 - k (the game sometimes
+    // plays a chart mirrored); --extra: also press the notes of chart channels 2-4 (the game plays them as notes)
+    bool post = false, mirror = false, extra = false;
+    double tap_ms = 50;
     for (int i = 1; i < argc; ++i) {
         if (!std::strcmp(argv[i], "--tap-only")) tap_only = true;
+        if (!std::strcmp(argv[i], "--post")) post = true;
+        if (!std::strcmp(argv[i], "--mirror")) mirror = true;
+        if (!std::strcmp(argv[i], "--extra")) extra = true;
+        if (!std::strcmp(argv[i], "--tap-ms") && i + 1 < argc) tap_ms = std::atof(argv[i + 1]);
     }
     for (int i = 1; i + 1 < argc; ++i) {
         if (!std::strcmp(argv[i], "--game")) game = argv[++i];
@@ -146,6 +164,22 @@ int main(int argc, char** argv) {
         !sif::live::LoadSongMusic(vfs, song, music, &error)) {
         std::fprintf(stderr, "load failed: %s\n", error.c_str());
         return 1;
+    }
+    std::vector<sif::live::Note> notes = song.chart.notes;
+    if (extra) {
+        for (int ch = 2; ch <= 4; ++ch) {
+            std::string name = song.chart_name;
+            name.replace(name.size() - 8, 8, "_ch" + std::to_string(ch) + ".scd");
+            char folder[64];
+            std::snprintf(folder, sizeof(folder), "live/%04d/%04d.pac/score.pac/", song_id, song_id);
+            std::vector<uint8_t> scor;
+            sif::live::Chart c;
+            if (!vfs.Read(folder + name, scor, &error) || !sif::live::ParseChart(scor, c, &error)) {
+                std::fprintf(stderr, "channel %d: %s\n", ch, error.c_str());
+                return 1;
+            }
+            notes.insert(notes.end(), c.notes.begin(), c.notes.end());
+        }
     }
     // reference: mono 4 kHz; a 1.5 s segment starting at the first clearly audible second of the cue
     std::vector<float> ref_all;
@@ -255,16 +289,21 @@ int main(int argc, char** argv) {
                 double(QpcNow() - song_start) / freq * 1000);
 
     HWND target = FindWindowContaining(std::wstring(window.begin(), window.end()));
-    if (target) SetForegroundWindow(target);
+    if (post && !target) {
+        std::fprintf(stderr, "--post: no window titled '%s'\n", window.c_str());
+        return 1;
+    }
+    if (target && !post) SetForegroundWindow(target);
     std::vector<KeyEvent> events;
     const auto at = [&](double ms, int lane) {
         const double off = lane_set[lane] ? lane_offset[lane] : offset_ms;
         return song_start + int64_t((ms + off) / 1000.0 * freq);
     };
-    for (const auto& n : song.chart.notes) {
-        if (lane_skip[n.lane]) continue;
-        events.push_back({at(n.time_ms, n.lane), n.lane, true});
-        events.push_back({at(n.IsHold() && !tap_only ? n.end_ms : n.time_ms + 50, n.lane), n.lane, false});
+    for (const auto& n : notes) {
+        const int lane = mirror ? 8 - n.lane : n.lane;
+        if (lane_skip[lane]) continue;
+        events.push_back({at(n.time_ms, lane), lane, true});
+        events.push_back({at(n.IsHold() && !tap_only ? n.end_ms : n.time_ms + tap_ms, lane), lane, false});
     }
     std::stable_sort(events.begin(), events.end(), [](const KeyEvent& a, const KeyEvent& b) { return a.qpc < b.qpc; });
     double late_sum = 0, late_max = 0;
@@ -278,7 +317,7 @@ int main(int argc, char** argv) {
         // events at the same instant (double notes, a release with a press) go out back to back
         while (double(e.qpc - QpcNow()) / freq > 0.020) Sleep(1);
         while (QpcNow() < e.qpc) {}
-        SendKey(lane_keys[e.lane], e.down);
+        post ? PostKey(target, lane_keys[e.lane], e.down) : SendKey(lane_keys[e.lane], e.down);
         const double late = double(QpcNow() - e.qpc) / freq * 1000;
         late_sum += late;
         late_max = std::max(late_max, late);
