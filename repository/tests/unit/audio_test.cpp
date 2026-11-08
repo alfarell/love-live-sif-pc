@@ -96,6 +96,29 @@ static void Real(const char* root) {
         (w.encode == 0 ? adx : hca)++;
     }
     Check(adx == 3 && hca == 3, "decoded 3 ADX and 3 HCA system sounds");
+
+    // H5: judgement sounds are layered cues (polyphonic sequences); Perfect = waves 184 + 249 + the shared 46
+    std::vector<sif::cri::Layer> layers;
+    std::string ids;
+    Check(sys.FindLayersById(20030, layers, &error), "Perfect cue 20030 resolves: " + error);
+    for (const auto& l : layers) ids += std::to_string(l.wave.memory_id) + "@" + std::to_string(int(l.gain * 100 + 0.5f)) + " ";
+    std::printf("Perfect layers (wave@gain%%): %s\n", ids.c_str());
+    Check(ids == "184@100 249@100 46@41 ", "Perfect: three layers, the shared one at 41%: " + ids);
+    Check(sys.FindLayersById(20034, layers) && layers.size() == 1 && layers[0].wave.memory_id == 204, "miss: one layer (wave 204)");
+    Check(sys.FindLayersById(20039, layers) && layers.size() == 4, "Perfect_fl: four layers (adds the finale wave 195)");
+    for (int id = 20030; id <= 20043; ++id) {
+        if (id > 20034 && id < 20039) continue;
+        sif::cri::Pcm mix;
+        const bool ok = sif::cri::LoadCueMix(vfs, sys, id, 48000, 2, mix, &error);
+        double rms = 0, zc = 0;
+        if (ok) Stats(mix, rms, zc);
+        std::printf("cue %d mixed: %zu frames, rms %.0f\n", id, mix.Frames(), rms);
+        Check(ok && mix.rate == 48000 && mix.channels == 2 && mix.Frames() > 4000 && rms > 10,
+              "cue " + std::to_string(id) + " mixes to 48 kHz stereo: " + error);
+    }
+    sif::cri::Pcm perfect;
+    sif::cri::LoadCueMix(vfs, sys, 20030, 48000, 2, perfect);
+    Check(perfect.Frames() == 73134, "Perfect mix is as long as its longest layer (wave 46, 73,134 frames at 48 kHz)");
 }
 
 int main(int argc, char** argv) {

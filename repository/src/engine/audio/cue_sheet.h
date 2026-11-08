@@ -27,6 +27,12 @@ struct Wave {
     bool loop = false;
 };
 
+// One wave of a layered cue and its volume (a polyphonic sequence plays all its tracks at once).
+struct Layer {
+    Wave wave;
+    float gain = 1;
+};
+
 struct Afs2Wave {
     uint32_t id = 0;
     uint64_t offset = 0, size = 0;
@@ -49,15 +55,21 @@ public:
     // By CueTable.CueId. In music.acb the CueId of a song cue equals its live/<id> folder number (all songs, M4).
     bool FindWaveById(int64_t cue_id, Wave& out, std::string* error = nullptr) const;
     std::string_view CueNameById(int64_t cue_id) const;
+    // Every wave a cue plays together: all tracks of a sequence, all items of a polyphonic synth (other synth types:
+    // the first item). Gain from track command 0x0057 read as percent (Hypothesis: its values 27-52 sit only on the
+    // extra layers of sys.acb's judgement cues; analysis 202611090016).
+    bool FindLayersById(int64_t cue_id, std::vector<Layer>& out, std::string* error = nullptr) const;
     std::string_view StreamBankName(int port) const;
     std::span<const uint8_t> MemoryBank() const { return memory_bank_; }
 
 private:
     bool WaveFromReference(int type, int64_t index, Wave& out, int depth) const;
+    void CollectLayers(int type, int64_t index, float gain, std::vector<Layer>& out, int depth) const;
+    float TrackGain(size_t track) const;
 
     std::vector<uint8_t> data_;
     std::string name_;
-    UtfTable header_, cues_, names_, sequences_, tracks_, events_, synths_, waves_, banks_;
+    UtfTable header_, cues_, names_, sequences_, tracks_, events_, synths_, waves_, banks_, track_commands_;
     std::span<const uint8_t> memory_bank_;
 };
 

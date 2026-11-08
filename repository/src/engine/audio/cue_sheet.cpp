@@ -66,7 +66,7 @@ bool CueSheet::Load(std::vector<uint8_t> acb, std::string* error) {
     };
     if (!sub("CueTable", cues_) || !sub("CueNameTable", names_) || !sub("SequenceTable", sequences_) ||
         !sub("TrackTable", tracks_) || !sub("TrackEventTable", events_) || !sub("SynthTable", synths_) ||
-        !sub("WaveformTable", waves_) || !sub("StreamAwbHash", banks_)) {
+        !sub("WaveformTable", waves_) || !sub("StreamAwbHash", banks_) || !sub("TrackCommandTable", track_commands_)) {
         return Fail(error, "bad ACB sub-table");
     }
     memory_bank_ = header_.Data(0, "AwbFile");
@@ -122,6 +122,61 @@ bool CueSheet::WaveFromReference(int type, int64_t index, Wave& out, int depth) 
         }
     }
     return false;
+}
+
+float CueSheet::TrackGain(size_t track) const {
+    const int64_t c = tracks_.Int(track, "CommandIndex", -1);
+    if (c < 0 || size_t(c) >= track_commands_.Rows()) return 1;
+    const auto cmd = track_commands_.Data(size_t(c), "Command");
+    for (size_t p = 0; p + 3 <= cmd.size();) {  // u16 opcode, u8 size, data
+        const size_t n = cmd[p + 2];
+        if (Be16(&cmd[p]) == 0x0057 && n == 2 && p + 5 <= cmd.size()) return float(Be16(&cmd[p + 3])) / 100.0f;
+        p += 3 + n;
+    }
+    return 1;
+}
+
+void CueSheet::CollectLayers(int type, int64_t index, float gain, std::vector<Layer>& out, int depth) const {
+    if (depth > 8 || index < 0) return;
+    if (type == 1) {
+        Layer l;
+        l.gain = gain;
+        if (WaveFromReference(1, index, l.wave, depth)) out.push_back(l);
+    } else if (type == 2) {
+        if (size_t(index) >= synths_.Rows()) return;
+        const bool all = synths_.Int(size_t(index), "Type", 0) == 0;  // 0: polyphonic
+        const auto items = synths_.Data(size_t(index), "ReferenceItems");
+        for (size_t i = 0; i + 4 <= items.size(); i += 4) {
+            CollectLayers(Be16(&items[i]), Be16(&items[i + 2]), gain, out, depth + 1);
+            if (!all) break;
+        }
+    } else if (type == 3) {
+        if (size_t(index) >= sequences_.Rows()) return;
+        const auto track_list = sequences_.Data(size_t(index), "TrackIndex");
+        for (size_t t = 0; t + 2 <= track_list.size(); t += 2) {
+            const size_t track = Be16(&track_list[t]);
+            const int64_t event = tracks_.Int(track, "EventIndex");
+            if (event < 0) continue;
+            const auto cmd = events_.Data(size_t(event), "Command");
+            for (size_t p = 0; p + 3 <= cmd.size();) {
+                const size_t n = cmd[p + 2];
+                if (Be16(&cmd[p]) == 0x07D0 && n >= 4 && p + 3 + n <= cmd.size()) {  // note on
+                    CollectLayers(Be16(&cmd[p + 3]), Be16(&cmd[p + 5]), gain * TrackGain(track), out, depth + 1);
+                }
+                p += 3 + n;
+            }
+        }
+    }
+}
+
+bool CueSheet::FindLayersById(int64_t cue_id, std::vector<Layer>& out, std::string* error) const {
+    out.clear();
+    for (size_t c = 0; c < cues_.Rows(); ++c) {
+        if (cues_.Int(c, "CueId") != cue_id) continue;
+        CollectLayers(int(cues_.Int(c, "ReferenceType")), cues_.Int(c, "ReferenceIndex"), 1.0f, out, 0);
+        return !out.empty() || Fail(error, "cue id " + std::to_string(cue_id) + " has no waveform reference");
+    }
+    return Fail(error, "no cue id " + std::to_string(cue_id) + " in " + name_);
 }
 
 bool CueSheet::FindWaveById(int64_t cue_id, Wave& out, std::string* error) const {

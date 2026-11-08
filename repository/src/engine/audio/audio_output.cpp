@@ -48,6 +48,32 @@ void AudioOutput::Play(cri::Pcm pcm) {
     fed_frames_ = 0;
     clock_frames_ = 0;
     clock_ns_ = 0;  // no callback yet: PlayheadMs counts from the first one
+    effects_ = {};
+    SDL_UnlockAudioStream(stream_);
+}
+
+void AudioOutput::PlayEffect(const cri::Pcm* pcm) {
+    if (!stream_ || !pcm || pcm->samples.empty()) return;
+    SDL_LockAudioStream(stream_);
+    if (pcm->channels == voice_.channels && pcm->rate == voice_.rate) {
+        size_t slot = next_effect_;
+        for (size_t i = 0; i < kEffects; ++i) {
+            if (!effects_[(next_effect_ + i) % kEffects].pcm) {
+                slot = (next_effect_ + i) % kEffects;
+                break;
+            }
+        }
+        effects_[slot] = {pcm, 0};
+        next_effect_ = (slot + 1) % kEffects;
+        if (mix_.capacity() < 16384) mix_.reserve(16384);  // keeps the callback from allocating
+    }
+    SDL_UnlockAudioStream(stream_);
+}
+
+void AudioOutput::StopEffects() {
+    if (!stream_) return;
+    SDL_LockAudioStream(stream_);
+    effects_ = {};
     SDL_UnlockAudioStream(stream_);
 }
 
@@ -80,7 +106,23 @@ void AudioOutput::Callback(void* self, SDL_AudioStream* stream, int additional, 
     out->clock_frames_ = out->fed_frames_.load();
     out->clock_ns_ = SDL_GetTicksNS();
     if (n > 0) {
-        SDL_PutAudioStreamData(stream, out->voice_.samples.data() + out->cursor_, int(n * sizeof(int16_t)));
+        const int16_t* data = out->voice_.samples.data() + out->cursor_;
+        bool mixing = false;
+        for (const Effect& e : out->effects_) mixing |= e.pcm != nullptr;
+        if (mixing) {  // effects summed onto this chunk of the voice, clamped
+            out->mix_.assign(data, data + n);
+            for (Effect& e : out->effects_) {
+                if (!e.pcm) continue;
+                const size_t m = std::min(n, e.pcm->samples.size() - e.cursor);
+                for (size_t i = 0; i < m; ++i) {
+                    out->mix_[i] = int16_t(std::clamp(int(out->mix_[i]) + e.pcm->samples[e.cursor + i], -32768, 32767));
+                }
+                e.cursor += m;
+                if (e.cursor >= e.pcm->samples.size()) e = {};
+            }
+            data = out->mix_.data();
+        }
+        SDL_PutAudioStreamData(stream, data, int(n * sizeof(int16_t)));
         out->cursor_ += n;
         out->fed_frames_ += int64_t(n / size_t(channels));
     }

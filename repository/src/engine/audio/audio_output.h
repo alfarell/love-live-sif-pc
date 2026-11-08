@@ -2,7 +2,9 @@
 // Audio output on SDL3: one PCM voice fed from the device callback, a fed-frames counter (the basis of M4's master
 // clock), and the device buffer size actually granted, logged as output latency.
 
+#include <array>
 #include <atomic>
+#include <vector>
 #include <cstdint>
 #include <string>
 
@@ -19,8 +21,14 @@ public:
     void Close();
     void SetVolume(float volume);  // 0..1, at once (the options screen)
 
-    void Play(cri::Pcm pcm);  // replaces the current voice; plays from the start
+    void Play(cri::Pcm pcm);  // replaces the current voice and stops all effects; plays from the start
     bool Playing() const;
+    // Sound effects mixed into the voice while it plays (e.g. judgement sounds): up to kEffects at once, the oldest
+    // replaced when all are busy. `pcm` must have the voice's rate and channels (cri::LoadCueMix) and outlive its
+    // playback or the next StopEffects(). Effects never move the master clock, which counts voice frames only.
+    static constexpr size_t kEffects = 8;
+    void PlayEffect(const cri::Pcm* pcm);
+    void StopEffects();
     int64_t FedFrames() const { return fed_frames_.load(); }  // frames of the voice handed to SDL so far
 
     int DeviceRate() const { return device_rate_; }
@@ -39,6 +47,13 @@ private:
     SDL_AudioStream* stream_ = nullptr;
     cri::Pcm voice_;
     size_t cursor_ = 0;  // in samples (interleaved)
+    struct Effect {
+        const cri::Pcm* pcm = nullptr;
+        size_t cursor = 0;  // in samples
+    };
+    std::array<Effect, kEffects> effects_{};  // guarded by the stream lock, like the voice
+    size_t next_effect_ = 0;
+    std::vector<int16_t> mix_;  // callback scratch
     std::atomic<int64_t> fed_frames_{0};
     // written by the callback, read by PlayheadMs: frames fed before the last callback and its time
     std::atomic<int64_t> clock_frames_{0};

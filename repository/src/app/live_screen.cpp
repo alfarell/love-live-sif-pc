@@ -17,6 +17,7 @@
 #include "app/input.h"
 #include "app/result_screen.h"
 #include "engine/audio/audio_output.h"
+#include "engine/audio/sound_bank.h"
 #include "engine/core/log.h"
 #include "engine/platform/settings.h"
 #include "engine/formats/bscm.h"
@@ -604,6 +605,25 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
         LogInfo("live: costume {}", dressed.costume.empty() ? "base model" : dressed.costume);
     }
     scene.Load(renderer, vfs, dressed);
+    // judgement sounds: sys.acb cues 20030-20034 (Perfect .. miss), 20039-20043 the finale's "_fl" set; the eboot's
+    // judgement sound function (0xB06C0) reads them from its table at 0x5E8BA0 (analysis 202611082306). Mixed in the
+    // music's format so they can be summed onto it
+    std::array<std::array<cri::Pcm, kGrades>, 2> hit_sound;  // [finale][grade]
+    {
+        cri::CueSheet sys;
+        int loaded = 0;
+        if (cri::LoadCueSheet(vfs, "sys", sys, &error)) {
+            for (int f = 0; f < 2; ++f) {
+                for (int g = 0; g < kGrades; ++g) {
+                    if (cri::LoadCueMix(vfs, sys, (f ? 20039 : 20030) + g, music.rate, music.channels,
+                                        hit_sound[size_t(f)][size_t(g)], &error)) {
+                        ++loaded;
+                    }
+                }
+            }
+        }
+        if (loaded < 2 * kGrades) LogWarn("live: judgement sounds: {} of {} loaded ({})", loaded, 2 * kGrades, error);
+    }
     audio.Play(std::move(music));
 
     Layout layout;
@@ -689,12 +709,23 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
             }
         }
         judge.Update(now);
+        // each judgement plays its sound, each sound at most once per frame (a simultaneous pair judged alike sounds
+        // once; shortcut: the game's rule for this and for hold releases is not traced, its caller of 0xB06C0 is a
+        // function pointer)
+        unsigned played = 0;
         for (; log_seen < judge.Log().size(); ++log_seen) {
             const live::Judgement& j = judge.Log()[log_seen];
-            const int lane = chart.notes[size_t(j.note)].lane;
+            const live::Note& note = chart.notes[size_t(j.note)];
+            const int lane = note.lane;
             flash[size_t(lane)] = now;
             flash_grade[size_t(lane)] = j.grade;
             if (j.grade == Grade::Miss) missed[size_t(lane)] = now;
+            const int finale = judge.finale && note.time_ms >= chart.finale_ms ? 1 : 0;
+            const unsigned bit = 1u << (finale * kGrades + int(j.grade));
+            if (!(played & bit)) {
+                played |= bit;
+                audio.PlayEffect(&hit_sound[size_t(finale)][size_t(j.grade)]);
+            }
         }
 
         if (has_hud && long(judge.score) != hud_score) {
@@ -851,6 +882,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
         if (end_ticks && double(SDL_GetTicksNS() - end_ticks) / 1e6 > clear_ms) fade.Leave(hud);
     }
 
+    audio.StopEffects();  // hit_sound is about to go away
     scene.Release(renderer);
     field.Release(renderer);
     hud.Release(renderer);

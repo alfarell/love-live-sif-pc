@@ -14,5 +14,10 @@ namespace sif::cri {
 bool LoadCueSheet(const Vfs& vfs, std::string_view name, CueSheet& out, std::string* error = nullptr);
 bool LoadCue(const Vfs& vfs, const CueSheet& sheet, std::string_view cue, Pcm& out, std::string* error = nullptr);
 bool LoadWave(const Vfs& vfs, const CueSheet& sheet, const Wave& wave, Pcm& out, std::string* error = nullptr);
+// All layers of cue `cue_id` decoded, converted to `rate` and `channels` (linear resampling; mono is copied to every
+// channel, more channels than wanted are averaged) and summed with their gains, clamped to 16 bits. For sound effects
+// mixed into a voice of that format (AudioOutput::PlayEffect).
+bool LoadCueMix(const Vfs& vfs, const CueSheet& sheet, int64_t cue_id, int rate, int channels, Pcm& out,
+                std::string* error = nullptr);
 
 }
