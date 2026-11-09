@@ -50,6 +50,14 @@ Each test is a program in the build folder. The ones that read the game take you
 
 Each prints `… ok` or the failed checks. `sif_video_test` also takes `--all` after the folder, which decodes every picture of every movie (slow in Debug).
 
+The routes in `tests/routes/` play the game from a script (menus, songs, settings) and check where it ends up. Run them all with Python 3.14:
+
+```bash
+py -3.14 -I tools/routes.py --exe ..\work\build\release\sif.exe --game "D:\Games\PS4\Love Live School Idol Festival\CUSA24620"
+```
+
+It prints PASS or FAIL per route and keeps each route's log in `..\work\routes\`. With `--shots` the window is visible and the routes save pictures there.
+
 ## When it fails
 
 | Message | Cause and fix |
