@@ -1,0 +1,11 @@
+# the top menu's navigator: T plays another of her lines
+timeout 60s
+expect screen title 30s
+press enter until menu 30s
+wait 1500ms
+expect log talk
+key t
+expect log top menu: another line (T)
+wait 2s
+expect nolog no voice
+expect nolog error

@@ -1,0 +1,8 @@
+# the user's own add-ons are found next to the dump (Extracted / DLC) and counted
+timeout 60s
+expect screen title 30s
+press enter until menu 30s
+wait 1500ms
+expect log add-ons:
+expect nolog add-ons: 0 found
+expect nolog error

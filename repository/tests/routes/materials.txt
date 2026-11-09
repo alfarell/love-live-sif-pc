@@ -1,0 +1,21 @@
+# Costumes -> Costume Materials (seed): the list, both groups
+#! seed materials
+timeout 60s
+expect screen title 30s
+press enter until menu 30s
+wait 1500ms
+key right
+wait 800ms
+key down
+wait 400ms
+key enter
+expect log top menu: entry 7
+expect screen materials 20s
+wait 1500ms
+shot materials
+key right
+wait 800ms
+key esc
+expect screen menu 20s
+expect nolog materials: no
+expect nolog error

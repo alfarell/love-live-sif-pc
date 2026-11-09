@@ -1,0 +1,30 @@
+# career 1: menu -> Play -> song select -> song, difficulty, stage, costume -> a full live (autoplay) -> result ->
+# back to the song select; the save records the play
+#! data career
+#! args --autoplay
+timeout 300s
+expect screen title 30s
+press enter until menu 30s
+wait 1500ms
+key enter
+expect screen select 20s
+wait 1500ms
+key enter
+wait 800ms
+key enter
+wait 800ms
+key enter
+wait 800ms
+key enter
+expect log top menu: entry 0
+expect log song select: song
+expect screen live 30s
+expect log stage screens play
+expect screen result 200s
+expect log live result: Perfect
+expect log played 1 times
+wait 2s
+shot career_result
+key enter
+expect screen select 20s
+expect nolog error

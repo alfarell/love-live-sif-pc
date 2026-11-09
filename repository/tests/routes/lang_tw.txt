@@ -1,0 +1,10 @@
+# the UI in tw: boot to the top menu with that language's UI archives
+#! args --lang tw
+timeout 60s
+expect screen title 30s
+press enter until menu 30s
+wait 1500ms
+expect log ui ui2/10_top_menu_tw.pac:
+wait 2s
+shot lang_tw
+expect nolog error

@@ -1,0 +1,27 @@
+# Collection -> Profile Card: choose another item on the first tab
+timeout 60s
+expect screen title 30s
+press enter until menu 30s
+wait 1500ms
+key right
+wait 400ms
+key right
+wait 400ms
+key right
+wait 400ms
+key right
+wait 400ms
+wait 400ms
+key enter
+expect log top menu: entry 15
+expect screen profile 20s
+wait 1500ms
+key right
+wait 400ms
+key enter
+expect log profile: tab
+wait 600ms
+shot profile
+key esc
+expect screen menu 20s
+expect nolog error

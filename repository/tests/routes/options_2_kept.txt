@@ -1,0 +1,23 @@
+# the settings changed by options_1 are still there after a restart
+#! data options
+timeout 60s
+expect screen title 30s
+press enter until menu 30s
+wait 1500ms
+key right
+wait 400ms
+key right
+wait 400ms
+key right
+wait 400ms
+key down
+wait 400ms
+key down
+wait 400ms
+key enter
+expect screen options 20s
+wait 1500ms
+key esc
+expect log options: volume 0.15
+expect screen menu 20s
+expect nolog error

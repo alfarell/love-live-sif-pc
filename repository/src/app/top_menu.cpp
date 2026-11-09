@@ -189,6 +189,7 @@ int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
             switch (e.key.scancode) {
                 case SDL_SCANCODE_ESCAPE: fade.Leave(ui); break;
                 case SDL_SCANCODE_T:
+                    LogInfo("top menu: another line (T)");
                     if (audio && !plain.empty()) Say(vfs, voice, *audio, plain[random() % plain.size()]);
                     continue;
                 case SDL_SCANCODE_LEFT: mode = (mode + kModes - 1) % kModes, entry = 0; break;

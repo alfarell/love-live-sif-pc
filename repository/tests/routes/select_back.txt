@@ -1,0 +1,22 @@
+# Esc goes back one step in the song select, and from the song list back to the top menu
+timeout 90s
+expect screen title 30s
+press enter until menu 30s
+wait 1500ms
+key enter
+expect screen select 20s
+wait 1500ms
+key right
+wait 600ms
+key enter
+wait 800ms
+key enter
+wait 800ms
+key esc
+wait 800ms
+key esc
+wait 800ms
+key esc
+expect screen menu 20s
+expect nolog song select: song
+expect nolog error

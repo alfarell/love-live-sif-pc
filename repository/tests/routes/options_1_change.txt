@@ -1,0 +1,47 @@
+# Options -> Sound: the volume goes up; Options -> Game Settings: the note speed changes; both written to
+# settings.ini (checked by options_2 in the same data folder)
+#! data options
+timeout 90s
+expect screen title 30s
+press enter until menu 30s
+wait 1500ms
+key right
+wait 400ms
+key right
+wait 400ms
+key right
+wait 400ms
+key down
+wait 400ms
+key down
+wait 400ms
+key enter
+expect log top menu: entry 13
+expect screen options 20s
+wait 1500ms
+key right
+wait 300ms
+key right
+wait 300ms
+key right
+wait 300ms
+shot options_sound
+key esc
+expect log options: volume 0.15
+expect screen menu 20s
+wait 1500ms
+key right
+wait 400ms
+key right
+wait 400ms
+key right
+wait 400ms
+key enter
+expect log top menu: entry 10
+expect screen options 20s
+wait 1500ms
+key right
+wait 300ms
+key esc
+expect screen menu 20s
+expect nolog error

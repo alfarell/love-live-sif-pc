@@ -1,0 +1,55 @@
+# calibration: 24 clicks every 500 ms from 2 s; Space on each one; the median offset is stored
+#! args --calibrate
+timeout 60s
+expect screen calibrate 20s
+wait 1950ms
+key space
+wait 490ms
+key space
+wait 490ms
+key space
+wait 490ms
+key space
+wait 490ms
+key space
+wait 490ms
+key space
+wait 490ms
+key space
+wait 490ms
+key space
+wait 490ms
+key space
+wait 490ms
+key space
+wait 490ms
+key space
+wait 490ms
+key space
+wait 490ms
+key space
+wait 490ms
+key space
+wait 490ms
+key space
+wait 490ms
+key space
+wait 490ms
+key space
+wait 490ms
+key space
+wait 490ms
+key space
+wait 490ms
+key space
+wait 490ms
+key space
+wait 490ms
+key space
+wait 490ms
+key space
+wait 490ms
+key space
+wait 490ms
+expect log calibration: 24 taps
+expect nolog error

@@ -1,0 +1,10 @@
+# a Saint Snow song straight into the live (autoplay): stage, members, stage screens, judgement for 25 s
+#! args --live 1940:1 --autoplay
+timeout 90s
+expect screen live 30s
+expect log stage screens play
+expect log live scene: stage
+wait 25s
+shot live_saintsnow
+expect nolog live: judgement sounds
+expect nolog error

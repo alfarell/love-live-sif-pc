@@ -1,0 +1,22 @@
+# career 2 (same save): the same chart again; the save counts the second play and keeps the best
+#! data career
+#! args --autoplay
+timeout 300s
+expect screen title 30s
+press enter until menu 30s
+wait 1500ms
+key enter
+expect screen select 20s
+wait 1500ms
+key enter
+wait 800ms
+key enter
+wait 800ms
+key enter
+wait 800ms
+key enter
+expect screen live 30s
+expect screen result 200s
+expect log played 2 times
+expect nolog new best score
+expect nolog error

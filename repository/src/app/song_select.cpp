@@ -400,9 +400,13 @@ SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs,
                     break;
                 case SDL_SCANCODE_ESCAPE:
                 case SDL_SCANCODE_BACKSPACE:
-                    if (step != kSongStep) step = Step(step - 1);
+                    // one step back; from the song list back to the top menu (M9: the else used to leave on any Esc)
+                    if (step == kSongStep) {
+                        fade.Leave(ui);
+                        break;
+                    }
+                    step = Step(step - 1);
                     if (step == kStageStep && stages.empty()) step = kDifficultyStep;
-                    else fade.Leave(ui);
                     break;
                 default: break;
             }

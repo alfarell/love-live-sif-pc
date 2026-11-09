@@ -1,0 +1,10 @@
+# the UI in jp: boot to the top menu with that language's UI archives
+#! args --lang jp
+timeout 60s
+expect screen title 30s
+press enter until menu 30s
+wait 1500ms
+expect log ui ui2/10_top_menu.pac:
+wait 2s
+shot lang_jp
+expect nolog error

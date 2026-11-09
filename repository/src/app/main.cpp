@@ -450,6 +450,11 @@ int main(int argc, char** argv) {
                         sif::LogInfo("materials: {}", got.empty() ? "none" : got);
                     }
                     if (can_save && !sif::save::Write(save_path, save, &save_error)) sif::LogWarn("save: {}", save_error);
+                    if (const auto it = save.records.find({result.song, result.variant}); it != save.records.end()) {
+                        const auto& r = it->second;  // what the save now holds (checked by routes)
+                        sif::LogInfo("save: {:04d}/{:02d} played {} times, best score {}, rank {}{}", result.song,
+                                     result.variant, r.plays, r.best_score, r.best_rank, news.score ? ", new best score" : "");
+                    }
                     LogNewMissions(missions, accolades, songs, dresses, language, before, save);
                 }
                 open = code == 0 && !result.closed &&

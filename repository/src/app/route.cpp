@@ -302,7 +302,19 @@ bool Inject(SDL_Event& e) {
 int ExitCode(int code) {
     State& s = S();
     if (!s.active) return code;
-    if (!s.done) Fail("the app ended before the route finished");
+    // the app may end on its own (e.g. calibration): the remaining log checks are still decided, anything else fails
+    for (; !s.done && s.next < s.cmds.size(); ++s.next) {
+        const Command& c = s.cmds[s.next];
+        if (c.op == "wait" || c.op == "shot" || c.op == "timeout") continue;
+        if (c.op == "quit") break;
+        if (c.op == "expect" && c.what == "log" && !Logged(c.text)) Fail("no log line with '" + c.text + "'");
+        else if (c.op == "expect" && c.what == "nolog" && Logged(c.text)) Fail("a log line has '" + c.text + "'");
+        else if (c.op != "expect" || c.what == "screen") Fail("the app ended before the route finished");
+    }
+    if (!s.done) {
+        s.done = true;
+        LogInfo("route: PASS (the app ended; the remaining checks hold)");
+    }
     LogSetObserver(nullptr);
     return s.failed ? 3 : 0;
 }

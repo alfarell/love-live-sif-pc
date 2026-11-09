@@ -1,0 +1,34 @@
+# career 3 (same save, two finished lives): Event -> Task List; claim, tabs, paging
+#! data career
+timeout 120s
+expect screen title 30s
+press enter until menu 30s
+wait 1500ms
+key right
+wait 400ms
+key right
+wait 400ms
+key right
+wait 400ms
+key right
+wait 400ms
+key right
+wait 400ms
+wait 400ms
+key enter
+expect log top menu: entry 20
+expect screen missions 20s
+expect log missions:
+wait 1500ms
+shot missions
+key enter
+wait 800ms
+key right
+wait 800ms
+key pagedown
+wait 800ms
+key left
+wait 800ms
+key esc
+expect screen menu 20s
+expect nolog error
