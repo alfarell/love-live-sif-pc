@@ -237,8 +237,52 @@ bool Renderer::Upload(const btx::Image& image, Texture& out, std::string* error)
     return ok || Fail(error, "SDL_SubmitGPUCommandBuffer");
 }
 
+bool Renderer::CreateTexture(uint32_t width, uint32_t height, Texture& out, std::string* error) {
+    out = {};
+    SDL_GPUTextureCreateInfo info{};
+    info.type = SDL_GPU_TEXTURETYPE_2D;
+    info.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
+    info.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;
+    info.width = width;
+    info.height = height;
+    info.layer_count_or_depth = 1;
+    info.num_levels = 1;
+    out.gpu = SDL_CreateGPUTexture(device_, &info);
+    SDL_GPUTransferBufferCreateInfo tb{SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD, width * height * 4, 0};
+    out.staging = out.gpu ? SDL_CreateGPUTransferBuffer(device_, &tb) : nullptr;
+    if (!out.gpu || !out.staging) {
+        Release(out);
+        return Fail(error, "CreateTexture");
+    }
+    out.width = width;
+    out.height = height;
+    return true;
+}
+
+bool Renderer::UpdateTexture(Texture& texture, std::span<const uint8_t> rgba) {
+    if (!texture.staging || rgba.size() != size_t(texture.width) * texture.height * 4) return false;
+    void* dst = SDL_MapGPUTransferBuffer(device_, texture.staging, true);  // cycle: the last upload may be in flight
+    if (!dst) return false;
+    std::memcpy(dst, rgba.data(), rgba.size());
+    SDL_UnmapGPUTransferBuffer(device_, texture.staging);
+    SDL_GPUCommandBuffer* cmd = SDL_AcquireGPUCommandBuffer(device_);
+    if (!cmd) return false;
+    SDL_GPUCopyPass* copy = SDL_BeginGPUCopyPass(cmd);
+    SDL_GPUTextureTransferInfo from{};
+    from.transfer_buffer = texture.staging;
+    SDL_GPUTextureRegion to{};
+    to.texture = texture.gpu;
+    to.w = texture.width;
+    to.h = texture.height;
+    to.d = 1;
+    SDL_UploadToGPUTexture(copy, &from, &to, true);  // cycle: a frame in flight keeps sampling the old picture
+    SDL_EndGPUCopyPass(copy);
+    return SDL_SubmitGPUCommandBuffer(cmd);
+}
+
 void Renderer::Release(Texture& texture) {
     if (texture.gpu) SDL_ReleaseGPUTexture(device_, texture.gpu);
+    if (texture.staging) SDL_ReleaseGPUTransferBuffer(device_, texture.staging);
     texture = {};
 }
 

@@ -5,7 +5,8 @@
 //     --ui-hide NODE,... (nodes hidden in every part) and --ui-hide-path PATH,... (placed instances hidden);
 //   - the M4 live slice: --live ID:VARIANT (e.g. 10:4 = song 0010, ac_challenge), with --autoplay;
 //   - calibration: --calibrate (tap Space to a click track; stores timing.audio_offset_ms);
-//   - the M3 check: one game texture (--show PATH) and one cue (--play SHEET:CUE, or "none").
+//   - the M3 check: one game texture (--show PATH) and one cue (--play SHEET:CUE, or "none"); --movie PATH plays a
+//     USM movie there instead of the texture, looping (M8).
 // Other options: --frames N (close after N frames), --crash (forced access violation), --data DIR (log, settings and
 // dump folder; default <exe>/data), --game DIR (the CUSA24620 dump; saved to settings).
 #include <SDL3/SDL.h>
@@ -40,6 +41,7 @@
 #include "engine/platform/os.h"
 #include "engine/platform/settings.h"
 #include "engine/render/renderer.h"
+#include "engine/video/movie.h"
 #include "game/costume/costume.h"
 #include "game/dlc/dlc.h"
 #include "game/live/song.h"
@@ -63,6 +65,7 @@ struct Options {
     std::filesystem::path data_dir;
     std::string game;
     std::string show = kDefaultTexture;
+    std::string movie;  // --movie: a USM played in place of the --show texture, looping (M8 check)
     std::string play = kDefaultCue;
     bool live = false, calibrate = false, title = false, menu = false, select = false, result_demo = false;
     std::string ui, ui_hide, ui_hide_path;
@@ -78,6 +81,7 @@ Options ParseOptions(int argc, char** argv) {
         else if (!std::strcmp(argv[i], "--data") && i + 1 < argc) o.data_dir = sif::os::PathFromUtf8(argv[++i]);
         else if (!std::strcmp(argv[i], "--game") && i + 1 < argc) o.game = argv[++i];
         else if (!std::strcmp(argv[i], "--show") && i + 1 < argc) o.show = argv[++i];
+        else if (!std::strcmp(argv[i], "--movie") && i + 1 < argc) o.movie = argv[++i];
         else if (!std::strcmp(argv[i], "--play") && i + 1 < argc) o.play = argv[++i];
         else if (!std::strcmp(argv[i], "--autoplay")) o.live_options.autoplay = true;
         else if (!std::strcmp(argv[i], "--calibrate")) o.calibrate = true;
@@ -441,6 +445,21 @@ int main(int argc, char** argv) {
         }
     }
 
+    sif::video::Movie movie;
+    sif::Texture movie_texture;
+    if (!options.movie.empty()) {
+        if (!movie.Open(vfs, options.movie, &why) ||
+            !renderer.CreateTexture(uint32_t(movie.Info().width), uint32_t(movie.Info().height), movie_texture, &why)) {
+            sif::LogError("movie {}: {}", options.movie, why);
+            movie.Close();
+        } else {
+            const auto& i = movie.Info();
+            sif::LogInfo("movie {}: {}x{}, {:.3f} fps, {} frames", options.movie, i.width, i.height, i.fps, i.frames);
+        }
+    }
+    double movie_ms = 0;  // decode + upload time, for the frame-cost note
+    long movie_updates = 0;
+
     if (const size_t colon = options.play.find(':'); audio_ok && options.play != "none" && colon != std::string::npos) {
         const std::string sheet_name = options.play.substr(0, colon), cue = options.play.substr(colon + 1);
         sif::cri::CueSheet sheet;
@@ -470,7 +489,17 @@ int main(int argc, char** argv) {
         while (sif::PollEvent(event)) {
             if (event.type == SDL_EVENT_QUIT) running = false;
         }
-        if (!renderer.DrawFrame(&texture)) SDL_Delay(10);  // minimized: nothing to present
+        if (movie.IsOpen()) {  // the picture for the time since start, looping; uploaded only when it changes
+            const double t = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+            const int n = int(t * movie.Info().fps) % movie.Info().frames;
+            if (n != movie.Current()) {
+                const auto t0 = std::chrono::steady_clock::now();
+                if (const auto* rgba = movie.Frame(n)) renderer.UpdateTexture(movie_texture, *rgba);
+                movie_ms += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+                ++movie_updates;
+            }
+        }
+        if (!renderer.DrawFrame(movie.IsOpen() ? &movie_texture : &texture)) SDL_Delay(10);  // minimized: nothing to present
         if (const auto now = std::chrono::steady_clock::now(); now >= next_report) {
             // fed frames vs wall clock: the gap is what SDL and the device still hold (input to M4's clock design)
             const double wall = std::chrono::duration<double>(now - start).count();
@@ -480,8 +509,13 @@ int main(int argc, char** argv) {
         }
     }
     sif::LogInfo("frames drawn: {}", frame);
+    if (movie_updates) {
+        sif::LogInfo("movie: {} pictures shown, decode + upload {:.2f} ms each on average", movie_updates,
+                     movie_ms / double(movie_updates));
+    }
 
     audio.Close();
+    renderer.Release(movie_texture);
     renderer.Release(texture);
     renderer.Shutdown();
     SDL_DestroyWindow(window);

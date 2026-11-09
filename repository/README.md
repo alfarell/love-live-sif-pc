@@ -52,6 +52,7 @@ sif.exe --game <your CUSA24620 dump folder> [--title|--menu|--select [--lang en|
 - The game folder must be the user's own dump (checked: `sce_sys/param.sfo` names CUSA24620; `common/common.pac`, `sound/sound.pac`, `live/` exist). It is saved to `settings.ini`, so later runs need no `--game`. Song add-ons are read from the dump's `sound/dlc/`.
 - Writes `sif.log` and `settings.ini` in `<exe>/data/` (or `--data DIR`).
 - `--show` draws one texture, e.g. `chr/c11/c11.pac/model.pac/texture.texs/chika_body_01` (default: a member card picture).
+- `--movie` plays one of the game's movies instead, looping, e.g. `--movie movie/monitor_001.usm --play none`; `sif.log` gets the average decode time.
 - `--play` plays one cue, e.g. `sys:11_gatya` (default: song 0010 from `music`).
 - `--crash` forces an access violation and writes `sif-crash-*.dmp` to the data folder (crash-reporting test).
 - `--frames N` closes after N frames.

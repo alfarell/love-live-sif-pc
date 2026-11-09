@@ -24,6 +24,7 @@ namespace sif {
 struct Texture {
     SDL_GPUTexture* gpu = nullptr;
     uint32_t width = 0, height = 0;
+    SDL_GPUTransferBuffer* staging = nullptr;  // streamed textures (CreateTexture): upload buffer, reused every update
 };
 
 // One vertex of a 3D mesh (model space).
@@ -46,6 +47,11 @@ public:
     void Shutdown();
 
     bool Upload(const btx::Image& image, Texture& out, std::string* error);
+    // A streamed RGBA8 texture (movie frames): CreateTexture once, then UpdateTexture with width x height x 4 bytes
+    // whenever the picture changes. Like UpdateMesh, update outside a frame; the copy runs before the frame that uses
+    // it, and the texture and upload buffer are cycled so a frame still in flight keeps the old picture.
+    bool CreateTexture(uint32_t width, uint32_t height, Texture& out, std::string* error);
+    bool UpdateTexture(Texture& texture, std::span<const uint8_t> rgba);
     void Release(Texture& texture);
 
     // `dynamic` meshes keep an upload buffer for UpdateMesh (CPU skinning). Upload and update outside a frame or
