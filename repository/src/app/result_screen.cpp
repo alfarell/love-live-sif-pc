@@ -10,6 +10,7 @@
 
 #include "app/fade.h"
 #include "app/input.h"
+#include "app/route.h"
 #include "engine/core/log.h"
 #include "engine/render/renderer.h"
 #include "engine/ui/ui_screen.h"
@@ -28,6 +29,7 @@ constexpr const char* kLayout = "uil0001_ResultTop00/uil0002_ResultLayout00";
 // title, cover)
 bool RunResult(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, const LiveResult& r,
                long max_frames, const save::NewBests& news) {
+    route::SetScreen("result");
     UiText text;
     std::string error;
     if (!text.Load(vfs, lang, &error)) LogWarn("result: text: {}", error);

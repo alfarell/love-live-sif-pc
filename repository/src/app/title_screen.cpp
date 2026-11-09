@@ -9,6 +9,7 @@
 
 #include "app/fade.h"
 #include "app/input.h"
+#include "app/route.h"
 #include "engine/core/log.h"
 #include "engine/render/renderer.h"
 #include "engine/ui/ui_screen.h"
@@ -39,6 +40,7 @@ bool IsConfirm(const SDL_Event& e) {
 }
 
 bool RunTitle(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, long max_frames) {
+    route::SetScreen("title");
     UiText text;
     std::string error;
     if (!text.Load(vfs, lang, &error)) LogWarn("title: text: {}", error);  // the screens still work without text

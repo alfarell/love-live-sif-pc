@@ -17,6 +17,9 @@ void LogWrite(LogLevel level, std::string_view text);
 void LogSetFile(const std::filesystem::path& path);
 bool LogTryWrite(LogLevel level, std::string_view text);
 void LogSetTick(uint64_t tick);
+// Called with every LogWrite line, under the log lock (it must not log itself), e.g. the M9 route player's
+// "expect log" checks; nullptr removes it.
+void LogSetObserver(void (*observer)(LogLevel level, std::string_view text));
 double LogClock();
 
 template <typename... Args>

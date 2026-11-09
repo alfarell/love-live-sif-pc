@@ -9,6 +9,7 @@
 
 #include "app/fade.h"
 #include "app/input.h"
+#include "app/route.h"
 #include "engine/core/log.h"
 #include "engine/fs/vfs.h"
 #include "engine/render/renderer.h"
@@ -36,6 +37,7 @@ std::vector<int> MaterialSlots(bool aqours) {
 
 bool RunMaterials(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, const costume::Data& data,
                   const save::SaveData& save, long max_frames) {
+    route::SetScreen("materials");
     UiText text;
     std::string error;
     if (!text.Load(vfs, lang, &error)) LogWarn("materials: text: {}", error);
@@ -127,6 +129,7 @@ std::string Two(const char* pattern, int k) {
 bool RunCostumes(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, const costume::Data& data,
                  const std::vector<std::pair<int, std::string>>& names, const dlc::Ownership* addons, save::SaveData& save,
                  long max_frames) {
+    route::SetScreen("costumes");
     UiText text;
     std::string error;
     if (!text.Load(vfs, lang, &error)) LogWarn("costumes: text: {}", error);

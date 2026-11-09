@@ -88,7 +88,7 @@ The project's roadmap lists the details.
 sif.exe [--game DIR] [--data DIR] [--lang en|cn|tw|jp]
         [--title | --menu | --select | --live ID:VARIANT [--autoplay] [--stage stNNN] [--costume dNNN] [--member N]
          | --calibrate | --result-demo | --ui SCREEN:LAYOUT[:CLIP] | --show VFS_PATH | --movie VFS_PATH | --play SHEET:CUE|none]
-        [--frames N] [--crash]
+        [--frames N] [--crash] [--route FILE [--shots DIR] [--hidden]]
 ```
 
 | Option | Effect |
@@ -102,4 +102,5 @@ sif.exe [--game DIR] [--data DIR] [--lang en|cn|tw|jp]
 | `--game DIR` | Use this dump folder (saved like the first-run choice) |
 | `--data DIR` | Use another data folder |
 | `--frames N` | Close after N frames |
+| `--route FILE`, `--shots DIR`, `--hidden` | Play a scripted route from `tests/routes/` (exit code 0 pass, 3 fail; `sif.log` says why), save its shots to DIR, without a visible window (shots then come out black) |
 | `--result-demo`, `--ui …`, `--show …`, `--movie …`, `--play …`, `--crash` | Developer views: a fixed result screen, any UI layout, one texture, one movie, one sound, a crash-report test |

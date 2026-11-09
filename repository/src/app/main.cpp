@@ -29,6 +29,7 @@
 #include "app/options_screen.h"
 #include "app/profile_screen.h"
 #include "app/result_screen.h"
+#include "app/route.h"
 #include "app/song_select.h"
 #include "app/title_screen.h"
 #include "app/top_menu.h"
@@ -66,6 +67,8 @@ struct Options {
     std::filesystem::path data_dir;
     std::string game;
     std::string show = kDefaultTexture;
+    std::filesystem::path route, shots;  // --route FILE (M9): a scripted walkthrough; --shots DIR: where its shots go
+    bool hidden = false;                 // --hidden: no visible window (routes)
     std::string movie;  // --movie: a USM played in place of the --show texture, looping (M8 check)
     std::string play = kDefaultCue;
     bool live = false, calibrate = false, title = false, menu = false, select = false, result_demo = false;
@@ -83,6 +86,9 @@ Options ParseOptions(int argc, char** argv) {
         else if (!std::strcmp(argv[i], "--game") && i + 1 < argc) o.game = argv[++i];
         else if (!std::strcmp(argv[i], "--show") && i + 1 < argc) o.show = argv[++i];
         else if (!std::strcmp(argv[i], "--movie") && i + 1 < argc) o.movie = argv[++i];
+        else if (!std::strcmp(argv[i], "--route") && i + 1 < argc) o.route = sif::os::PathFromUtf8(argv[++i]);
+        else if (!std::strcmp(argv[i], "--shots") && i + 1 < argc) o.shots = sif::os::PathFromUtf8(argv[++i]);
+        else if (!std::strcmp(argv[i], "--hidden")) o.hidden = true;
         else if (!std::strcmp(argv[i], "--play") && i + 1 < argc) o.play = argv[++i];
         else if (!std::strcmp(argv[i], "--autoplay")) o.live_options.autoplay = true;
         else if (!std::strcmp(argv[i], "--calibrate")) o.calibrate = true;
@@ -191,6 +197,10 @@ void LogNewMissions(const sif::mission::Missions& missions, const std::vector<si
 }
 
 int Quit(int code, const char* why) {
+    if (const int routed = sif::route::ExitCode(code); routed != code || sif::route::Active()) {  // a route decides
+        why = routed ? "route failed" : "route passed";                                         // 0 pass, 3 fail
+        code = routed;
+    }
     SDL_Quit();
     sif::LogExit(code, why);
     return code;
@@ -253,12 +263,23 @@ int main(int argc, char** argv) {
         return 1;
     }
     SDL_Window* window = SDL_CreateWindow("SIF port", settings.display.width, settings.display.height,
-                                          SDL_WINDOW_RESIZABLE | (settings.display.fullscreen ? SDL_WINDOW_FULLSCREEN : 0));
+                                          SDL_WINDOW_RESIZABLE | (settings.display.fullscreen ? SDL_WINDOW_FULLSCREEN : 0) |
+                                              (options.hidden ? SDL_WINDOW_HIDDEN : 0));
     if (!window) {
         sif::LogError("SDL_CreateWindow: {}", SDL_GetError());
         return Quit(1, "window failed");
     }
-    sif::LogInfo("window created {}x{}", settings.display.width, settings.display.height);
+    sif::LogInfo("window created {}x{}{}", settings.display.width, settings.display.height, options.hidden ? " (hidden)" : "");
+    if (!options.route.empty()) {
+        const auto shots = options.shots.empty() ? options.data_dir / "shots" : options.shots;
+        if (!sif::route::Start(options.route, window, shots, &why)) {
+            sif::LogError("route: {}", why);
+            SDL_DestroyWindow(window);
+            SDL_Quit();
+            sif::LogExit(3, "route not readable");
+            return 3;
+        }
+    }
 
     sif::Renderer renderer;
     if (!renderer.Init(window, settings.display.vsync, &why)) {

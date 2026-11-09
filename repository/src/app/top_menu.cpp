@@ -12,6 +12,7 @@
 
 #include "app/fade.h"
 #include "app/input.h"
+#include "app/route.h"
 #include "engine/audio/audio_output.h"
 #include "engine/audio/sound_bank.h"
 #include "engine/core/log.h"
@@ -143,6 +144,7 @@ void ShowNameplate(UiScreen& ui, const Nameplate& p, const std::string& title, c
 
 int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, long max_frames,
                int* chosen_mode, AudioOutput* audio, const Nameplate* plate) {
+    route::SetScreen("menu");
     UiText text;
     std::string error;
     if (!text.Load(vfs, lang, &error)) LogWarn("top menu: text: {}", error);

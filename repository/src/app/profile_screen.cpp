@@ -9,6 +9,7 @@
 
 #include "app/fade.h"
 #include "app/input.h"
+#include "app/route.h"
 #include "engine/core/log.h"
 #include "engine/render/renderer.h"
 #include "engine/ui/ui_screen.h"
@@ -51,6 +52,7 @@ std::string Slot(int group, int k) {
 
 bool RunProfile(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, Nameplate& plate,
                 long max_frames) {
+    route::SetScreen("profile");
     UiText text;
     std::string error;
     if (!text.Load(vfs, lang, &error)) LogWarn("profile: text: {}", error);

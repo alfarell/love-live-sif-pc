@@ -16,6 +16,7 @@
 #include "app/fade.h"
 #include "app/input.h"
 #include "app/result_screen.h"
+#include "app/route.h"
 #include "engine/audio/audio_output.h"
 #include "engine/audio/sound_bank.h"
 #include "engine/core/log.h"
@@ -617,6 +618,7 @@ const float kGradeColor[live::kGrades][4] = {
 
 int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vfs& vfs, const AppSettings& settings,
             const LiveOptions& opt, LiveResult* result) {
+    route::SetScreen("live");
     live::Song song;
     cri::Pcm music;
     std::string error;
@@ -966,6 +968,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
 }
 
 bool RunCalibration(SDL_Window* window, Renderer& renderer, AudioOutput& audio, AppSettings& settings, long max_frames) {
+    route::SetScreen("calibrate");
     // click track: 2 s silence, then 24 clicks at 120 BPM (a 15 ms 1 kHz tone burst each)
     constexpr int kRate = 48000, kClicks = 24;
     constexpr double kFirst = 2000, kBeat = 500;

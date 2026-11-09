@@ -15,6 +15,7 @@ namespace {
 std::mutex g_log_mutex;
 FILE* g_log_file = nullptr;
 uint64_t g_tick = 0;
+void (*g_observer)(LogLevel, std::string_view) = nullptr;
 const bool g_log_ticks = [] {
     const char* value = std::getenv("SIF_LOG_TICKS");
     return value && *value == '1';
@@ -58,6 +59,12 @@ void LogWrite(LogLevel level, std::string_view text) {
         std::fprintf(g_log_file, "[%9.3f] %-5s %s%.*s\n", seconds, LevelTag(level), tick, static_cast<int>(text.size()), text.data());
         std::fflush(g_log_file);
     }
+    if (g_observer) g_observer(level, text);
+}
+
+void LogSetObserver(void (*observer)(LogLevel, std::string_view)) {
+    std::lock_guard lock(g_log_mutex);
+    g_observer = observer;
 }
 
 bool LogTryWrite(LogLevel level, std::string_view text) {

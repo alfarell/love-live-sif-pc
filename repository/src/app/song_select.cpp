@@ -10,6 +10,7 @@
 
 #include "app/fade.h"
 #include "app/input.h"
+#include "app/route.h"
 #include "engine/core/log.h"
 #include "engine/render/renderer.h"
 #include "engine/ui/ui_screen.h"
@@ -295,6 +296,7 @@ void Apply(UiScreen& ui, const std::vector<SongInfo>& songs, int current, Step s
 SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, long max_frames,
                          const SongChoice& previous, const save::SaveData* save, const dlc::Ownership* owned,
                          const costume::Data* costume_data) {
+    route::SetScreen("select");
     std::vector<SongInfo> songs;
     std::string error;
     const int language = lang == "en" ? 1 : lang == "cn" ? 2 : lang == "tw" ? 3 : 0;

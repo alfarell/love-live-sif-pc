@@ -9,6 +9,7 @@
 
 #include "app/fade.h"
 #include "app/input.h"
+#include "app/route.h"
 #include "engine/core/log.h"
 #include "engine/render/renderer.h"
 #include "engine/ui/ui_screen.h"
@@ -103,6 +104,7 @@ void Apply(UiScreen& ui, const std::vector<Row>& rows, int top, int cursor, cons
 
 bool RunMissions(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, const MissionData& data,
                  long max_frames) {
+    route::SetScreen("missions");
     UiText text;
     std::string error;
     if (!text.Load(vfs, lang, &error)) LogWarn("missions: text: {}", error);

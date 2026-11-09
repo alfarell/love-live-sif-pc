@@ -10,6 +10,7 @@
 
 #include "app/fade.h"
 #include "app/input.h"
+#include "app/route.h"
 #include "engine/audio/audio_output.h"
 #include "engine/core/log.h"
 #include "engine/render/renderer.h"
@@ -49,6 +50,7 @@ void Focus(UiScreen& ui, const Row& row, bool on) {
 // (uip0031_controllButton00_00-09) and 9 lane rings (uip0032_controllRing00_00-08); "button_6" (_10-_15) is the 6-lane
 // form. The plate's icon is a 1/4 x 1/4 cell of opt_ope_ingame_button00 in PadButton order.
 bool RunButtons(SDL_Window* window, Renderer& renderer, UiScreen& ui, AppSettings& settings, long max_frames) {
+    route::SetScreen("controls");
     const std::string root = "uil0011_keyConfigLayout00", ring = root + "/uil0012_keySetting00/";
     const auto slot_path = [&](int i) {
         char s[64];
@@ -140,6 +142,7 @@ bool RunButtons(SDL_Window* window, Renderer& renderer, UiScreen& ui, AppSetting
 // "iine", language) and the two buttons are hidden until they exist
 bool RunOptions(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, AudioOutput& audio,
                 AppSettings& settings, OptionsPage page, long max_frames) {
+    route::SetScreen("options");
     UiText text;
     std::string error;
     if (!text.Load(vfs, lang, &error)) LogWarn("options: text: {}", error);

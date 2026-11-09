@@ -3,6 +3,7 @@
 #include <sstream>
 #include <utility>
 
+#include "app/route.h"
 #include "engine/core/log.h"
 
 namespace sif {
@@ -98,6 +99,7 @@ const PadSlots& CurrentPadSlots() { return g_slots; }
 void SetPadLayout(PadLayout layout) { g_layout = layout; }
 
 bool PollEvent(SDL_Event& e) {
+    if (route::Inject(e)) return true;  // a scripted route (M9) first
     if (!SDL_PollEvent(&e)) return false;
     if (e.type == SDL_EVENT_JOYSTICK_ADDED) {
         LogInfo("input: device {} '{}' connected ({})", e.jdevice.which, SDL_GetJoystickNameForID(e.jdevice.which),
