@@ -26,4 +26,19 @@ Status: containers verified with `tools/acb_dump.py` and `tools/usm_probe.py` (M
 | | 1920×120 | 10 |
 | | 1024×288 | 1 |
 
-All are 60 fps (60000/1000), with no audio (`@SFA`) and no alpha (`@ALP`) streams, and are not encrypted. They are short previews (costume previews, banners), not full-screen story movies.
+They have no audio (`@SFA`) and no alpha (`@ALP`) streams, and are not encrypted. They are short previews (costume previews, banners), not full-screen story movies.
+
+**Correction (M8, 2026-11-09).** Not all are 60 fps. The stage monitors are 30 fps (`monitor_001`: 30000/1000, 150 frames), the song previews 59.94 fps (60000/1001) and the costume previews 60 fps.
+
+### Decoding (M8, `src/engine/video/movie.cpp`)
+
+**Stream.** The video is the `@SFV` channel 0 type-0 payloads, joined. It is plain **MPEG-1** video: sequence headers (`00 00 01 B3`) before every GOP, no MPEG-2 extensions (`B5`), and a sequence end code (`B7`) at the end. GOPs are 13 pictures: I P B B P B B … P B B.
+
+**Sofdec's intra DC precision.** The `@SFV` header's `mpeg_dcprec` is **11**. CRI's encoder uses MPEG-2's higher intra DC precision inside MPEG-1, so a plain MPEG-1 decoder produces garbage: saturated colours, lost sync, dropped pictures. Decoding it needs:
+- the MPEG-2 DC size codes for sizes 9-11:
+  - luma `11111110`, `111111110`, `111111111`;
+  - chroma `111111110`, `1111111110`, `1111111111`;
+- a DC predictor reset of `1 << (precision − 1)`, which is 1024;
+- a DC multiplier of `8 >> (precision − 8)`, which is 1.
+
+The port patches pl_mpeg for this; see `THIRD_PARTY.md`.

@@ -52,6 +52,13 @@ if(MSVC)
   target_compile_options(stb_truetype PRIVATE /W0)
 endif()
 
+# pl_mpeg (MIT, see THIRD_PARTY.md): MPEG-1 video decoder for the game's USM movies; upstream warnings are not ours
+add_library(pl_mpeg STATIC src/engine/video/pl_mpeg_impl.c)
+target_include_directories(pl_mpeg PUBLIC third_party/pl_mpeg PRIVATE src)
+if(MSVC)
+  target_compile_options(pl_mpeg PRIVATE /W0)
+endif()
+
 add_library(sif_engine STATIC
   src/engine/audio/audio_output.cpp
   src/engine/audio/cri_utf.cpp
@@ -74,9 +81,10 @@ add_library(sif_engine STATIC
   src/engine/render/scene_model.cpp
   src/engine/ui/ui_screen.cpp
   src/engine/ui/ui_text.cpp
+  src/engine/video/movie.cpp
   ${SHADER_INCS})
 target_include_directories(sif_engine PUBLIC src PRIVATE ${SHADER_OUT})
-target_link_libraries(sif_engine PUBLIC SDL3::SDL3-static zlibstatic lzmadec clhca stb_truetype)
+target_link_libraries(sif_engine PUBLIC SDL3::SDL3-static zlibstatic lzmadec clhca stb_truetype pl_mpeg)
 target_compile_definitions(sif_engine PUBLIC NOMINMAX WIN32_LEAN_AND_MEAN _CRT_SECURE_NO_WARNINGS)
 if(WIN32)
   target_link_libraries(sif_engine PUBLIC dbghelp)
@@ -179,6 +187,12 @@ add_executable(sif_audio_test tests/unit/audio_test.cpp)
 target_link_libraries(sif_audio_test PRIVATE sif_engine)
 if(MSVC)
   target_compile_options(sif_audio_test PRIVATE /utf-8 /EHsc)
+endif()
+
+add_executable(sif_video_test tests/unit/video_test.cpp)
+target_link_libraries(sif_video_test PRIVATE sif_engine)
+if(MSVC)
+  target_compile_options(sif_video_test PRIVATE /utf-8 /EHsc)
 endif()
 
 if(WIN32)

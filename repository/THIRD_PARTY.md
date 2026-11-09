@@ -44,6 +44,40 @@ Source: https://github.com/ip7z/7zip (Igor Pavlov's 7-Zip/LZMA SDK mirror) `C/Lz
 
 Source: https://github.com/nothings/stb `stb_truetype.h` v1.26; latest commit touching it is `6e9f34d5429cf16790ec43c9bac3f1ee4ad1f760` (2024-07-15), fetched 2026-11-01 (git blob `90a5c2e2`). Copied unchanged to `third_party/stb/`. The file ends with its dual licence (MIT or Unlicense), Sean Barrett / RAD Game Tools. Rasterizes the game's TrueType UI fonts (`common/common.pac/font.pac`; chosen by the user over FreeType and SDL3_ttf, M6).
 
+## pl_mpeg (MIT)
+
+Source: https://github.com/phoboslab/pl_mpeg `pl_mpeg.h`, commit `c871f2be022ece7ef4f64230b4fb8e1fb9eb6023` (2025-12-30), fetched 2026-11-09 (upstream file SHA-256 `3a8cb30c…75fc2c9`). Copied to `third_party/pl_mpeg/`, then **patched** (every change is marked `SIF patch`):
+- **Intra DC precision 8-11** (`plm_video_set_intra_dc_precision`): MPEG-2's DC size codes 9-11, the DC predictor reset and the DC multiplier. CRI Sofdec writes MPEG-1 with 11-bit DC precision (`docs/formats/cri.md`).
+- **End of stream:** the last held reference picture is also returned when the stream ends on B-pictures; upstream dropped it.
+
+Not a patch but related: the port feeds pl_mpeg through its own memory source (`src/engine/video/pl_mpeg_source.h`, implemented in `pl_mpeg_impl.c`). pl_mpeg's `plm_buffer_create_with_memory` breaks with the bare video decoder: decoding discards bytes in place, so the end is never seen and rewinding reads moved data.
+
+Licence: `SPDX-License-Identifier: MIT` in the file's header, Dominic Szablewski; the repository has no separate licence file. Decodes the game's MPEG-1 movies (`movie/*.usm`, M8; approved by the user over FFmpeg).
+
+```
+MIT License
+
+Copyright (c) Dominic Szablewski
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
 ## Fetched at build time
 
 | Library | Version | License | Use |

@@ -8,10 +8,10 @@ No game assets, `eboot.bin`, extracted files or keys are stored here. The port r
 
 | Folder | Content |
 |---|---|
-| `src/engine` | Engine code: `core` (log, crash reports, thread pool), `platform` (OS layer, settings), `fs` (ARC/cmp `.pac` reader, Vfs over the dump), `formats` (`btx` textures), `render` (SDL3 GPU renderer), `audio` (CRI `@UTF`/ACB/AWB, HCA/ADX decoding, SDL3 output) |
+| `src/engine` | Engine code: `core` (log, crash reports, thread pool), `platform` (OS layer, settings), `fs` (ARC/cmp `.pac` reader, Vfs over the dump), `formats` (`btx` textures), `render` (SDL3 GPU renderer), `audio` (CRI `@UTF`/ACB/AWB, HCA/ADX decoding, SDL3 output), `video` (USM movies, MPEG-1 via a patched pl_mpeg) |
 | `src/tools` | Native tools (`sif_hca2wav`) |
 | `shaders` | GLSL, compiled to SPIR-V by `glslc` at build time and embedded |
-| `third_party` | Vendored sources: vgmstream clHCA (ISC), LZMA SDK decoder (public domain); see `THIRD_PARTY.md` |
+| `third_party` | Vendored sources: vgmstream clHCA (ISC), LZMA SDK decoder (public domain), stb_truetype, pl_mpeg (MIT, patched); see `THIRD_PARTY.md` |
 | `tests/unit` | One executable per test, `Check()` style; `sif_vfs_test` / `sif_audio_test` take the dump folder as an optional argument |
 | `src/game` | SIF game rules: `live` (chart, judgement, song loading) |
 | `src/app` | Entry point and screens (`live_screen`: the M4 song slice and calibration) |
