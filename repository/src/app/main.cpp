@@ -106,6 +106,16 @@ Options ParseOptions(int argc, char** argv) {
     }
     o.live_options.max_frames = o.frames;
     o.live_options.lang = o.lang == "jp" ? "" : o.lang;
+    // no mode chosen (e.g. started by double-click): play the game from its title screen; the M3 texture/cue check
+    // runs only when --show, --play or --movie asks for it (M8 V6)
+    bool check = false;
+    for (int i = 1; i < argc; ++i) {
+        check |= !std::strcmp(argv[i], "--show") || !std::strcmp(argv[i], "--play") || !std::strcmp(argv[i], "--movie") ||
+                 !std::strcmp(argv[i], "--crash");
+    }
+    if (!check && !o.live && !o.calibrate && !o.title && !o.menu && !o.select && !o.result_demo && o.ui.empty()) {
+        o.title = true;
+    }
     if (o.data_dir.empty()) o.data_dir = sif::os::ExecutableFile().parent_path() / "data";
     return o;
 }
