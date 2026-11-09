@@ -22,6 +22,7 @@ struct Song {
     ScoreRules rules;
     float dance_start_frame = 0;  // motion/camera frame (60 fps) at audio time 0 (s_music_datas +0x104)
     int group = 0;                // s_music_datas +0x10: 0 mu's, 1 Aqours, 2 Saint Snow
+    int monitor = 0;              // s_music_datas +0x124: the stage screens' movie, movie/monitor_NNN.usm (0 = none)
 };
 
 bool LoadSong(const Vfs& vfs, int id, int variant, Song& out, std::string* error = nullptr);
@@ -31,6 +32,10 @@ bool LoadScoreRules(const Vfs& vfs, int id, int variant, ScoreRules& out, std::s
 // The song's s_music_datas values: the dance/camera clock (frame = audio ms / 1000 x 60 + dance_start_frame) and
 // its group.
 bool LoadMusicRecord(const Vfs& vfs, int id, Song& out, std::string* error = nullptr);
+// The movie the stage screens play for a song (`monitor` = Song::monitor) on stage folder `stage_model` (stNNN):
+// movie/monitor_NNN.usm, or movie/monitor_NNN_b.usm on stages whose s_stage_datas byte +0x2F is set (stage 6: its
+// 1920 x 120 strip). Empty when the song has none. Eboot 0xBD4C0; analysis/202611091206-m8-video-and-polish/.
+std::string MonitorMoviePath(const Vfs& vfs, int monitor, int stage_model);
 
 // One playable song for the song select: s_music_datas order, only songs whose live/NNNN package is in the dump.
 struct SongInfo {

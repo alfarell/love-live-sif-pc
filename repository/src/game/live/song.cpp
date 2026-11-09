@@ -80,9 +80,33 @@ bool LoadMusicRecord(const Vfs& vfs, int id, Song& out, std::string* error) {
         if (At<int32_t>(music, r) != id) continue;
         out.group = At<int32_t>(music, r + 0x10);
         out.dance_start_frame = At<float>(music, r + 0x104);
+        out.monitor = At<int32_t>(music, r + 0x124);  // 1-7, 9, 51-53 (shadPS4: 0340 opened monitor_006, 0120 _005)
         return true;
     }
     return Fail(error, "no s_music_datas record for this song");
+}
+
+std::string MonitorMoviePath(const Vfs& vfs, int monitor, int stage_model) {
+    if (monitor <= 0 || monitor > 999) return {};
+    char letter = 0;
+    std::vector<uint8_t> file;
+    std::span<const uint8_t> stages;
+    if (ReadTable(vfs, "common/common.pac/stage_common.pac/stage_datas.bin", "s_stage_datas", file, stages, nullptr)) {
+        constexpr size_t kRecord = 0x148;
+        for (size_t r = 0; r + kRecord <= stages.size(); r += kRecord) {
+            const int id = At<int32_t>(stages, r), model = At<int32_t>(stages, r + 4);
+            if (model != stage_model || id <= 0 || id >= 300) continue;  // the 3xx variants reuse 1xx models
+            if (const uint8_t b = stages[r + 0x2F]) letter = char('a' + b);
+            break;
+        }
+    }
+    char path[48];
+    if (letter) {
+        std::snprintf(path, sizeof(path), "movie/monitor_%03d_%c.usm", monitor, letter);
+    } else {
+        std::snprintf(path, sizeof(path), "movie/monitor_%03d.usm", monitor);
+    }
+    return path;
 }
 
 bool LoadStageList(const Vfs& vfs, int language, std::vector<StageInfo>& out, std::string* error) {

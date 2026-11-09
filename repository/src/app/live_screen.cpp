@@ -27,6 +27,7 @@
 #include "engine/ui/ui_screen.h"
 #include "engine/render/renderer.h"
 #include "engine/render/scene_model.h"
+#include "engine/video/movie.h"
 #include "game/live/song.h"
 
 namespace sif {
@@ -466,12 +467,51 @@ struct LiveScene {
     std::vector<uint8_t> camera_file;
     bscm::Camera camera;
     bool has_camera = false;
+    // The stage screens' movie (M8 V3): the song's movie/monitor_NNN(_b).usm streamed into a texture that replaces the
+    // screens' placeholder textures (the logo shown otherwise); the dot-mask overlay meshes stay as they are
+    video::Movie screen_movie;
+    Texture screen_texture;
+    std::map<std::string, const Texture*> screens;  // placeholder texture name -> screen_texture
+    static constexpr const char* kScreenPlaceholders[] = {"monitor_scrnrogo.tga", "monitor.tga", "s01_monitor_off.tga",
+                                                          "cyber_monitor_dummy.tga"};
 
-    void Load(Renderer& renderer, const Vfs& vfs, const LiveOptions& opt) {
+    void LoadScreens(Renderer& renderer, const Vfs& vfs, const LiveOptions& opt, int monitor) {
+        int model = 0;
+        if (!has_stage || std::sscanf(opt.stage.c_str(), "st%d", &model) != 1) return;
+        const std::string path = live::MonitorMoviePath(vfs, monitor, model);
+        if (path.empty()) return;
+        std::string error;
+        if (!screen_movie.Open(vfs, path, &error) ||
+            !renderer.CreateTexture(uint32_t(screen_movie.Info().width), uint32_t(screen_movie.Info().height),
+                                    screen_texture, &error)) {
+            LogWarn("live: stage screens: {}: {}", path, error);  // the screens keep their logo
+            screen_movie.Close();
+            return;
+        }
+        for (const char* name : kScreenPlaceholders) screens[name] = &screen_texture;
+        const auto& i = screen_movie.Info();
+        LogInfo("live: stage screens play {} ({}x{}, {:.0f} fps, {} frames)", path, i.width, i.height, i.fps, i.frames);
+    }
+    // Call outside a frame: the screen picture for audio time `now_ms`, looping on the music clock (no drift)
+    void UpdateScreens(Renderer& renderer, double now_ms) {
+        if (!screen_movie.IsOpen()) return;
+        const auto& i = screen_movie.Info();
+        const int n = int(std::max(0.0, now_ms) / 1000.0 * i.fps) % i.frames;
+        if (n == screen_movie.Current()) return;
+        const uint64_t t0 = SDL_GetTicksNS();
+        if (const auto* rgba = screen_movie.Frame(n)) renderer.UpdateTexture(screen_texture, *rgba);
+        screen_ms += double(SDL_GetTicksNS() - t0) / 1e6;
+        ++screen_updates;
+    }
+    double screen_ms = 0;  // decode + upload time, logged at the end of the live
+    long screen_updates = 0;
+
+    void Load(Renderer& renderer, const Vfs& vfs, const LiveOptions& opt, int monitor) {
         std::string error;
         const std::string stage_path = FindEntry(vfs, "stage/" + opt.stage + ".pac/model.pac", "");
         has_stage = !stage_path.empty() && stage.Load(renderer, vfs, stage_path, &error);
         if (!has_stage) LogWarn("live: stage {}: {}", opt.stage, stage_path.empty() ? "not found" : error);
+        LoadScreens(renderer, vfs, opt, monitor);
         // shortcut: every stage loop plays from clock 0; where variants move the same nodes (yukalight A1/A2/B1/B2) the
         // first in the archive wins. The song's stage timeline (scene_stage_<song>_00.btlb, BTL) that picks them is
         // not decoded, nor are the material tracks (ANMT) that most loops carry
@@ -559,11 +599,12 @@ struct LiveScene {
         } else {  // fixed front view; Z-up world, models face -Y
             renderer.SetCamera(Perspective(0.70f, aspect, 0.1f, 500.0f) * LookAt({0, -6.0f, 1.4f}, {0, 0, 1.0f}, {0, 0, 1}));
         }
-        if (has_stage) stage.Draw(renderer, Mat4{});
+        if (has_stage) stage.Draw(renderer, Mat4{}, screens.empty() ? nullptr : &screens);
         for (auto& d : dancers) d->model.Draw(renderer, Mat4{});
     }
 
     void Release(Renderer& renderer) {
+        renderer.Release(screen_texture);
         stage.Release(renderer);
         for (auto& d : dancers) d->model.Release(renderer);
     }
@@ -604,7 +645,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
         }
         LogInfo("live: costume {}", dressed.costume.empty() ? "base model" : dressed.costume);
     }
-    scene.Load(renderer, vfs, dressed);
+    scene.Load(renderer, vfs, dressed, song.monitor);
     // judgement sounds: sys.acb cues 20030-20034 (Perfect .. miss), 20039-20043 the finale's "_fl" set; the eboot's
     // judgement sound function (0xB06C0) reads them from its table at 0x5E8BA0 (analysis 202611082306). Mixed in the
     // music's format so they can be summed onto it
@@ -759,6 +800,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
             field.SetGauge(renderer, float(now / audio_ms));
             field.SetBands(renderer, chart, judge, now, opt.approach_ms);
         }
+        scene.UpdateScreens(renderer, now);
         if (renderer.BeginFrame()) {
             const uint64_t draw_start = SDL_GetTicksNS();
             scene.Draw(renderer, now, song.dance_start_frame);
@@ -894,6 +936,11 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
         LogInfo("live frame cost (CPU, {} members): mean {:.2f} ms, median {:.2f} ms, 99th percentile {:.2f} ms over {} frames",
                 scene.dancers.size(), total / double(frame_cpu_ms.size()), frame_cpu_ms[frame_cpu_ms.size() / 2],
                 frame_cpu_ms[frame_cpu_ms.size() * 99 / 100], frame_cpu_ms.size());
+        if (scene.screen_updates) {  // decoded outside the measured draw: reported on its own, per frame shown
+            LogInfo("live stage screens: {} pictures, decode + upload {:.2f} ms each, {:.2f} ms per frame on average",
+                    scene.screen_updates, scene.screen_ms / double(scene.screen_updates),
+                    scene.screen_ms / double(frame_cpu_ms.size()));
+        }
     }
     double sum = 0, sum2 = 0;
     int n = 0;

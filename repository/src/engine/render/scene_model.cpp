@@ -179,11 +179,18 @@ void SceneModel::Pose(Renderer& renderer, std::span<const bmar::Layer> layers) {
     }
 }
 
-void SceneModel::Draw(Renderer& renderer, const Mat4& placement) const {
+void SceneModel::Draw(Renderer& renderer, const Mat4& placement,
+                      const std::map<std::string, const Texture*>* by_texture) const {
     for (const Part& part : parts_) {
         // skinned vertices are already in model space; rigid meshes are stored relative to their node
         const Mat4 model = part.skinned ? placement : placement * world_[part.node];
-        renderer.DrawMesh(part.gpu, part.texture >= 0 ? &textures_[size_t(part.texture)] : nullptr, model);
+        const Texture* texture = part.texture >= 0 ? &textures_[size_t(part.texture)] : nullptr;
+        if (by_texture && part.material < model_.materials.size()) {
+            if (const auto it = by_texture->find(model_.materials[part.material].texture); it != by_texture->end()) {
+                texture = it->second;
+            }
+        }
+        renderer.DrawMesh(part.gpu, texture, model);
     }
 }
 

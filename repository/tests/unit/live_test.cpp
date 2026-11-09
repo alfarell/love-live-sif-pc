@@ -109,6 +109,18 @@ static void Real(const char* root) {
     std::printf("chart %s: %zu notes, lead-in %.0f ms, %.0f BPM, %d skipped\n", song.chart_name.c_str(),
                 song.chart.notes.size(), song.chart.lead_in_ms, song.chart.first_bpm, song.chart.skipped);
     Check(song.chart.notes.size() == 466 + 27 && song.chart.lead_in_ms == 3428, "song 0010/04: 466 + 27 extra notes, lead-in 3428 ms");
+    // stage-screen movies (M8 V3; shadPS4: song 0340 opened monitor_006, 0120 monitor_005, on stage 1)
+    Check(song.monitor == 5, "song 0010: stage screens play monitor 5 (s_music_datas +0x124)");
+    for (const auto& [id, want] : {std::pair{340, 6}, {120, 5}, {1010, 9}}) {
+        Song s;
+        Check(LoadMusicRecord(vfs, id, s) && s.monitor == want, "song " + std::to_string(id) + ": monitor " + std::to_string(want));
+    }
+    Check(MonitorMoviePath(vfs, 6, 1) == "movie/monitor_006.usm", "stage 1: movie/monitor_006.usm");
+    Check(MonitorMoviePath(vfs, 6, 6) == "movie/monitor_006_b.usm", "stage 6 (byte +0x2F = 1): the _b strip");
+    Check(MonitorMoviePath(vfs, 0, 1).empty(), "no monitor number: no movie");
+    for (int n : {1, 2, 3, 4, 5, 6, 7, 9, 51, 52, 53}) {
+        Check(vfs.Exists(MonitorMoviePath(vfs, n, 17)), "movie for monitor " + std::to_string(n) + " is in the dump");
+    }
     const WindowSet& w = song.windows;
     Check(w.press.early[0] == 40 && w.press.late[3] == 267 && w.release.late[3] == 333, "windows read from live_params.bin");
     for (double off : {0.0, 30.0, -100.0, 180.0}) {

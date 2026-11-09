@@ -25,7 +25,10 @@ public:
     // Bind pose when `motion` is null.
     void Pose(Renderer& renderer, const bmar::Motion* motion, float frame);
     void Pose(Renderer& renderer, std::span<const bmar::Layer> layers);
-    void Draw(Renderer& renderer, const Mat4& placement) const;
+    // `by_texture` (optional): the material's texture file name -> a texture drawn instead (e.g. a stage's
+    // screen placeholder "monitor_scrnrogo.tga" -> the streamed movie)
+    void Draw(Renderer& renderer, const Mat4& placement,
+              const std::map<std::string, const Texture*>* by_texture = nullptr) const;
     // UI: every textured mesh blended in the 2D pass; `to_clip` maps the model to clip space. Clip layers (the game
     // plays several per instance, e.g. an animation on layer 0 and the "switch" label clip on layer 1) apply their
     // node, visibility (ANVS) and material (ANMT: colour, UV offset) tracks; later layers win per node or material.
