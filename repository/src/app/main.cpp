@@ -22,6 +22,7 @@
 
 #include "app/costume_screen.h"
 #include "app/fade.h"
+#include "app/first_run.h"
 #include "app/input.h"
 #include "app/live_screen.h"
 #include "app/mission_screen.h"
@@ -211,14 +212,26 @@ int main(int argc, char** argv) {
 
     sif::Vfs vfs;
     std::string why;
+    // first run, or a folder that is no longer a dump: explain and let the user choose it (M8 V5)
+    if (settings.game.folder.empty() || !sif::IsSifDump(sif::os::PathFromUtf8(settings.game.folder), &why)) {
+        const std::string problem = settings.game.folder.empty()
+                                        ? "No game folder is set yet."
+                                        : "The game folder is not a CUSA24620 dump (" + why + "):\n" + settings.game.folder;
+        sif::LogWarn("game folder: {}", problem);
+        std::string chosen;
+        if (SDL_Init(SDL_INIT_VIDEO)) chosen = sif::ChooseGameFolder(settings.game.folder, problem);
+        if (chosen.empty()) {
+            sif::LogExit(2, "no game folder");
+            return 2;
+        }
+        settings.game.folder = chosen;
+    }
     const auto game_root = sif::os::PathFromUtf8(settings.game.folder);
-    if (settings.game.folder.empty() || !sif::IsSifDump(game_root, &why) || !vfs.Mount(game_root)) {
-        const std::string text = settings.game.folder.empty()
-                                     ? "No game folder set. Start with --game <your CUSA24620 dump folder>."
-                                     : "The game folder is not a CUSA24620 dump (" + why + "):\n" + settings.game.folder;
+    if (!vfs.Mount(game_root)) {
+        const std::string text = "The game folder cannot be read:\n" + settings.game.folder;
         sif::LogError("game folder: {}", text);
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "SIF port", text.c_str(), nullptr);
-        sif::LogExit(2, "no game folder");
+        sif::LogExit(2, "game folder unreadable");
         return 2;
     }
     sif::LogInfo("game folder: {}", settings.game.folder);

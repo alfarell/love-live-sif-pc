@@ -49,7 +49,7 @@ sif.exe --game <your CUSA24620 dump folder> [--title|--menu|--select [--lang en|
 - `--ui SCREEN:LAYOUT[:CLIP]` (developer) shows any ui2 layout, e.g. `--ui 10_top_menu:uil0001_TopMenu00`; `--ui-hide`/`--ui-hide-path` hide nodes or placed instances.
 - `--calibrate` plays 24 clicks; press Space on each. The median offset is stored as `timing.audio_offset_ms` and applied to judgement.
 
-- The game folder must be the user's own dump (checked: `sce_sys/param.sfo` names CUSA24620; `common/common.pac`, `sound/sound.pac`, `live/` exist). It is saved to `settings.ini`, so later runs need no `--game`. Song add-ons are read from the dump's `sound/dlc/`.
+- The game folder must be the user's own dump (checked: `sce_sys/param.sfo` names CUSA24620; `common/common.pac`, `sound/sound.pac`, `live/` exist). It is saved to `settings.ini`, so later runs need no `--game`. On the first run (or when the saved folder is no longer a dump) the port explains this and opens a folder picker; choosing the folder above `CUSA24620` also works, and a folder that holds only a `.pkg` is refused with a hint. Song add-ons are read from the dump's `sound/dlc/`.
 - Writes `sif.log` and `settings.ini` in `<exe>/data/` (or `--data DIR`).
 - `--show` draws one texture, e.g. `chr/c11/c11.pac/model.pac/texture.texs/chika_body_01` (default: a member card picture).
 - `--movie` plays one of the game's movies instead, looping, e.g. `--movie movie/monitor_001.usm --play none`; `sif.log` gets the average decode time.
