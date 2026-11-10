@@ -197,6 +197,10 @@ void Apply(UiScreen& ui, const std::vector<SongInfo>& songs, int current, Step s
     for (const char* other : kOtherSteps) ui.HideInstance(std::string(kRoot) + "/" + other, true);
     ui.HideInstance(std::string(kRoot) + "/uil0013_MusicList00", step == kDifficultyStep);
     ui.HideInstance(std::string(kRoot) + "/uil0016_DifficultyList00_AC", step != kDifficultyStep);
+    // the header's page name: setup_title_page00_T cells (2 columns, rows of 1/8): Select Song, Select Difficulty,
+    // Stage Selection, Select Costume
+    static constexpr float kPageUv[4][2] = {{0, 0}, {0.5f, 0}, {0, 0.125f}, {0.5f, 0.125f}};
+    ui.SetMaterialUv(std::string(kRoot) + "/uip0002_StepTop00", "title_page01", kPageUv[step][0], kPageUv[step][1]);
     ApplyStages(ui, stages, stage, step == kStageStep);
     ApplyCostumes(ui, costumes, costume, step == kCostumeStep);
     const int n = int(songs.size());
