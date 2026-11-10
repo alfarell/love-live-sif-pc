@@ -22,6 +22,7 @@ No game assets, `eboot.bin`, extracted files or keys are stored here. The port r
 
 - [docs/BUILD.md](docs/BUILD.md): tools, the two build commands, common errors.
 - [docs/PLAY.md](docs/PLAY.md): what you need (your own CUSA24620 dump), first start, controls, settings, what is not built yet, and the command line.
+- [docs/CHECKLIST.md](docs/CHECKLIST.md): the release checklist, a person's check of every screen.
 
 ## License
 

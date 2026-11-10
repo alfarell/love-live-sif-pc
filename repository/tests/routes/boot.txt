@@ -1,7 +1,8 @@
 # boot: the logos and notice, the title screen, then the top menu (any key skips a logo; any key on the title goes on)
 timeout 60s
 expect screen title 30s
-shot boot_title
+wait 2500ms
+shot boot_logo
 press enter until menu 30s
 expect log title: start
 wait 2s

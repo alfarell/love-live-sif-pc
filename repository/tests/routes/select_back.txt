@@ -6,12 +6,14 @@ wait 1500ms
 key enter
 expect screen select 20s
 wait 1500ms
+shot select_song
 key right
 wait 600ms
 key enter
 wait 800ms
 key enter
 wait 800ms
+shot select_stage
 key esc
 wait 800ms
 key esc
