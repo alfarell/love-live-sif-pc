@@ -26,6 +26,8 @@ namespace {
 constexpr int kModes = 6;   // the wheel's modes (0x1BD2D0: indices taken mod 6)
 constexpr int kIcons = 8;   // placed wheel icons (TopMenu +0x388 ... +0x3C0)
 constexpr int kSwitch = 20; // ui_animation.bin: clip 20 "switch", posed at the label id on layer 1
+constexpr int kActive = 13, kUnfocus = 5;  // ui_animation.bin: clips 13 "active", 5 "unfocus"
+constexpr int kCurrentSlot = 3;            // the wheel icon showing the current mode
 // DAT_005F42F0: the submenu list shown for each mode; DAT_005F3F54: entries per submenu list
 constexpr std::array<int, kModes> kSubmenuOfMode = {1, 3, 3, 1, 0, 2};
 constexpr std::array<int, 4> kEntriesOfSubmenu = {5, 4, 3, 2};
@@ -66,11 +68,17 @@ std::string Instance(const std::string& layout, const char* part, int index) {
 }
 
 // shortcut: the wheel turns in whole steps (the game eases between them with clips 11/12 "left"/"right")
-void Apply(UiScreen& ui, int mode, int entry) {
+// `focus_changed`: replay the banners' focus clips (only then, so a held focus does not restart its animation)
+// `mode_changed`: replay the wheel icons' clips
+void Apply(UiScreen& ui, int mode, int entry, bool focus_changed = true, bool mode_changed = true) {
     for (int i = 0; i < kIcons; ++i) {  // 0x1B94C0: icon i shows label ((position + 3) mod 6) + i
         const std::string icon = Instance("uil0002_MenuList00", "uip0004_MenuIcon00", i);
         ui.Play(icon, UiScreen::ClipName(kSwitch), false, 1);
         ui.SetClipTime(icon, 1, float((mode + 3) % kModes + i));
+        // the current mode's icon (slot 3: label (mode + 3) mod 6 + 3 = mode) plays clip 13 "active" (the plain circle
+        // and the large name banner); the others clip 5 "unfocus" (the icon with its small tilted plate). Without a clip
+        // every node of the part draws at once (M9 F1)
+        if (mode_changed) ui.Play(icon, UiScreen::ClipName(i == kCurrentSlot ? kActive : kUnfocus), false, 0);
     }
     const int list = kSubmenuOfMode[size_t(mode)];
     for (int l = 0; l < 4; ++l) {
@@ -84,9 +92,13 @@ void Apply(UiScreen& ui, int mode, int entry) {
         if (i < int(ids.size())) {
             ui.Play(banner, UiScreen::ClipName(kSwitch), false, 1);
             ui.SetClipTime(banner, 1, float(ids[size_t(i)]));
+            // the focused banner plays clip 13 "active" (shows the green menu_select01_on layer, with a small bounce);
+            // the others show their white menu_select01_off layer. Clip 14 "inactive" is not used: it fades the green
+            // layer's colour to 0, which this renderer draws as black, not as a fade (M9 F1)
+            if (focus_changed) ui.Play(banner, i == entry ? UiScreen::ClipName(kActive) : std::string(), false, 0);
+            ui.HideNode(banner, "menu_select01_on", i != entry);
         }
     }
-    (void)entry;  // shortcut: the focused entry's highlight (clips 4/5 "focus"/"unfocus") is not played yet
 }
 
 void ApplyNameplate(UiScreen& ui, const Nameplate& p) {
@@ -157,6 +169,7 @@ int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
     ui.HideNode("complete00", true);
     int mode = 0, entry = 0;  // shortcut: start mode not traced; 0 = Play
     Apply(ui, mode, entry);
+    int shown_mode = mode, shown_entry = entry;
     if (plate) ApplyNameplate(ui, *plate);
     SDL_SetWindowTitle(window, "SIF port - top menu");
     cri::CueSheet voice;
@@ -202,7 +215,8 @@ int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
                     break;
                 default: break;
             }
-            Apply(ui, mode, entry);
+            Apply(ui, mode, entry, mode != shown_mode || entry != shown_entry, mode != shown_mode);
+            shown_mode = mode, shown_entry = entry;
             LogInfo("top menu: mode {}, entry {}", mode, ids.empty() ? -1 : ids[size_t(entry % std::max<size_t>(1, ids.size()))]);
         }
         const uint64_t now = SDL_GetTicksNS();

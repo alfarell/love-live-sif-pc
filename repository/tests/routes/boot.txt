@@ -7,4 +7,8 @@ press enter until menu 30s
 expect log title: start
 wait 2s
 shot boot_menu
+key down                           # the focus moves: Play Live Show (AC) turns green
+wait 800ms
+shot boot_menu_focus
+expect log top menu: mode 0, entry 1
 expect nolog error
