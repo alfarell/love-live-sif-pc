@@ -21,7 +21,7 @@ Your own play is the reference. [PLAY.md](PLAY.md) lists the keys and what is no
 
 ## Top menu (routes `boot`, `talk`; Shot: `boot_menu`)
 
-- [ ] **The wheel:** Left/Right turns it, Up/Down picks an entry, the focus is clear.
+- [ ] **The wheel:** Left/Right turns it, every icon shows, the submenu fans beside the current icon (2 to 5 entries), Up/Down picks an entry and the focused banner turns coloured.
 - [ ] **The header:** name plate, accolade and badge.
 - [ ] **Voice:** Honoka greets you by the time of day; T plays another line.
 - [ ] **Esc** leaves the game.
@@ -44,7 +44,7 @@ Your own play is the reference. [PLAY.md](PLAY.md) lists the keys and what is no
 - [ ] **Combo** low in the centre, see-through.
 - [ ] **Top bar:** score, the rank gauge, LOVELIVE! letters lighting up with the rhythm icons.
 - [ ] **Finale:** after all nine icons, the finale section with yellow notes and the higher score.
-- [ ] **End of the song:** LIVE CLEAR, then the result.
+- [ ] **End of the song:** ALL PERFECT or FULL COMBO when earned, then LIVE CLEAR once the music is over; the members keep dancing, the screen fades to white, then the result (about 10 s in all).
 - [ ] **Timing:** presses on the beat give PERFECT; if not, `sif.exe --calibrate` fixes it.
 - [ ] **Smoothness:** no stutter, and the music never drifts from the notes.
 

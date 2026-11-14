@@ -45,7 +45,7 @@ Options → Control Settings changes the controller's lane buttons.
 ## Playing
 
 - **Top menu:** Left/Right turn the wheel, Up/Down pick an entry.
-- **Playing a song:** Play leads to the song select. Pick a song, an arcade difficulty, a stage and a costume (Left/Right, then Enter at each step); the last Enter starts the live. Afterwards the result screen shows your score; any key returns to the song select.
+- **Playing a song:** Play leads to the song select. Pick a song, an arcade difficulty, a stage and a costume (Left/Right, then Enter at each step); the last Enter starts the live. At the end ALL PERFECT or FULL COMBO shows if you earned it, then LIVE CLEAR; the result screen then shows your score, and any key returns to the song select.
 - **Lives** show the stage with its screens playing the song's video, and the members dancing to the song's own camera.
 - **Saves:** best scores, ranks and play counts are kept in `save.txt`. The song select shows each chart's best rank; the result screen marks new bests.
 - **Costumes:**
