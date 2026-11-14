@@ -45,6 +45,10 @@ struct ScoreRules {
     // +0x120: notes of the finale section score this many times their points (measured about x3 in shadPS4, G0;
     // Hypothesis: eboot check 0x93D00 is "finale active")
     double finale_multiplier = 3.0;
+    int difficulty = 0;       // s_live_datas +0x14: difficulty index 0-8
+    // +0x00: note travel time in ms (mic to ring) at Rhythm Icon Speed Slow .. Fast, the row of `difficulty` in a
+    // 9 x 5 table (analysis/202611101907-checklist-feedback/)
+    std::array<double, 5> approach_ms{2300, 2100, 1900, 1650, 1300};
 };
 
 // Finale Rhythm Icons (analysis/202611072212-gameplay-feedback/): nine notes per play carry an icon (Note::icon); each

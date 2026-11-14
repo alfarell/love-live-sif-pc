@@ -652,6 +652,9 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
             opt.song, opt.variant, song.title, song.chart_name, song.chart.notes.size(), song.chart.lead_in_ms,
             song.chart.first_bpm, double(music.Frames()) / music.rate, settings.timing.audio_offset_ms,
             opt.autoplay ? ", autoplay" : "");
+    const double approach_ms =
+        opt.approach_ms > 0 ? opt.approach_ms : song.rules.approach_ms[size_t(std::clamp(opt.note_speed, 0, 4))];
+    LogInfo("live: difficulty index {}, note speed {}, travel {:.0f} ms", song.rules.difficulty, opt.note_speed, approach_ms);
     const live::Chart& chart = song.chart;
     const double audio_ms = std::max(1.0, double(music.Frames()) * 1000.0 / music.rate);
     live::Judge judge;
@@ -836,7 +839,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
         }
         if (field.loaded) {
             field.SetGauge(renderer, float(now / audio_ms));
-            field.SetBands(renderer, chart, judge, now, opt.approach_ms);
+            field.SetBands(renderer, chart, judge, now, approach_ms);
         }
         scene.UpdateScreens(renderer, now);
         if (renderer.BeginFrame()) {
@@ -856,12 +859,12 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                 }
                 // notes fly from the centre circle to their ring, growing (far notes first, nearer ones on top)
                 const auto at = [&](int lane, double t, float& x, float& y, float& size) {
-                    field.Path(lane, t, now, opt.approach_ms, x, y, size);
+                    field.Path(lane, t, now, approach_ms, x, y, size);
                 };
                 field.DrawBands(renderer);  // hold bands and their end discs, under every note
                 for (size_t i = chart.notes.size(); i-- > 0;) {
                     const live::Note& n = chart.notes[i];
-                    if (!judge.Active(i) || n.time_ms - now > opt.approach_ms) continue;
+                    if (!judge.Active(i) || n.time_ms - now > approach_ms) continue;
                     float x, y, size;
                     at(n.lane, judge.Held(i) ? now : n.time_ms, x, y, size);
                     field.DrawNote(renderer, n.lane, x, y, size, 1.0f, judge.finale && n.time_ms >= chart.finale_ms);
@@ -912,7 +915,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                 }
             }
             const auto point = [&](int lane, double t, float& x, float& y, float& r) {
-                const float p = float(std::clamp(1.0 - (t - now) / opt.approach_ms, 0.0, 1.0));
+                const float p = float(std::clamp(1.0 - (t - now) / approach_ms, 0.0, 1.0));
                 float lx, ly;
                 layout.Lane(lane, lx, ly);
                 x = layout.cx + (lx - layout.cx) * p;
@@ -922,13 +925,13 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
             // far notes first, so nearer ones are drawn on top
             for (size_t i = chart.notes.size(); i-- > 0;) {
                 const live::Note& n = chart.notes[i];
-                if (!judge.Active(i) || n.time_ms - now > opt.approach_ms) continue;
+                if (!judge.Active(i) || n.time_ms - now > approach_ms) continue;
                 float x, y, r;
                 if (n.IsHold()) {
                     const float trail[4] = {0.95f, 0.95f, 1.0f, 0.35f};
                     const double head = judge.Held(i) ? now : n.time_ms;
                     for (double t = n.end_ms; t > head; t -= 40) {  // trail: discs from the tail to the head
-                        if (t - now > opt.approach_ms) continue;
+                        if (t - now > approach_ms) continue;
                         point(n.lane, t, x, y, r);
                         renderer.DrawCircle(x, y, r * 0.7f, 0, trail);
                     }

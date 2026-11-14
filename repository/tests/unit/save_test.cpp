@@ -3,7 +3,9 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <utility>
 
+#include "engine/platform/settings.h"
 #include "game/save/save.h"
 
 using namespace sif::save;
@@ -62,6 +64,22 @@ int main() {
     { std::ofstream(path) << "not a save\n"; }
     SaveData bad;
     Check(!Load(path, bad, &error) && bad.records.empty(), "another file is refused, not read as a save");
+
+    // settings.ini: the Rhythm Icon Speed level (F3); a pre-F3 approach_ms becomes the nearest level of 1700 .. 800 ms
+    const std::filesystem::path ini = dir / "settings.ini";
+    for (const auto& [text, level] : {std::pair<const char*, int>{"[play]\napproach_ms = 1300\n", 2},
+                                      {"[play]\napproach_ms = 900\n", 4}, {"[play]\napproach_ms = 3000\n", 0},
+                                      {"[play]\nnote_speed = 3\napproach_ms = 800\n", 3}, {"[play]\nnote_speed = 9\n", 4}}) {
+        { std::ofstream(ini) << text; }
+        sif::AppSettings settings;
+        Check(sif::LoadAppSettings(ini, settings) && settings.play.note_speed == level,
+              std::string("settings note_speed from: ") + text);
+    }
+    sif::AppSettings kept;
+    kept.play.note_speed = 1;
+    sif::AppSettings back_settings;
+    Check(sif::SaveAppSettings(ini, kept) && sif::LoadAppSettings(ini, back_settings) && back_settings.play.note_speed == 1,
+          "settings note_speed round trip");
 
     std::filesystem::remove_all(dir);
     std::printf("%s\n", failures ? "save_test FAILED" : "save_test ok");

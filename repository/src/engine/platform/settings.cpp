@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdlib>
 #include <fstream>
 #include <map>
 
@@ -103,9 +104,18 @@ bool LoadAppSettings(const std::filesystem::path& path, AppSettings& out) {
     Read(v, "game.dlc_folder", out.game.dlc_folder);
     Read(v, "timing.audio_offset_ms", out.timing.audio_offset_ms);
     Read(v, "timing.input_offset_ms", out.timing.input_offset_ms);
-    Read(v, "play.approach_ms", out.play.approach_ms);
+    Read(v, "play.note_speed", out.play.note_speed);
+    if (!v.contains("play.note_speed") && v.contains("play.approach_ms")) {
+        // settings from before F3: the old travel time becomes the nearest level of the middle row (1700 .. 800 ms)
+        int ms = 1300;
+        Read(v, "play.approach_ms", ms);
+        static constexpr int kRow[5] = {1700, 1500, 1300, 1050, 800};
+        for (int k = 0; k < 5; ++k) {
+            if (std::abs(kRow[k] - ms) < std::abs(kRow[out.play.note_speed] - ms)) out.play.note_speed = k;
+        }
+    }
     Read(v, "controls.pad_lanes", out.controls.pad_lanes);
-    out.play.approach_ms = std::clamp(out.play.approach_ms, 400, 3000);
+    out.play.note_speed = std::clamp(out.play.note_speed, 0, 4);
     out.display.width = std::clamp(out.display.width, 320, 16384);
     out.display.height = std::clamp(out.display.height, 240, 16384);
     out.audio.volume = std::clamp(out.audio.volume, 0.0f, 1.0f);
@@ -125,7 +135,7 @@ bool SaveAppSettings(const std::filesystem::path& path, const AppSettings& s) {
     f << "[game]\nfolder = \"" << s.game.folder << "\"\ndlc_folder = \"" << s.game.dlc_folder << "\"\n\n";
     f << "[timing]\naudio_offset_ms = " << s.timing.audio_offset_ms << "\ninput_offset_ms = " << s.timing.input_offset_ms
       << "\n\n";
-    f << "[play]\napproach_ms = " << s.play.approach_ms << "\n\n";
+    f << "[play]\nnote_speed = " << s.play.note_speed << "\n\n";
     f << "[controls]\npad_lanes = \"" << s.controls.pad_lanes << "\"\n";
     return static_cast<bool>(f);
 }

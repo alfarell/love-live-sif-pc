@@ -54,7 +54,7 @@ Options → Control Settings changes the controller's lane buttons.
   - Create/Change Costumes makes costumes and puts them on members (PageUp/PageDown changes the member).
 - **Missions:** Event → Task List shows the missions and their progress; Enter claims a reward.
 - **Profile:** Collection → Profile Card chooses the accolade, name plate and badge shown in the top menu.
-- **Options:** Sound (volume) and Game Settings (note speed, timing offset).
+- **Options:** Sound (volume) and Game Settings (Rhythm Icon Speed: Slow to Fast, as in the game; harder charts move faster at the same level; timing offset).
 
 **Timing feels late or early?** Start once with `sif.exe --calibrate` and press Space on each of the 24 clicks. The measured offset is saved and used from then on.
 
@@ -65,7 +65,7 @@ Options → Control Settings changes the controller's lane buttons.
 | `[display]` | `width`, `height`, `fullscreen`, `vsync` |
 | `[audio]` | `volume`, `buffer_frames` (`output_device` is not used yet) |
 | `[game]` | `folder` (your `CUSA24620` dump), `dlc_folder` (your add-ons; empty = `Extracted` and `DLC` next to the dump) |
-| `[play]` | `approach_ms` (note speed) |
+| `[play]` | `note_speed` (Rhythm Icon Speed 0-4: Slow, A Bit Slow, Normal, A Bit Fast, Fast; an old `approach_ms` is converted once) |
 | `[timing]` | `audio_offset_ms` (from calibration), `input_offset_ms` |
 | `[controls]` | `pad_lanes` (the controller's lane buttons) |
 
@@ -86,7 +86,7 @@ The project's roadmap lists the details.
 
 ```
 sif.exe [--game DIR] [--data DIR] [--lang en|cn|tw|jp]
-        [--title | --menu | --select | --live ID:VARIANT [--autoplay] [--stage stNNN] [--costume dNNN] [--member N]
+        [--title | --menu | --select | --live ID:VARIANT [--autoplay] [--approach MS] [--stage stNNN] [--costume dNNN] [--member N]
          | --calibrate | --result-demo | --ui SCREEN:LAYOUT[:CLIP] | --show VFS_PATH | --movie VFS_PATH | --play SHEET:CUE|none]
         [--frames N] [--crash] [--route FILE [--shots DIR] [--hidden]]
 ```
@@ -98,6 +98,7 @@ sif.exe [--game DIR] [--data DIR] [--lang en|cn|tw|jp]
 | `--lang` | UI language (default `en`) |
 | `--live 10:4` | Play song 0010 on chart variant 04 directly (00-04 arcade difficulties) |
 | `--autoplay` | Press every note on time |
+| `--approach MS` | Note travel time in ms instead of the Rhythm Icon Speed (for tests) |
 | `--stage st001`, `--costume d003`, `--member 1` | Choose the stage, the costume, or a single member |
 | `--game DIR` | Use this dump folder (saved like the first-run choice) |
 | `--data DIR` | Use another data folder |

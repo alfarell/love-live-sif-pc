@@ -74,7 +74,7 @@ Your own play is the reference. [PLAY.md](PLAY.md) lists the keys and what is no
 ## Options (routes `options_1_change`, `options_2_kept`, `controls`; Shot: `options_sound`, `controls`)
 
 - [ ] **Sound:** the volume changes at once.
-- [ ] **Game Settings:** note speed and timing offset take effect in the next live.
+- [ ] **Game Settings:** Rhythm Icon Speed (Slow to Fast) and timing offset take effect in the next live.
 - [ ] **Control Settings:** the controller's lane buttons can be changed, and T restores the defaults.
 - [ ] **Settings are kept** after a restart.
 

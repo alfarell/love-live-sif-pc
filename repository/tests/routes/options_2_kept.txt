@@ -18,6 +18,6 @@ key enter
 expect screen options 20s
 wait 1500ms
 key esc
-expect log options: volume 0.15
+expect log options: volume 0.15, note speed A Bit Fast
 expect screen menu 20s
 expect nolog error

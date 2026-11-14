@@ -30,7 +30,9 @@ struct AppSettings {
         int input_offset_ms = 0;
     } timing;
     struct Play {
-        int approach_ms = 1300;  // note travel time from the centre circle to the ring (note speed)
+        // Rhythm Icon Speed 0-4: Slow, A Bit Slow, Normal, A Bit Fast, Fast; each chart's difficulty turns it into a
+        // note travel time (s_CommonParam, live ScoreRules::approach_ms)
+        int note_speed = 2;
     } play;
     struct Controls {
         std::string pad_lanes;  // the pad's 9-lane Button Controls, 10 button names; empty = the game's defaults

@@ -42,6 +42,8 @@ expect screen options 20s
 wait 1500ms
 key right
 wait 300ms
+shot options_game
 key esc
+expect log note speed A Bit Fast
 expect screen menu 20s
 expect nolog error

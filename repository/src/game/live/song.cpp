@@ -58,6 +58,8 @@ bool LoadScoreRules(const Vfs& vfs, int id, int variant, ScoreRules& out, std::s
     for (size_t r = 0; r + kRecord <= datas.size(); r += kRecord) {
         if (At<int32_t>(datas, r) != id * 1000 + variant) continue;
         const int level = std::clamp(At<int32_t>(datas, r + 0x14), 0, 8);  // clamped like eboot 0xCA910
+        out.difficulty = level;
+        for (size_t k = 0; k < out.approach_ms.size(); ++k) out.approach_ms[k] = At<int32_t>(param, (size_t(level) * 5 + k) * 4);
         out.multiplier = At<float>(param, 0xD0 + size_t(level) * 4);
         out.tick_rate = At<float>(param, 0x128);
         out.finale_multiplier = At<float>(param, 0x120);

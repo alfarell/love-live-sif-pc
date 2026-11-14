@@ -19,7 +19,8 @@ struct LiveOptions {
     int song = 10;
     int variant = 4;          // 00-04 ac_easy..ac_challenge, 10-13 cs_basic..cs_master
     bool autoplay = false;
-    double approach_ms = 1300;  // note travel time; Hypothesis: s_CommonParam holds per-difficulty values (1300 for ac 04?)
+    int note_speed = 2;       // Rhythm Icon Speed 0-4 (Slow .. Fast): picks the chart's travel time (ScoreRules)
+    double approach_ms = 0;   // > 0: this note travel time instead (--approach, for tests)
     // shortcut: the song's stage is not traced (analysis/202611011121-m5-live-presentation/); chosen here, default the
     // live hall. The line-up is the members who have a dance file for the song
     std::string stage = "st017";

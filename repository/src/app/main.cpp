@@ -91,6 +91,7 @@ Options ParseOptions(int argc, char** argv) {
         else if (!std::strcmp(argv[i], "--hidden")) o.hidden = true;
         else if (!std::strcmp(argv[i], "--play") && i + 1 < argc) o.play = argv[++i];
         else if (!std::strcmp(argv[i], "--autoplay")) o.live_options.autoplay = true;
+        else if (!std::strcmp(argv[i], "--approach") && i + 1 < argc) o.live_options.approach_ms = std::strtod(argv[++i], nullptr);
         else if (!std::strcmp(argv[i], "--calibrate")) o.calibrate = true;
         else if (!std::strcmp(argv[i], "--title")) o.title = true;
         else if (!std::strcmp(argv[i], "--menu")) o.menu = true;
@@ -219,7 +220,7 @@ int main(int argc, char** argv) {
     const auto settings_path = options.data_dir / "settings.ini";
     sif::AppSettings settings;
     if (!sif::LoadAppSettings(settings_path, settings)) sif::LogInfo("settings: none yet, using defaults");
-    options.live_options.approach_ms = settings.play.approach_ms;
+    options.live_options.note_speed = settings.play.note_speed;
     {
         sif::PadSlots slots = sif::DefaultPadSlots();
         if (!settings.controls.pad_lanes.empty() && !sif::PadSlotsFromText(settings.controls.pad_lanes, slots)) {
@@ -384,7 +385,7 @@ int main(int argc, char** argv) {
                                                : entry == 10 ? sif::OptionsPage::kGame
                                                              : sif::OptionsPage::kButtons,
                                                options.frames);
-                        options.live_options.approach_ms = settings.play.approach_ms;
+                        options.live_options.note_speed = settings.play.note_speed;
                         if (!sif::SaveAppSettings(settings_path, settings)) {
                             sif::LogWarn("settings: cannot write {}", sif::os::PathToUtf8(settings_path));
                         }

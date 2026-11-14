@@ -15,6 +15,7 @@
 #include "engine/core/log.h"
 #include "engine/render/renderer.h"
 #include "engine/ui/ui_screen.h"
+#include "game/text/messages.h"
 
 namespace sif {
 namespace {
@@ -146,6 +147,16 @@ bool RunOptions(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const st
     UiText text;
     std::string error;
     if (!text.Load(vfs, lang, &error)) LogWarn("options: text: {}", error);
+    // the Rhythm Icon Speed row in the game's words: message 711 and 728-732 (Slow .. Fast)
+    Messages messages;
+    const int language = lang == "en" ? 1 : lang == "cn" ? 2 : lang == "tw" ? 3 : 0;
+    if (!messages.Load(vfs, language, &error)) LogWarn("options: messages: {}", error);
+    const auto message = [&](int id, const char* fallback) {
+        const std::string& m = messages.Get(id);
+        return m.empty() ? std::string(fallback) : m;
+    };
+    const std::string speed_label = message(711, "Rhythm Icon Speed");
+    static constexpr const char* kSpeedNames[5] = {"Slow", "A Bit Slow", "Normal", "A Bit Fast", "Fast"};
     UiScreen ui;
     if (!ui.Load(renderer, vfs, "ui2/60_option", lang, &error, &text)) {
         LogError("options: {}", error);
@@ -177,7 +188,7 @@ bool RunOptions(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const st
             const std::string p = root + "/" + plate;
             rows.push_back({p + "/uip0002_opt_setplate00", p + "/uip0040_gameOpt_box00", ""});
         }
-        rows[0].label = "Note speed";
+        rows[0].label = speed_label;
         rows[1].label = "Timing offset";
     }
     for (const Row& r : rows) SetText(ui, r.plate, 0, r.label);
@@ -195,8 +206,7 @@ bool RunOptions(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const st
             ui.SetMaterialClip(rows[0].plate, "M_volume_gauge00_01", settings.audio.volume);  // the gauge's fill
             ui.SetClipTime(rows[0].plate, 1, float(percent));
         } else {
-            std::snprintf(value, sizeof(value), "%.1f s", settings.play.approach_ms / 1000.0);
-            SetText(ui, rows[0].box, 0, value);
+            SetText(ui, rows[0].box, 0, message(728 + settings.play.note_speed, kSpeedNames[settings.play.note_speed]));
             std::snprintf(value, sizeof(value), "%+d ms", settings.timing.audio_offset_ms);
             SetText(ui, rows[1].box, 0, value);
         }
@@ -229,7 +239,7 @@ bool RunOptions(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const st
                 settings.audio.volume = std::clamp(std::round(settings.audio.volume * 20 + step) / 20, 0.0f, 1.0f);
                 audio.SetVolume(settings.audio.volume);
             } else if (step && focus == 0) {
-                settings.play.approach_ms = std::clamp(settings.play.approach_ms + 100 * step, 400, 3000);
+                settings.play.note_speed = std::clamp(settings.play.note_speed + step, 0, 4);
             } else if (step) {
                 settings.timing.audio_offset_ms = std::clamp(settings.timing.audio_offset_ms + 5 * step, -300, 300);
             }
@@ -248,8 +258,8 @@ bool RunOptions(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const st
         renderer.EndFrame();
     }
     ui.Release(renderer);
-    LogInfo("options: volume {:.2f}, note speed {} ms, timing offset {} ms", settings.audio.volume, settings.play.approach_ms,
-            settings.timing.audio_offset_ms);
+    LogInfo("options: volume {:.2f}, note speed {}, timing offset {} ms", settings.audio.volume,
+            kSpeedNames[settings.play.note_speed], settings.timing.audio_offset_ms);
     return open;
 }
 

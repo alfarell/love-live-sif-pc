@@ -1,5 +1,6 @@
 // Headless autoplay test for the live (song play) rules. Synthetic: window edges, combo, holds. With the CUSA24620
 // dump folder as the first argument: song 0010 (ac_challenge chart) autoplayed at fixed input offsets.
+#include <array>
 #include <cmath>
 #include <cstdio>
 #include <string>
@@ -158,6 +159,13 @@ static void Real(const char* root) {
     Check(all.icons == kFinaleIcons && all.finale, "autoplay collects all nine icons and plays the finale");
     Check(Autoplay(normal.chart, w, 1000).icons == 0, "no hit, no icon");
     Check(normal.rules.finale_multiplier == 3.0f, "finale multiplier 3.0 (s_CommonParam +0x120)");
+    // Rhythm Icon Speed (F3): s_CommonParam +0x00, row = difficulty index, Slow .. Fast; Normal measured in shadPS4 (about
+    // 1.6 s visible on Easy, 1.3 s on Normal, the start hidden under the mic)
+    Check(easy.rules.difficulty == 0 && easy.rules.approach_ms == std::array<double, 5>{2300, 2100, 1900, 1650, 1300},
+          "song 0340/00: difficulty 0, travel 2300 .. 1300 ms");
+    Check(normal.rules.difficulty == 1 && normal.rules.approach_ms[2] == 1600, "song 0340/01: difficulty 1, Normal 1600 ms");
+    Check(song.rules.difficulty == 4 && song.rules.approach_ms[0] == 1200 && song.rules.approach_ms[4] == 650,
+          "song 0010/04: difficulty 4, Slow 1200 .. Fast 650 ms");
     // the same play without the finale (icons taken off): every point before the finale is equal, after it x3
     Chart plain = normal.chart;
     for (Note& n : plain.notes) n.icon = false;
