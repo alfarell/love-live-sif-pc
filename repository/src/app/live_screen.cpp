@@ -92,6 +92,8 @@ struct Playfield {
     std::array<GpuMesh, 10> digits;
     std::array<fad::Animation, kGrades> judge_fad;  // anim.pac ui_ingame_judge_text_perfect .. _miss
     fad::Animation live_clear;                       // anim.pac ui_ingame_end_text_liveclear
+    Texture completion;                              // ui_ingame_end_completion: FULL COMBO top half, ALL PERFECT bottom
+    GpuMesh completion_half[2];                      // the `corner` quad over the top / bottom half of it
     fad::Animation ring_break;                       // anim.pac ui_ingame_judgering_break
     std::array<float, 2> banner{962, 500};           // layout_FULLCOMBO centre (1052 x 147, like LIVE CLEAR's text)
     std::map<std::string, Texture> fad_textures;     // by the names the .fad files list
@@ -105,6 +107,14 @@ struct Playfield {
         std::vector<uint8_t> file;
         btx::Image image;
         return vfs.Read(path, file) && btx::Parse(file, image) && r.Upload(image, out, nullptr);
+    }
+    // The `corner` quad (0,0)-(1,-1) over the top (half 0) or bottom (half 1) half of a texture
+    static bool CornerHalf(Renderer& r, int half, GpuMesh& out) {
+        const float v0 = 0.5f * float(half), v1 = v0 + 0.5f;
+        const MeshVertex quad[4] = {{{0, 0, 0}, {0, 0, 1}, {0, v0}}, {{1, 0, 0}, {0, 0, 1}, {1, v0}},
+                                    {{1, -1, 0}, {0, 0, 1}, {1, v1}}, {{0, -1, 0}, {0, 0, 1}, {0, v1}}};
+        const uint16_t indices[6] = {0, 1, 2, 0, 2, 3};
+        return r.CreateMesh(quad, indices, false, out, nullptr);
     }
     // A unit quad centred on the origin showing the UV rectangle (u0, v0)-(u1, v1)
     static bool Quad(Renderer& r, float u0, float v0, float u1, float v1, GpuMesh& out) {
@@ -337,6 +347,10 @@ struct Playfield {
         if (loaded && !LoadCombo(r, vfs)) LogWarn("live: combo digits not loaded");
         if (loaded && !LoadJudgeTexts(r, vfs)) LogWarn("live: judgement texts not loaded");
         if (loaded && !LoadFad(r, vfs, "ui_ingame_end_text_liveclear", live_clear)) LogWarn("live: LIVE CLEAR not loaded");
+        if (loaded && !(LoadTexture(r, vfs, "ui/ui_ingame.pac/texture.pac/ui_ingame_end_completion", completion) &&
+                        CornerHalf(r, 0, completion_half[0]) && CornerHalf(r, 1, completion_half[1]))) {
+            LogWarn("live: FULL COMBO / ALL PERFECT text not loaded");
+        }
         if (loaded && !LoadFad(r, vfs, "ui_ingame_judgering_break", ring_break)) LogWarn("live: ring break not loaded");
         return loaded;
     }
@@ -381,7 +395,10 @@ struct Playfield {
     }
     // One frame of a .fad animation, `ms` after it started, with its canvas centre at canvas pixel (x, y) (shortcut:
     // the anchor is a guess)
-    void DrawFad(Renderer& r, const fad::Animation& a, double ms, float x, float y) const {
+    // `text_half` 0/1: the animation's text sprite (texture `ui_ingame_end_text_liveclear`) is drawn as that half of
+    // `completion` instead, at the sprite's width and the half's own aspect, centred on the sprite (Hypothesis: the
+    // game swaps the texture the same way; its FULL COMBO / ALL PERFECT frames move and shine like LIVE CLEAR)
+    void DrawFad(Renderer& r, const fad::Animation& a, double ms, float x, float y, int text_half = -1) const {
         const size_t frame = size_t(std::max(0.0, ms) * a.fps / 1000.0);
         if (ms < 0 || frame >= a.frames.size()) return;
         const Mat4 to_clip = UiScreen::CanvasToClip(r.Width(), r.Height());
@@ -394,16 +411,19 @@ struct Playfield {
             // the textured rectangle (0,0)-(w,h), y down, through the sprite's and the timeline's matrices; the
             // corner quad's vertices are (u, -v)
             const fad::Matrix m = placed.matrix * s->second.matrix;
-            const float w = s->second.width, h = s->second.height;
+            const bool swap = text_half >= 0 && completion.width && s->second.texture == "ui_ingame_end_text_liveclear";
+            const float w = s->second.width;
+            const float h = swap ? w * float(completion.height) / 2 / float(completion.width) : s->second.height;
+            const float dy = (s->second.height - h) / 2;  // the swapped text centred on the sprite (sprite-local y)
             Mat4 place;
             place(0, 0) = m.a * w;
             place(0, 1) = -m.c * h;
-            place(0, 3) = ox + m.tx;
+            place(0, 3) = ox + m.tx + m.c * dy;
             place(1, 0) = -m.b * w;
             place(1, 1) = m.d * h;
-            place(1, 3) = -(oy + m.ty);
+            place(1, 3) = -(oy + m.ty + m.d * dy);
             const auto& c = placed.colour;
-            r.DrawUiMesh(corner, &t->second, to_clip * place, {c.mul[0], c.mul[1], c.mul[2], c.mul[3]}, {0, 0}, 1e9f, c.add);
+            r.DrawUiMesh(swap ? completion_half[size_t(text_half)] : corner, swap ? &completion : &t->second, to_clip * place, {c.mul[0], c.mul[1], c.mul[2], c.mul[3]}, {0, 0}, 1e9f, c.add);
         }
     }
     // The combo as the game lays it out (shadPS4 frames, analysis/202611072212-gameplay-feedback/): digits at 1:1, 80 px
@@ -428,6 +448,8 @@ struct Playfield {
         r.Release(corner_centered);
         for (auto& [name, t] : fad_textures) r.Release(t);
         r.Release(corner);
+        r.Release(completion);
+        for (GpuMesh& m : completion_half) r.Release(m);
         for (GpuMesh* m : {&indicator, &note_ring, &note_fill, &combo_label, &gauge_fan, &bracket[0], &bracket[1], &icon_mark, &finale_disc, &end_cap[0], &end_cap[1]}) r.Release(*m);
         for (GpuMesh& m : icon) r.Release(m);
         for (GpuMesh& m : note_icon) r.Release(m);
@@ -667,6 +689,14 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
         }
         if (loaded < 2 * kGrades) LogWarn("live: judgement sounds: {} of {} loaded ({})", loaded, 2 * kGrades, error);
     }
+    // where the music is audibly over: the files end in seconds of silence (song 0010: audible to 121.1 s of 126.4 s)
+    double audible_end_ms = 0;
+    for (size_t i = music.samples.size(); i-- > 0;) {
+        if (std::abs(int(music.samples[i])) > 328) {  // about -40 dBFS
+            audible_end_ms = double(i / size_t(std::max(1, music.channels))) * 1000.0 / music.rate;
+            break;
+        }
+    }
     audio.Play(std::move(music));
 
     Layout layout;
@@ -710,6 +740,12 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
     size_t log_seen = 0, auto_next = 0;
     std::vector<std::pair<double, int>> auto_releases;  // autoplay: (time, lane)
     uint64_t end_ticks = 0;  // when every note was judged (0: not yet)
+    // The ending, in ms after end_ticks (the game's frames, analysis/202611101907-checklist-feedback/): FULL COMBO or
+    // ALL PERFECT from 0 when earned; LIVE CLEAR 3.9 s later, or when the music is audibly over if that is later; the
+    // dance goes on; 4.5 s after LIVE CLEAR began, 1.0 s to white, then the 0.3 s screen fade to black
+    int award = -1;          // the completion texture half: 0 FULL COMBO, 1 ALL PERFECT, -1 none
+    double clear_at = 0;     // LIVE CLEAR start
+    static constexpr double kAwardToClear = 3900, kClearToWhite = 4500, kWhiteMs = 1000;
     bool closed = false;
     std::vector<double> frame_cpu_ms;
     long frame = 0;
@@ -855,10 +891,11 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                     const auto& p = field.lane[size_t(l)];
                     field.DrawFad(renderer, field.judge_fad[size_t(flash_grade[size_t(l)])], now - flash[size_t(l)], p[0], p[1]);
                 }
-                // LIVE CLEAR once every note is judged, on the full-combo banner's spot, over the combo (Hypothesis)
+                // the ending texts on the full-combo banner's spot, over the combo (Hypothesis)
                 if (end_ticks) {
-                    field.DrawFad(renderer, field.live_clear, double(SDL_GetTicksNS() - end_ticks) / 1e6, field.banner[0],
-                                  field.banner[1]);
+                    const double since = double(SDL_GetTicksNS() - end_ticks) / 1e6;
+                    if (award >= 0) field.DrawFad(renderer, field.live_clear, since, field.banner[0], field.banner[1], award);
+                    field.DrawFad(renderer, field.live_clear, since - clear_at, field.banner[0], field.banner[1]);
                 }
             } else {  // placeholder lanes when the game's play field cannot be loaded
             layout.Fit(renderer.Width(), renderer.Height());
@@ -903,6 +940,12 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                 renderer.DrawCircle(x, y, r, 0, body);
             }
             }
+            if (end_ticks) {  // the ending's fade to white
+                const float white[4] = {1, 1, 1, float(std::clamp((double(SDL_GetTicksNS() - end_ticks) / 1e6 - clear_at -
+                                                                   kClearToWhite) / kWhiteMs, 0.0, 1.0))};
+                const float w = float(renderer.Width()), h = float(renderer.Height());
+                if (white[3] > 0) renderer.DrawCircle(w / 2, h / 2, std::hypot(w, h), 0, white);
+            }
             fade.Draw(renderer);
             renderer.EndFrame();
             const double cpu_ms = double(SDL_GetTicksNS() - draw_start) / 1e6;  // CPU cost of one frame, without the vsync wait
@@ -918,12 +961,18 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                           judge.counts[3], judge.counts[4], judge.score);
             SDL_SetWindowTitle(window, title);
         }
-        // after the last judgement LIVE CLEAR plays (wall clock: the audio clock stops with the music), then the
+        // after the last judgement the ending plays (wall clock: the audio clock stops with the music), then the
         // screen fades out
-        if (judge.Finished() && !end_ticks) end_ticks = SDL_GetTicksNS();
-        const double clear_ms = field.live_clear.frames.empty() ? 3000.0
-                                                                : field.live_clear.frames.size() * 1000.0 / field.live_clear.fps;
-        if (end_ticks && double(SDL_GetTicksNS() - end_ticks) / 1e6 > clear_ms) fade.Leave(hud);
+        if (judge.Finished() && !end_ticks) {
+            end_ticks = SDL_GetTicksNS();
+            const bool full_combo = judge.counts[2] + judge.counts[3] + judge.counts[4] == 0;  // as main.cpp's records
+            award = full_combo ? (judge.counts[1] == 0 ? 1 : 0) : -1;
+            const double music_left = audible_end_ms - audio.PlayheadMs(end_ticks);
+            clear_at = std::max(award >= 0 ? kAwardToClear : 0.0, music_left);
+            LogInfo("live end: {}LIVE CLEAR in {:.1f} s", award == 1 ? "ALL PERFECT, " : award == 0 ? "FULL COMBO, " : "",
+                    clear_at / 1000);
+        }
+        if (end_ticks && double(SDL_GetTicksNS() - end_ticks) / 1e6 > clear_at + kClearToWhite + kWhiteMs) fade.Leave(hud);
     }
 
     audio.StopEffects();  // hit_sound is about to go away

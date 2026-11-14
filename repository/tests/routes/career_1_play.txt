@@ -21,6 +21,7 @@ expect log song select: song
 expect screen live 30s
 expect log stage screens play
 expect screen result 200s
+expect log live end: ALL PERFECT, LIVE CLEAR
 expect log live result: Perfect
 expect log played 1 times
 wait 2s

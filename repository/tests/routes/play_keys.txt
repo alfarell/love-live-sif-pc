@@ -307,5 +307,6 @@ wait 100ms
 key esc
 expect screen select 30s
 expect log live result:
+expect nolog live end
 expect nolog Perfect 0 Great 0 Good 0 Bad 0
 expect nolog error
