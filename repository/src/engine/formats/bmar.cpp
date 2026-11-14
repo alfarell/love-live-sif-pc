@@ -317,6 +317,9 @@ void Pose(const Model& model, std::span<const Layer> layers, std::vector<Mat4>& 
         for (const Track& t : l.motion->tracks) by_node[t.node] = {&t, l.frame};
     }
     world.resize(model.nodes.size());
+    // 3D models start with bml_axisNode; UI layouts and parts do not, and there node 0 is an ordinary parent (e.g.
+    // the top menu's menu_banner_on00, whose banner must follow it; M9 F1)
+    const bool axis_root = !model.nodes.empty() && model.nodes[0].name == "bml_axisNode";
     for (size_t i = 0; i < model.nodes.size(); ++i) {
         const Node& n = model.nodes[i];
         float t[3] = {n.t[0], n.t[1], n.t[2]}, s[3] = {n.s[0], n.s[1], n.s[2]};
@@ -330,7 +333,8 @@ void Pose(const Model& model, std::span<const Layer> layers, std::vector<Mat4>& 
         }
         const Mat4 local = Compose(t, rot, s);
         // node 0 (bml_axisNode, Z-up -> Y-up) and its direct children start from the model's own Z-up space
-        world[i] = n.parent <= 0 ? local : world[size_t(n.parent)] * local;
+        const bool root = n.parent < 0 || (n.parent == 0 && axis_root);
+        world[i] = root ? local : world[size_t(n.parent)] * local;
     }
 }
 

@@ -78,10 +78,11 @@ public:
     // 2D overlay: a mesh in canvas space, alpha-blended (straight alpha), no depth; `to_clip` maps it to clip space.
     void DrawUiMesh(const GpuMesh& mesh, const Texture* texture, const Mat4& to_clip, float alpha);
     // `tint`: RGBA multiplier (0..1), e.g. a UI clip's material colour; `uv_offset` shifts the texture (label atlases);
-    // nothing is drawn where the mesh's own U exceeds `u_max` (fill gauges); `add` is added after the tint (RGBA 0..1)
+    // nothing is drawn where the mesh's own U exceeds `u_max` (fill gauges); `add` is added after the tint (RGBA 0..1);
+    // `additive`: added onto what is drawn instead of blended over it (the game's "_add" meshes)
     void DrawUiMesh(const GpuMesh& mesh, const Texture* texture, const Mat4& to_clip, const std::array<float, 4>& tint,
                     const std::array<float, 2>& uv_offset = {0, 0}, float u_max = 1e9f,
-                    const std::array<float, 4>& add = {0, 0, 0, 0});
+                    const std::array<float, 4>& add = {0, 0, 0, 0}, bool additive = false);
 
     // Clears the window and draws `texture` (if any) fitted to the window. Returns false if nothing was presented.
     bool DrawFrame(const Texture* texture);
@@ -100,6 +101,7 @@ private:
     SDL_GPUGraphicsPipeline* shape_ = nullptr;
     SDL_GPUGraphicsPipeline* mesh_ = nullptr;
     SDL_GPUGraphicsPipeline* ui_ = nullptr;
+    SDL_GPUGraphicsPipeline* ui_add_ = nullptr;
     SDL_GPUSampler* sampler_ = nullptr;
     SDL_GPUSampler* repeat_sampler_ = nullptr;  // 3D textures tile
     SDL_GPUTexture* depth_ = nullptr;

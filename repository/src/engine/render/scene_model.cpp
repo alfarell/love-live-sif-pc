@@ -194,6 +194,15 @@ void SceneModel::Draw(Renderer& renderer, const Mat4& placement,
     }
 }
 
+// UI meshes the game adds onto the picture: their nodes are named "*_add*" (e.g. top menu reflection_add00, a black
+// texture with a light streak; drawn blended it shows as a black shape)
+static bool Additive(const std::string& node) { return node.find("_add") != std::string::npos; }
+
+// UI masks the game uses only to clip other meshes (top menu list00_bg_ef_mask00, an opaque black ring that limits
+// the scrolling marks to the wheel band); drawn as colour it shows as a black band. shortcut: not drawn and nothing
+// is clipped, so a mark could show past the band edge; add a stencil pass if that is visible
+static bool Mask(const std::string& node) { return node.find("_mask") != std::string::npos; }
+
 void SceneModel::DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha, std::span<const bmar::Layer> clips,
                         const std::set<std::string>* hidden,
                         const std::map<std::string, const Texture*>* textures,
@@ -201,8 +210,9 @@ void SceneModel::DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha, st
     if (clips.empty() && (!hidden || hidden->empty()) && (!textures || textures->empty()) &&
         (!uv_offsets || uv_offsets->empty())) {
         for (const Part& part : parts_) {
-            if (part.texture < 0) continue;  // text boxes and untextured helpers
-            renderer.DrawUiMesh(part.gpu, &textures_[size_t(part.texture)], to_clip * world_[part.node], alpha);
+            if (part.texture < 0 || Mask(model_.nodes[part.node].name)) continue;  // text boxes, helpers, masks
+            renderer.DrawUiMesh(part.gpu, &textures_[size_t(part.texture)], to_clip * world_[part.node], {1, 1, 1, alpha}, {0, 0}, 1e9f,
+                                {0, 0, 0, 0}, Additive(model_.nodes[part.node].name));
         }
         return;
     }
@@ -223,7 +233,8 @@ void SceneModel::DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha, st
     for (const Part& part : parts_) {
         // text boxes (no texture named) are not drawn; a named texture missing from the dump (e.g. one the game
         // fills at run time, like the stage preview) is drawn only when the caller supplies one
-        if (model_.materials[part.material].texture.empty() || !visible[part.node]) continue;
+        if (model_.materials[part.material].texture.empty() || !visible[part.node] ||
+            Mask(model_.nodes[part.node].name)) continue;
         std::array<float, 4> tint{1, 1, 1, alpha};
         std::array<float, 2> uv{0, 0};
         float u_max = 1e9f;
@@ -251,8 +262,12 @@ void SceneModel::DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha, st
         if (textures) {
             if (const auto t = textures->find(material); t != textures->end() && t->second) texture = t->second;
         }
-        if (!texture) continue;
-        renderer.DrawUiMesh(part.gpu, texture, to_clip * world[part.node], tint, uv, u_max);
+        // a clip colour of exactly 0 hides the material: the game's focus clips "fade" layers out that way (top menu
+        // a005/a014 take a layer to 0 while another takes its place); drawn, it shows as a black shape. shortcut: a
+        // fade through dark values still darkens instead of fading; upgrade if a fade looks wrong
+        if (!texture || (tint[0] == 0 && tint[1] == 0 && tint[2] == 0)) continue;
+        renderer.DrawUiMesh(part.gpu, texture, to_clip * world[part.node], tint, uv, u_max, {0, 0, 0, 0},
+                            Additive(model_.nodes[part.node].name));
     }
 }
 

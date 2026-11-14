@@ -137,10 +137,16 @@ bool Renderer::Init(SDL_Window* window, bool vsync, std::string* error) {
     mesh.target_info.color_target_descriptions = &target;  // blending set up for the shape pipeline above
     mesh.target_info.has_depth_stencil_target = false;
     ui_ = ui_fs ? SDL_CreateGPUGraphicsPipeline(device_, &mesh) : nullptr;
+    // UI quads added onto what is drawn (the game's "_add" meshes: black textures with a light streak)
+    SDL_GPUColorTargetDescription add_target = target;
+    add_target.blend_state.dst_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE;
+    add_target.blend_state.dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE;
+    mesh.target_info.color_target_descriptions = &add_target;
+    ui_add_ = ui_fs ? SDL_CreateGPUGraphicsPipeline(device_, &mesh) : nullptr;
     SDL_ReleaseGPUShader(device_, mesh_vs);
     SDL_ReleaseGPUShader(device_, mesh_fs);
     if (ui_fs) SDL_ReleaseGPUShader(device_, ui_fs);
-    if (!mesh_ || !ui_) return Fail(error, "SDL_CreateGPUGraphicsPipeline (mesh/ui)");
+    if (!mesh_ || !ui_ || !ui_add_) return Fail(error, "SDL_CreateGPUGraphicsPipeline (mesh/ui)");
 
     SDL_GPUSamplerCreateInfo s{};
     s.min_filter = s.mag_filter = SDL_GPU_FILTER_LINEAR;
@@ -172,6 +178,7 @@ void Renderer::Shutdown() {
     if (shape_) SDL_ReleaseGPUGraphicsPipeline(device_, shape_);
     if (mesh_) SDL_ReleaseGPUGraphicsPipeline(device_, mesh_);
     if (ui_) SDL_ReleaseGPUGraphicsPipeline(device_, ui_);
+    if (ui_add_) SDL_ReleaseGPUGraphicsPipeline(device_, ui_add_);
     SDL_ReleaseWindowFromGPUDevice(device_, window_);
     SDL_DestroyGPUDevice(device_);
     device_ = nullptr;
@@ -429,10 +436,11 @@ void Renderer::DrawUiMesh(const GpuMesh& mesh, const Texture* texture, const Mat
 }
 
 void Renderer::DrawUiMesh(const GpuMesh& mesh, const Texture* texture, const Mat4& to_clip, const std::array<float, 4>& tint,
-                          const std::array<float, 2>& uv_offset, float u_max, const std::array<float, 4>& add) {
+                          const std::array<float, 2>& uv_offset, float u_max, const std::array<float, 4>& add,
+                          bool additive) {
     if (!pass_ || !mesh.vertices || tint[3] <= 0) return;
     Use2D();
-    SDL_BindGPUGraphicsPipeline(pass_, ui_);
+    SDL_BindGPUGraphicsPipeline(pass_, additive ? ui_add_ : ui_);
     struct {
         Mat4 mvp, model;
     } transform{to_clip, Mat4{}};
