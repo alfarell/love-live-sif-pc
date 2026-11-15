@@ -51,6 +51,14 @@ bool Load(const std::filesystem::path& path, SaveData& out, std::string* error) 
             } else {
                 out.unknown.push_back(line);
             }
+        } else if (kind == "skills") {
+            int member = 0;
+            std::array<int, 3> slots{};
+            if (in >> member >> slots[0] >> slots[1] >> slots[2]) {
+                out.skill_slots[member] = slots;
+            } else {
+                out.unknown.push_back(line);
+            }
         } else if (kind == "notes") {
             in >> out.perfects >> out.greats;
         } else if (kind == "costume") {
@@ -97,6 +105,9 @@ bool Write(const std::filesystem::path& path, const SaveData& data, std::string*
         }
         for (const auto& [key, count] : data.owned) f << "own " << key.first << " " << key.second << " " << count << "\n";
         for (const auto& [member, dress] : data.wear) f << "wear " << member << " " << dress << "\n";
+        for (const auto& [member, s] : data.skill_slots) {
+            f << "skills " << member << " " << s[0] << " " << s[1] << " " << s[2] << "\n";
+        }
         f << "notes " << data.perfects << " " << data.greats << "\n";
         for (const auto& [id, plays] : data.costume_plays) f << "costume " << id << " " << plays << "\n";
         for (const auto& [key, r] : data.records) {

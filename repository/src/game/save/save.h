@@ -2,6 +2,7 @@
 // The port's own save (save.txt in the data folder; plan/202611021940-m7-systems-breadth/): the player's name and a
 // record per chart. Plain text, one line per item; lines this version does not know are kept as they are.
 
+#include <array>
 #include <filesystem>
 #include <map>
 #include <set>
@@ -22,9 +23,11 @@ struct SaveData {
     std::string player = "Player";
     int accolade = 0, badge = 0, name_plate = 0;  // the nameplate's choices (0 = not chosen)
     std::set<int> claimed;                        // missions whose reward was taken
-    // rewards owned: (mission reward type, id) -> count. Types (M7 plan 202611071847): 2 item, 3 badge, 4 accolade
-    // or badge, 5 profile-card frame, 6 name plate, 7 costume; 1 card (Hypothesis)
+    // rewards owned: (mission reward type, id) -> count. Types (M7 plan 202611071847): 1 skill card (count = copies;
+    // the level is min(copies, max), M11 S1), 2 item, 3 badge, 4 accolade or badge, 5 profile-card frame, 6 name
+    // plate, 7 costume
     std::map<std::pair<int, int>, int> owned;
+    std::map<int, std::array<int, 3>> skill_slots;  // member -> the three set skill cards (0 = empty), M11
     std::map<std::pair<int, int>, ChartRecord> records;  // (song id, chart variant)
     long long perfects = 0, greats = 0;                  // judged notes over every finished live
     std::map<int, int> costume_plays;                    // costume id (dNNN) -> finished lives wearing it

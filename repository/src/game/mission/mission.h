@@ -19,7 +19,7 @@ namespace mission {
 // (Hypothesis: 1 = counted, 2/3 = first of a series). p1 = song id (kinds 35-39), member (20-34) or costume (40-48).
 struct Mission {
     int id = 0, code = 0, p1 = 0, p2 = 0;
-    int reward_type = 0, reward_id = 0, reward_amount = 0;  // 2 item, 3 badge, 4 accolade (a few badges), 5 frame, 6 name plate, 7 costume; 1 card (Hypothesis)
+    int reward_type = 0, reward_id = 0, reward_amount = 0;  // 2 item, 3 badge, 4 accolade (a few badges), 5 frame, 6 name plate, 7 costume; 1 skill card (M11 S1)
     int Kind() const { return code & 0xFF; }
 };
 
