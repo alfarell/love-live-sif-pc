@@ -267,9 +267,12 @@ struct Playfield {
     // ring05) at 180, 140, 112.5, 67.5, 40 and 0 degrees: L1 and R1 (lanes 1, 7) move out to the corners (ring01 and
     // ring09's spots), ← and ○ (lanes 2, 6) to 140 and 40 degrees; ↓ and ✕ keep ring04 and ring06. Measured in shadPS4
     // (0340 HYPER, ±1 degree). Hypothesis: no table in the dump holds the 140 and 40
-    void SetHome(bool on) {
+    void SetHome(bool on, HomeConfig config) {
         home = on;
         if (!on) return;
+        for (auto& b : lane_buttons) b.clear();  // the ring icons show the 6-lane Button Controls
+        const HomeSlots& slots = CurrentHomeSlots(config);
+        for (int s = 0; s < kHomeSlots; ++s) lane_buttons[size_t(kLaneOfHomeSlot[size_t(s)])].push_back(slots[size_t(s)]);
         const float cx = (lane[0][0] + lane[8][0]) / 2, cy = (lane[0][1] + lane[8][1]) / 2, radius = lane[4][1] - cy;
         for (const auto& [l, degrees] : {std::pair<int, float>{1, 180.0f}, {2, 140.0f}, {6, 40.0f}, {7, 0.0f}}) {
             const float a = degrees * 3.14159265f / 180.0f;
@@ -730,7 +733,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
     Layout layout;
     Playfield field;
     field.Load(renderer, vfs, song.group);
-    field.SetHome(chart.home);
+    field.SetHome(chart.home, opt.variant >= 12 ? HomeConfig::Hard : HomeConfig::Easy);
     // the game's top HUD bar (ui2/90_ingame, layout uil0001_Ingame00); shortcut: gauges and the FULL COMBO marks
     // stay at their defaults until the HUD logic is traced
     long hud_score = -1;
@@ -780,6 +783,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
     long frame = 0;
     ScreenFade fade;  // in from black; out to black at the song's end or on Esc
     uint64_t fade_last = SDL_GetTicksNS();
+    SetLiveHome(chart.home, live::IsHomeVariant(opt.variant) && opt.variant >= 12 ? HomeConfig::Hard : HomeConfig::Easy);
     SetPadLayout(PadLayout::Live);
     for (bool running = true; running && !fade.Left() && (opt.max_frames < 0 || frame < opt.max_frames); ++frame) {
         const uint64_t fade_now = SDL_GetTicksNS();
@@ -1034,6 +1038,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
     }
     const double mean = n ? sum / n : 0, sd = n ? std::sqrt(std::max(0.0, sum2 / n - mean * mean)) : 0;
     SetPadLayout(PadLayout::Menu);
+    SetLiveHome(false);
     LogInfo("live result: Perfect {} Great {} Good {} Bad {} Miss {}, max combo {}, provisional score {:.0f}; "
             "press offset mean {:+.1f} ms, sd {:.1f} ms over {} hits",
             judge.counts[0], judge.counts[1], judge.counts[2], judge.counts[3], judge.counts[4], judge.max_combo,

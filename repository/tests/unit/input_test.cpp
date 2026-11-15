@@ -79,6 +79,25 @@ int main() {
     Check(sif::PadSlotsFromText(sif::PadSlotsToText(slots), back) && back == slots, "slots text round trip");
     Check(sif::PadSlotsToText(sif::DefaultPadSlots()) == "L2 L1 LEFT DOWN RIGHT SQUARE CROSS CIRCLE R1 R2", "default text");
     Check(!sif::PadSlotsFromText("L2 L1", back) && back == slots, "short text refused");
+    // M10 K4: the home charts' 6-lane mapping (lanes 1 2 3 5 6 7); the HYPER/ADVENTURE one remapped L1 -> L2
+    Check(sif::HomeSlotsToText(sif::DefaultHomeSlots()) == "L1 LEFT DOWN CROSS CIRCLE R1", "6-lane default text");
+    sif::HomeSlots hard = sif::DefaultHomeSlots();
+    hard[0] = sif::PadButton::L2;
+    sif::SetHomeSlots(sif::HomeConfig::Hard, hard);
+    sif::HomeSlots hard_back{};
+    Check(sif::HomeSlotsFromText(sif::HomeSlotsToText(hard), hard_back) && hard_back == hard, "6-lane text round trip");
+    Check(!sif::HomeSlotsFromText("L1 LEFT DOWN CROSS CIRCLE R1 R2", hard_back) && hard_back == hard, "7 names refused");
+    sif::SetLiveHome(true, sif::HomeConfig::Easy);
+    Press(joy, SDL_GAMEPAD_BUTTON_LEFT_SHOULDER, SDL_SCANCODE_S, "home easy: L1 plays lane 1");
+    Press(joy, SDL_GAMEPAD_BUTTON_EAST, SDL_SCANCODE_K, "home easy: Circle plays lane 6");
+    sif::SetLiveHome(true, sif::HomeConfig::Hard);
+    SDL_SetJoystickVirtualAxis(joy, SDL_GAMEPAD_AXIS_LEFT_TRIGGER, SDL_JOYSTICK_AXIS_MAX);
+    k = NextKey(down);
+    Check(k == SDL_SCANCODE_S && down, "home hard: L2 (remapped) plays lane 1");
+    SDL_SetJoystickVirtualAxis(joy, SDL_GAMEPAD_AXIS_LEFT_TRIGGER, 0);
+    NextKey(down);
+    sif::SetLiveHome(false);
+    Press(joy, SDL_GAMEPAD_BUTTON_EAST, SDL_SCANCODE_K, "arcade again: Circle plays lane 6");
     SDL_Quit();
     std::printf("%s\n", failures ? "input_test FAILED" : "input_test ok");
     return failures ? 1 : 0;

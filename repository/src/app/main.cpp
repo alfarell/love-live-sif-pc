@@ -228,6 +228,14 @@ int main(int argc, char** argv) {
                          settings.controls.pad_lanes);
         }
         sif::SetPadSlots(slots);
+        for (const auto& [config, text] : {std::pair{sif::HomeConfig::Easy, settings.controls.pad_lanes_home_easy},
+                                           std::pair{sif::HomeConfig::Hard, settings.controls.pad_lanes_home_hard}}) {
+            sif::HomeSlots home = sif::DefaultHomeSlots();
+            if (!text.empty() && !sif::HomeSlotsFromText(text, home)) {
+                sif::LogWarn("settings: a 6-lane pad mapping '{}' is not 6 button names; using the defaults", text);
+            }
+            sif::SetHomeSlots(config, home);
+        }
     }
     if (!options.game.empty()) settings.game.folder = options.game;
 

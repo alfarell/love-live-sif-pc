@@ -1,4 +1,4 @@
-# Options -> Control Settings (the 9-lane Button Controls): change a lane's pad button, then back
+# Options -> Control Settings -> the AC row (the 9-lane Button Controls): change a lane's pad button, then back
 timeout 90s
 expect screen title 30s
 press enter until menu 30s
@@ -13,6 +13,15 @@ key down
 wait 400ms
 key enter
 expect log top menu: entry 12
+expect screen controlset 20s
+wait 1200ms
+shot control_settings
+key down
+wait 300ms
+key down
+wait 300ms
+key enter
+expect log control settings row EASY, NORMAL, HARD, EXTREME, CHALLENGE
 expect screen controls 20s
 wait 1500ms
 key right
@@ -22,5 +31,8 @@ wait 400ms
 shot controls
 key esc
 expect log options: pad lanes
+expect screen controlset 20s
+wait 800ms
+key esc
 expect screen menu 20s
 expect nolog error

@@ -115,6 +115,8 @@ bool LoadAppSettings(const std::filesystem::path& path, AppSettings& out) {
         }
     }
     Read(v, "controls.pad_lanes", out.controls.pad_lanes);
+    Read(v, "controls.pad_lanes_home_easy", out.controls.pad_lanes_home_easy);
+    Read(v, "controls.pad_lanes_home_hard", out.controls.pad_lanes_home_hard);
     out.play.note_speed = std::clamp(out.play.note_speed, 0, 4);
     out.display.width = std::clamp(out.display.width, 320, 16384);
     out.display.height = std::clamp(out.display.height, 240, 16384);
@@ -136,7 +138,8 @@ bool SaveAppSettings(const std::filesystem::path& path, const AppSettings& s) {
     f << "[timing]\naudio_offset_ms = " << s.timing.audio_offset_ms << "\ninput_offset_ms = " << s.timing.input_offset_ms
       << "\n\n";
     f << "[play]\nnote_speed = " << s.play.note_speed << "\n\n";
-    f << "[controls]\npad_lanes = \"" << s.controls.pad_lanes << "\"\n";
+    f << "[controls]\npad_lanes = \"" << s.controls.pad_lanes << "\"\npad_lanes_home_easy = \""
+      << s.controls.pad_lanes_home_easy << "\"\npad_lanes_home_hard = \"" << s.controls.pad_lanes_home_hard << "\"\n";
     return static_cast<bool>(f);
 }
 

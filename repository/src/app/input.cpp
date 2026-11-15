@@ -11,6 +11,9 @@ namespace {
 
 PadLayout g_layout = PadLayout::Menu;
 PadSlots g_slots = DefaultPadSlots();
+std::array<HomeSlots, 2> g_home_slots = {DefaultHomeSlots(), DefaultHomeSlots()};
+bool g_live_home = false;
+HomeConfig g_live_config = HomeConfig::Easy;
 std::array<bool, 2> g_trigger_down{};  // L2, R2
 
 constexpr std::pair<SDL_GamepadButton, SDL_Scancode> kMenu[] = {
@@ -33,6 +36,13 @@ constexpr SDL_GamepadButton kSdlButton[] = {
     SDL_GAMEPAD_BUTTON_INVALID};
 
 SDL_Scancode LiveKey(PadButton b) {
+    if (g_live_home) {
+        const HomeSlots& home = g_home_slots[size_t(g_live_config)];
+        for (int s = 0; s < kHomeSlots; ++s) {
+            if (home[size_t(s)] == b) return kLaneKeys[kLaneOfHomeSlot[size_t(s)]];
+        }
+        return SDL_SCANCODE_UNKNOWN;
+    }
     for (int s = 0; s < kPadSlots; ++s) {  // a button in two slots plays the first one's lane
         if (g_slots[size_t(s)] == b) return kLaneKeys[kLaneOfSlot[size_t(s)]];
     }
@@ -71,15 +81,17 @@ PadSlots DefaultPadSlots() {
     return {B::L2, B::L1, B::Left, B::Down, B::Right, B::Square, B::Cross, B::Circle, B::R1, B::R2};
 }
 
-std::string PadSlotsToText(const PadSlots& slots) {
+template <size_t N>
+std::string SlotsToText(const std::array<PadButton, N>& slots) {
     std::string s;
     for (PadButton b : slots) s += (s.empty() ? "" : " ") + std::string(PadButtonName(b));
     return s;
 }
 
-bool PadSlotsFromText(const std::string& text, PadSlots& out) {
+template <size_t N>
+bool SlotsFromText(const std::string& text, std::array<PadButton, N>& out) {
     std::istringstream in(text);
-    PadSlots slots{};
+    std::array<PadButton, N> slots{};
     std::string word;
     for (PadButton& slot : slots) {
         if (!(in >> word)) return false;
@@ -92,6 +104,19 @@ bool PadSlotsFromText(const std::string& text, PadSlots& out) {
     out = slots;
     return true;
 }
+
+std::string PadSlotsToText(const PadSlots& slots) { return SlotsToText(slots); }
+bool PadSlotsFromText(const std::string& text, PadSlots& out) { return SlotsFromText(text, out); }
+
+HomeSlots DefaultHomeSlots() {
+    using B = PadButton;
+    return {B::L1, B::Left, B::Down, B::Cross, B::Circle, B::R1};
+}
+std::string HomeSlotsToText(const HomeSlots& slots) { return SlotsToText(slots); }
+bool HomeSlotsFromText(const std::string& text, HomeSlots& out) { return SlotsFromText(text, out); }
+void SetHomeSlots(HomeConfig config, const HomeSlots& slots) { g_home_slots[size_t(config)] = slots; }
+const HomeSlots& CurrentHomeSlots(HomeConfig config) { return g_home_slots[size_t(config)]; }
+void SetLiveHome(bool home, HomeConfig config) { g_live_home = home, g_live_config = config; }
 
 void SetPadSlots(const PadSlots& slots) { g_slots = slots; }
 const PadSlots& CurrentPadSlots() { return g_slots; }

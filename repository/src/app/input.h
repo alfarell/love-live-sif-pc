@@ -29,6 +29,22 @@ bool PadSlotsFromText(const std::string& text, PadSlots& out);  // false (out un
 void SetPadSlots(const PadSlots& slots);
 const PadSlots& CurrentPadSlots();  // the mapping SetPadSlots last set (the defaults before)
 
+// The home charts' 6-lane Button Controls (M10 K4): 6 slots, left to right, for lanes 1 2 3 5 6 7 (live::kHomeLanes).
+// The game keeps two of them, "BEGINNER, STANDARD" and "HYPER, ADVENTURE" (Control Settings, M7); both default to
+// L1 Left Down Cross Circle R1 (its 6-lane form).
+constexpr int kHomeSlots = 6;
+constexpr std::array<int, kHomeSlots> kLaneOfHomeSlot = {1, 2, 3, 5, 6, 7};
+using HomeSlots = std::array<PadButton, kHomeSlots>;
+enum class HomeConfig { Easy, Hard };  // BEGINNER/STANDARD (variants 10, 11), HYPER/ADVENTURE (12, 13)
+HomeSlots DefaultHomeSlots();
+std::string HomeSlotsToText(const HomeSlots& slots);               // "L1 LEFT DOWN CROSS CIRCLE R1"
+bool HomeSlotsFromText(const std::string& text, HomeSlots& out);  // false (out unchanged) unless 6 known names
+void SetHomeSlots(HomeConfig config, const HomeSlots& slots);
+const HomeSlots& CurrentHomeSlots(HomeConfig config);
+// Which mapping the live's lane buttons use: the arcade slots (the default) or one home config. The live sets it for
+// its chart and clears it when it ends.
+void SetLiveHome(bool home, HomeConfig config = HomeConfig::Easy);
+
 // SDL_PollEvent that also opens pads as they connect and delivers a mapped pad button as a key event (same
 // timestamp, so live judgement timing is unchanged). L2/R2 (analog triggers in SDL) count as pressed past half way.
 // Unmapped buttons arrive as pad events.

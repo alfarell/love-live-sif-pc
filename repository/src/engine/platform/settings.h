@@ -36,6 +36,8 @@ struct AppSettings {
     } play;
     struct Controls {
         std::string pad_lanes;  // the pad's 9-lane Button Controls, 10 button names; empty = the game's defaults
+        // the 6-lane Button Controls of the home charts (BEGINNER/STANDARD, HYPER/ADVENTURE), 6 names; empty = defaults
+        std::string pad_lanes_home_easy, pad_lanes_home_hard;
     } controls;
 };
 

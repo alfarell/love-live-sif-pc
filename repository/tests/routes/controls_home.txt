@@ -1,0 +1,34 @@
+# M10 K4: Options -> Control Settings -> "HYPER, ADVENTURE" (the 6-lane Button Controls): change the first lane's
+# button (L1 -> L2), then back; the setting is written and the BEGINNER/STANDARD one stays at its defaults
+#! data controls_home
+timeout 90s
+expect screen title 30s
+press enter until menu 30s
+wait 1500ms
+key right
+wait 400ms
+key right
+wait 400ms
+key right
+wait 400ms
+key down
+wait 400ms
+key enter
+expect screen controlset 20s
+wait 1200ms
+key down
+wait 300ms
+key enter
+expect log control settings row HYPER, ADVENTURE
+expect screen controls 20s
+wait 1500ms
+key down
+wait 400ms
+shot controls_home
+key esc
+expect log options: pad lanes HYPER, ADVENTURE L2 LEFT DOWN CROSS CIRCLE R1
+expect screen controlset 20s
+wait 800ms
+key esc
+expect screen menu 20s
+expect nolog error
