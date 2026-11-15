@@ -17,6 +17,9 @@ wait 800ms
 key enter
 wait 800ms
 key enter
+expect screen prepare 20s
+wait 600ms
+key enter
 expect screen live 30s
 wait 3s
 key a

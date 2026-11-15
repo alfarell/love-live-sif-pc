@@ -28,6 +28,7 @@
 #include "app/mission_screen.h"
 #include "app/options_screen.h"
 #include "app/profile_screen.h"
+#include "app/skill_screen.h"
 #include "app/result_screen.h"
 #include "app/route.h"
 #include "app/song_select.h"
@@ -44,6 +45,7 @@
 #include "engine/platform/settings.h"
 #include "engine/render/renderer.h"
 #include "engine/video/movie.h"
+#include "game/card/card.h"
 #include "game/costume/costume.h"
 #include "game/dlc/dlc.h"
 #include "game/live/song.h"
@@ -347,6 +349,12 @@ int main(int argc, char** argv) {
             sif::costume::Data costume_data;
             const bool has_costumes = sif::costume::Load(vfs, costume_data, &why);
             if (!has_costumes) sif::LogWarn("costumes: {}", why);
+            sif::card::Data card_data;  // skill and member cards (M11)
+            const bool has_cards = sif::card::Load(vfs, card_data, &why);
+            if (!has_cards) sif::LogWarn("cards: {}", why);
+            // the played member: --member, else the navigator (shortcut: always Honoka, as the top menu)
+            const sif::SkillSetup skills{has_cards ? &card_data : nullptr, &save,
+                                         options.live_options.member > 0 ? options.live_options.member : 1};
             std::mt19937 drop_random{std::random_device{}()};
             // add-on ownership from the user's own add-ons; without the catalog nothing is locked
             sif::dlc::Ownership owned;
@@ -384,6 +392,11 @@ int main(int argc, char** argv) {
                             save.name_plate = plate.name_plates[plate.name_plate].id;
                             if (can_save && !sif::save::Write(save_path, save, &save_error)) sif::LogWarn("save: {}", save_error);
                         }
+                        continue;
+                    }
+                    if (mode == 4 && entry == 17 && has_cards) {  // Collection: Skill Card (M11 S4)
+                        loading.Show(renderer);
+                        open = sif::RunSkillCollection(window, renderer, vfs, lang, skills, options.frames);
                         continue;
                     }
                     // Options (mode 3): entry 13 Sound, 10 Game Settings, 12 Control Settings (straight to the 9-lane
@@ -424,7 +437,11 @@ int main(int argc, char** argv) {
                 }
                 loading.Show(renderer);
                 const sif::SongChoice choice = sif::RunSongSelect(window, renderer, vfs, lang, options.frames, last, &save, &owned,
-                                                                  has_costumes ? &costume_data : nullptr, home_mode);
+                                                                  has_costumes ? &costume_data : nullptr, home_mode,
+                                                                  has_cards ? &skills : nullptr);
+                if (has_cards && can_save && !sif::save::Write(save_path, save, &save_error)) {  // the skill slots (M11)
+                    sif::LogWarn("save: {}", save_error);
+                }
                 if (choice.closed || (choice.song < 0 && options.select)) break;
                 menu = choice.song < 0;
                 if (menu) continue;

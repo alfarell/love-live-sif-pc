@@ -1,0 +1,58 @@
+# M11 S4: Play Live Show -> Prepare for the Live Show -> Skill Card Selection with a few owned cards (seed): set Finale
+# Support in slot 2, check Prepare's rows, and the save keeps the slots
+#! seed skills
+timeout 120s
+expect screen title 30s
+press enter until menu 30s
+wait 1500ms
+key enter
+expect screen select 20s
+wait 1500ms
+key enter
+wait 1200ms
+key enter
+wait 800ms
+key enter
+wait 800ms
+key enter
+expect screen prepare 20s
+expect log song select: prepare for the live show
+wait 1500ms
+shot prepare
+key left
+wait 300ms
+key space
+expect screen skill_select 20s
+expect log skill select: member 1, 4 owned cards
+wait 1500ms
+shot skill_select
+key right
+wait 300ms
+key space
+wait 300ms
+key right
+wait 300ms
+key space
+expect log skill select: slot 2 = 11003 Finale Support
+wait 600ms
+shot skill_select_set
+key right
+wait 300ms
+key right
+wait 300ms
+key space
+expect log skill select: set 11000 11003 12016
+expect screen prepare 20s
+wait 1200ms
+shot prepare_set
+key esc
+wait 600ms
+key esc
+wait 600ms
+key esc
+wait 600ms
+key esc
+wait 600ms
+key esc
+expect screen menu 20s
+expect nolog error

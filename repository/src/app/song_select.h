@@ -7,6 +7,7 @@
 #include "game/costume/costume.h"
 #include "game/dlc/dlc.h"
 #include "game/save/save.h"
+#include "app/skill_screen.h"
 
 struct SDL_Window;
 
@@ -28,8 +29,11 @@ struct SongChoice {
 // listed (shortcut: add-ons the user has not installed are left out; the game shows them locked). `costumes` (optional,
 // with `save`): only the costumes the player owns (costume::Owns: from the start, rewarded, crafted or an add-on).
 // `home`: "Play Live Show" (the four home charts, variants 10-13) instead of "Play Live Show (AC)" (M10 K3).
+// `skills` (optional): after the costume step comes Prepare for the Live Show, with the played member's skill cards
+// and Skill Card Selection (M11 S4); without it the costume step starts the live as before.
 SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, long max_frames,
                          const SongChoice& previous = {}, const save::SaveData* save = nullptr,
-                         const dlc::Ownership* owned = nullptr, const costume::Data* costumes = nullptr, bool home = false);
+                         const dlc::Ownership* owned = nullptr, const costume::Data* costumes = nullptr, bool home = false,
+                         const SkillSetup* skills = nullptr);
 
 }

@@ -11,10 +11,12 @@
 #include "app/fade.h"
 #include "app/input.h"
 #include "app/route.h"
+#include "app/skill_screen.h"
 #include "engine/core/log.h"
 #include "engine/render/renderer.h"
 #include "engine/ui/ui_screen.h"
 #include "game/live/song.h"
+#include "game/text/messages.h"
 
 namespace sif {
 namespace {
@@ -27,7 +29,7 @@ using live::LoadStageList;
 using live::SongInfo;
 using live::StageInfo;
 
-enum Step { kSongStep, kDifficultyStep, kStageStep, kCostumeStep };
+enum Step { kSongStep, kDifficultyStep, kStageStep, kCostumeStep, kPrepareStep };
 
 constexpr const char* kRoot = "uil0001_StepLayout00";
 constexpr int kPlates = 11;      // uil0013_MusicList00: SelectPlate00_00 (centre), then 01/02, 03/04 ... left/right
@@ -213,19 +215,65 @@ void ApplyCostumes(UiScreen& ui, const std::vector<DressInfo>& costumes, int cos
     }
 }
 
+// Prepare for the Live Show (uil0027_LiveStart00, drawn over the step layout; the game's screen in shadPS4,
+// work/m11/shad/s13 and s18): Profile Card in Use, Skill Card in Use (the played member's three slots), the three
+// sub-buttons (Game Settings, Profile Card Selection, Skill Card Selection) and LIVE START. `focus`: 0-2 a sub-button,
+// 3 LIVE START. shortcut: Wai-Wai! Boosters, profile cards and the material panel are not built (hidden or greyed);
+// Game Settings is shown but opens nothing here (Options -> Game Settings does)
+constexpr const char* kPrepare = "uil0027_LiveStart00";
+void ApplyPrepare(UiScreen& ui, const SkillSetup* skills, const Messages& messages, int language, int focus) {
+    const std::string root = kPrepare;
+    const auto msg = [&](int id, const char* fallback) {
+        const std::string& m = messages.Get(id);
+        return m.empty() ? std::string(fallback) : m;
+    };
+    ui.SetInstanceText(root + "/uip0063_ProfCard00", 0, msg(606, "Profile Card in Use"));
+    for (const char* card : {"prof_card_00", "prof_card_01", "prof_card_02", "prof_card_03"}) {
+        ui.HideNode(root + "/uip0063_ProfCard00", card, true);
+    }
+    ui.SetInstanceText(root + "/uip0063_ProfCard00", 1, ""), ui.SetInstanceText(root + "/uip0063_ProfCard00", 2, "");
+    ui.SetInstanceText(root + "/uip0068_UserProcRec00", 0, msg(650, "Receive Everyone's Profile Cards"));
+    ui.HideInstance(root + "/uip0065_FavoriteInfo00", true);
+    ui.HideInstance(root + "/uip0066_DropMaterial00", true);
+    ui.HideInstance(root + "/ctg80_uip0001_SkillList00", !skills || !skills->cards);
+    if (skills && skills->cards) ApplySkillRows(ui, root + "/ctg80_uip0001_SkillList00", *skills, messages, language);
+    // setup_select_icon00 cells of 0.5: the card (0, 0), the smile (0.5, 0), the gear (0, 0.5)
+    static constexpr float kIcon[3][2] = {{0, 0.5f}, {0.5f, 0}, {0, 0}};
+    static constexpr int kText[3] = {589, 588, 587};
+    static constexpr const char* kFallback[3] = {"Game Settings", "Profile Card Selection", "Skill Card Selection"};
+    for (int k = 0; k < 3; ++k) {
+        char path[96];
+        std::snprintf(path, sizeof(path), "%s/uip0062_SubButton00_%02d", kPrepare, k);
+        ui.SetMaterialUv(path, "select_menu_icon00_M", kIcon[k][0], kIcon[k][1]);
+        ui.SetInstanceText(path, 0, msg(kText[k], kFallback[k]));
+        ui.HideNode(path, "select_menu_on", focus != k);
+        ui.HideNode(path, "select_menu_eff00", focus != k);
+        ui.HideNode(path, "select_menu_off", focus == k);
+    }
+    const std::string start = root + "/uip0061_StartButton00";
+    ui.HideNode(start, "button_start00_on", focus != 3);
+    ui.HideNode(start, "button_start00_eff", focus != 3);
+    ui.HideNode(start, "button_start00_off", focus == 3);
+}
+
 void Apply(UiScreen& ui, const Mode& mode, const std::vector<SongInfo>& songs, int current, Step step, int difficulty,
            const std::vector<StageInfo>& stages, int stage, const std::vector<DressInfo>& costumes, int costume,
            const save::SaveData* save) {
     for (const char* other : kOtherSteps) ui.HideInstance(std::string(kRoot) + "/" + other, true);
-    ui.HideInstance(std::string(kRoot) + "/uil0013_MusicList00", step == kDifficultyStep);
+    ui.HideInstance(std::string(kRoot) + "/uil0013_MusicList00", step == kDifficultyStep || step == kPrepareStep);
+    // Prepare shows its own panels where the song's preview, members and sort bar were (shadPS4 s13)
+    for (const char* p : {"/uil0010_MusicSelect00", "/uip0010_MusicPreview00", "/uil0017_MenuPage00"}) {
+        ui.HideInstance(std::string(kRoot) + p, step == kPrepareStep);
+    }
     ui.HideInstance(std::string(kRoot) + "/" + mode.Plates(), step != kDifficultyStep);
     ui.HideInstance(std::string(kRoot) + "/" + mode.OtherPlates(), true);
     ui.HideInstance(std::string(kRoot) + "/uil0010_MusicSelect00/" + mode.OtherCards(), true);
     // the header: the mode (setup_title_mode00_T rows of 1/4: Play Live Show, Play Live Show(AC), View Live Show, Live
     // Show Medley) and the page name (setup_title_page00_T, 2 columns, rows of 1/8: Select Song, Select Difficulty,
-    // Stage Selection, Select Costume; pink in the top half, green in the bottom half). The game's home select is pink
-    // (shadPS4, M10); the AC mode's title is green, so its page names take the green half (Hypothesis: not seen)
-    static constexpr float kPageUv[4][2] = {{0, 0}, {0.5f, 0}, {0, 0.125f}, {0.5f, 0.125f}};
+    // Stage Selection, Select Costume, Prepare for the Live Show; pink in the top half, green in the bottom half). The
+    // game's home select is pink (shadPS4, M10); the AC mode's title is green, so its page names take the green half
+    // (Hypothesis: not seen)
+    static constexpr float kPageUv[5][2] = {{0, 0}, {0.5f, 0}, {0, 0.125f}, {0.5f, 0.125f}, {0, 0.25f}};
     const std::string top = std::string(kRoot) + "/uip0002_StepTop00";
     ui.SetMaterialUv(top, "title_mode00", 0, mode.home ? 0.0f : 0.25f);
     ui.SetMaterialUv(top, "title_page01", kPageUv[step][0], kPageUv[step][1] + (mode.home ? 0.0f : 0.5f));
@@ -249,6 +297,13 @@ void Apply(UiScreen& ui, const Mode& mode, const std::vector<SongInfo>& songs, i
         ui.HideNode(music, "select_bg00_off", k == 0);
     }
     const SongInfo* song = n ? &songs[size_t(current)] : nullptr;
+    // the group header (00_common parts): µ's or Aqours / Saint Snow, by the current song (the game toggles the group
+    // with L2 and lists one group's songs; shortcut: the port lists every group's songs together)
+    const bool aqours = song && song->group != 0;
+    ui.HideInstance(std::string(kRoot) + "/common_uil0101_ComBGGroup_Member01/common_uip0400_ComTopBG_Ms00", aqours);
+    ui.HideInstance(std::string(kRoot) + "/common_uil0101_ComBGGroup_Member01/common_uip0410_ComTopBG_Aqours00", !aqours);
+    ui.HideNode(std::string(kRoot) + "/common_uip0008_GroupTab01", "select_group00", aqours);
+    ui.HideNode(std::string(kRoot) + "/common_uip0008_GroupTab01", "select_group01", !aqours);
     if (song) {  // the preview (part 10: box 0 title, box 3 credits) and the selection panel (part 4: box 0 song)
         const std::string preview = std::string(kRoot) + "/uip0010_MusicPreview00";
         char cover[96];
@@ -329,7 +384,7 @@ void Apply(UiScreen& ui, const Mode& mode, const std::vector<SongInfo>& songs, i
 
 SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, long max_frames,
                          const SongChoice& previous, const save::SaveData* save, const dlc::Ownership* owned,
-                         const costume::Data* costume_data, bool home) {
+                         const costume::Data* costume_data, bool home, const SkillSetup* skills) {
     route::SetScreen("select");
     const Mode mode{home};
     std::vector<SongInfo> songs;
@@ -390,6 +445,10 @@ SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs,
             if (live::CostumeFolder(costumes[i].id) == want) costume = int(i);
         }
     };
+    Messages messages;
+    if (skills && !messages.Load(vfs, language, &error)) LogWarn("song select: messages: {}", error);
+    const Step last_step = skills ? kPrepareStep : kCostumeStep;
+    int prepare = 3;  // the Prepare step's focus: 0-2 the sub-buttons, 3 LIVE START
     Step step = kSongStep;
     SongChoice choice;
     bool running = true;
@@ -404,13 +463,15 @@ SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs,
             const int n = int(songs.size()), ns = std::max(1, int(stages.size())), nc = std::max(1, int(costumes.size()));
             switch (e.key.scancode) {
                 case SDL_SCANCODE_LEFT:
-                    if (step == kDifficultyStep) difficulty = std::max(0, difficulty - 1);
+                    if (step == kPrepareStep) prepare = prepare == 2 ? 0 : std::max(0, prepare - 1);  // Profile: greyed
+                    else if (step == kDifficultyStep) difficulty = std::max(0, difficulty - 1);
                     else if (step == kStageStep) stage = (stage + ns - 1) % ns;
                     else if (step == kCostumeStep) costume = (costume + nc - 1) % nc;
                     else current = (current + n - 1) % n;
                     break;
                 case SDL_SCANCODE_RIGHT:
-                    if (step == kDifficultyStep) difficulty = std::min(mode.Count() - 1, difficulty + 1);
+                    if (step == kPrepareStep) prepare = prepare == 0 ? 2 : std::min(3, prepare + 1);
+                    else if (step == kDifficultyStep) difficulty = std::min(mode.Count() - 1, difficulty + 1);
                     else if (step == kStageStep) stage = (stage + 1) % ns;
                     else if (step == kCostumeStep) costume = (costume + 1) % nc;
                     else current = (current + 1) % n;
@@ -421,15 +482,31 @@ SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs,
                         LogInfo("song select: difficulty {} is locked", difficulty);
                         break;
                     }
-                    // the next step with something to choose; after the last one the live starts
+                    if (step == kPrepareStep && e.key.scancode == SDL_SCANCODE_SPACE && prepare == 2) {
+                        RunSkillSelect(window, renderer, vfs, lang, *skills, max_frames);
+                        route::SetScreen("prepare");
+                        SDL_SetWindowTitle(window, "SIF port - prepare for the live show");
+                        break;
+                    }
+                    if (step == kPrepareStep && e.key.scancode == SDL_SCANCODE_SPACE && prepare != 3) {
+                        LogInfo("song select: prepare button {} (not built)", prepare);
+                        break;
+                    }
+                    // the next step with something to choose; after the last one the live starts (Enter = Options
+                    // starts it from anywhere on Prepare)
                     step = Step(step + 1);
                     if (step == kStageStep && stages.empty()) step = kCostumeStep;
                     if (step == kCostumeStep) {
                         open_costumes();
                         if (costumes.empty()) step = Step(kCostumeStep + 1);
                     }
-                    if (step > kCostumeStep) {
-                        step = kCostumeStep;
+                    if (step == kPrepareStep) {
+                        prepare = 3;
+                        route::SetScreen("prepare");
+                        LogInfo("song select: prepare for the live show");
+                    }
+                    if (step > last_step) {
+                        step = last_step;
                         choice = {songs[size_t(current)].id, mode.Variant(difficulty)};
                         if (!stages.empty()) {
                             char folder[16];
@@ -448,11 +525,14 @@ SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs,
                         break;
                     }
                     step = Step(step - 1);
+                    if (step == kCostumeStep && costumes.empty()) step = kStageStep;
                     if (step == kStageStep && stages.empty()) step = kDifficultyStep;
+                    route::SetScreen("select");
                     break;
                 default: break;
             }
             Apply(ui, mode, songs, current, step, difficulty, stages, stage, costumes, costume, save);
+            if (step == kPrepareStep) ApplyPrepare(ui, skills, messages, language, prepare);
             const SongInfo& s = songs[size_t(current)];
             char title[256];
             std::snprintf(title, sizeof(title), "SIF port - %04d %s%s", s.id, s.title.c_str(),
@@ -471,6 +551,7 @@ SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs,
             continue;
         }
         ui.DrawLayout(renderer, kRoot, 1.0f);
+        if (step == kPrepareStep) ui.DrawLayout(renderer, kPrepare, 1.0f);
         fade.Draw(renderer);
         renderer.EndFrame();
     }

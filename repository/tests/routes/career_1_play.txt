@@ -20,6 +20,9 @@ key enter
 wait 800ms
 key enter
 expect log top menu: entry 1
+expect screen prepare 20s
+wait 600ms
+key enter
 expect log song select: song
 expect screen live 30s
 expect log stage screens play

@@ -27,6 +27,9 @@ wait 800ms
 key enter
 wait 800ms
 key enter
+expect screen prepare 20s
+wait 600ms
+key enter
 expect log song select: song 0010, variant 12
 expect screen live 30s
 expect log live: difficulty index 7

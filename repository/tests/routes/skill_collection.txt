@@ -1,0 +1,38 @@
+# Collection -> Skill Card (M11 S4) with a few owned cards (seed): Honoka's tab, a card's info, the next member
+#! seed skills
+timeout 60s
+expect screen title 30s
+press enter until menu 30s
+wait 1500ms
+key right
+wait 400ms
+key right
+wait 400ms
+key right
+wait 400ms
+key right
+wait 400ms
+key down
+wait 400ms
+key down
+wait 400ms
+key enter
+expect log top menu: entry 17
+expect screen skill_collection 20s
+expect log skill collection: 5 cards owned of 415
+wait 1500ms
+shot skill_collection
+key right
+wait 300ms
+key right
+wait 300ms
+key right
+wait 600ms
+shot skill_collection_info
+key pagedown
+expect log skill collection: member 2, 26 cards
+wait 600ms
+shot skill_collection_umi
+key esc
+expect screen menu 20s
+expect nolog error
