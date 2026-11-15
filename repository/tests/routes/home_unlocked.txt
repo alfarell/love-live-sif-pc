@@ -1,0 +1,28 @@
+# M10 K3: with an A on song 0010 HYPER (seed home_unlocked), ADVENTURE opens and its live starts (variant 13)
+#! seed home_unlocked
+timeout 120s
+expect screen title 30s
+press enter until menu 30s
+wait 1500ms
+key enter
+expect screen select 20s
+wait 1500ms
+key enter
+wait 1200ms
+key right
+wait 400ms
+key right
+wait 600ms
+shot home_unlocked
+key enter
+wait 800ms
+key enter
+wait 800ms
+key enter
+expect nolog is locked
+expect log song select: song 0010, variant 13
+expect screen live 30s
+expect log live: difficulty index 8
+key esc
+expect screen select 30s
+expect nolog error

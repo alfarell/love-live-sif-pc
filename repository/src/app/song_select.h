@@ -17,7 +17,7 @@ class Vfs;
 
 struct SongChoice {
     int song = -1;     // -1: backed out
-    int variant = 4;   // chart variant 00-04 (arcade difficulties)
+    int variant = 4;   // chart variant: 00-04 arcade difficulties, 10-13 home (BEGINNER .. ADVENTURE)
     bool closed = false;  // the window was closed
     std::string stage;    // the chosen stage folder, "stNNN" ("" = the live screen's default)
     std::string costume;  // the chosen costume folder, "dNNN" ("" = the live screen's default pick)
@@ -27,8 +27,9 @@ struct SongChoice {
 // the records shown on the difficulty cards and plates. `owned` (optional): only the songs and costumes it owns are
 // listed (shortcut: add-ons the user has not installed are left out; the game shows them locked). `costumes` (optional,
 // with `save`): only the costumes the player owns (costume::Owns: from the start, rewarded, crafted or an add-on).
+// `home`: "Play Live Show" (the four home charts, variants 10-13) instead of "Play Live Show (AC)" (M10 K3).
 SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, long max_frames,
                          const SongChoice& previous = {}, const save::SaveData* save = nullptr,
-                         const dlc::Ownership* owned = nullptr, const costume::Data* costumes = nullptr);
+                         const dlc::Ownership* owned = nullptr, const costume::Data* costumes = nullptr, bool home = false);
 
 }

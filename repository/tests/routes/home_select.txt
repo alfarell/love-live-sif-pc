@@ -1,0 +1,37 @@
+# M10 K3: Play Live Show (top-menu entry 0) opens the home song select: four cards, STANDARD focused, ADVENTURE locked
+# without an A on HYPER; HYPER starts a home live (variant 12)
+timeout 120s
+expect screen title 30s
+press enter until menu 30s
+wait 1500ms
+key enter
+expect screen select 20s
+expect log top menu: entry 0
+expect log stages, Play Live Show
+expect nolog Play Live Show (AC)
+wait 1500ms
+key enter
+wait 1200ms
+shot home_difficulty
+key right
+wait 400ms
+key right
+wait 400ms
+key enter
+wait 600ms
+expect log song select: difficulty 3 is locked
+key left
+wait 400ms
+key enter
+wait 800ms
+key enter
+wait 800ms
+key enter
+expect log song select: song 0010, variant 12
+expect screen live 30s
+expect log live: difficulty index 7
+wait 4s
+shot home_live
+key esc
+expect screen select 30s
+expect nolog error

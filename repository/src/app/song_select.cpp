@@ -31,13 +31,25 @@ enum Step { kSongStep, kDifficultyStep, kStageStep, kCostumeStep };
 
 constexpr const char* kRoot = "uil0001_StepLayout00";
 constexpr int kPlates = 11;      // uil0013_MusicList00: SelectPlate00_00 (centre), then 01/02, 03/04 ... left/right
-constexpr int kDifficulties = 5; // arcade: ac_easy .. ac_challenge (variants 00-04, difficulty index 0-4)
+// The two modes (M10 K3): "Play Live Show (AC)" has the five arcade charts (variants 00-04, difficulty index 0-4) in
+// the _AC layouts; "Play Live Show" the four home charts (variants 10-13, index 5-8) in the _OR layouts, which hold
+// the same parts with four entries
+struct Mode {
+    bool home = false;
+    int Count() const { return home ? 4 : 5; }
+    int Variant(int d) const { return home ? 10 + d : d; }
+    int Index(int d) const { return home ? 5 + d : d; }  // into SongInfo::stars (difficulty index)
+    int Label(int d) const { return home ? d : 4 + d; }  // label atlas cell: 0-3 home, 4-8 arcade
+    const char* Cards() const { return home ? "uil0011_MusicDiff_OR00" : "uil0012_MusicDiff_AC00"; }
+    const char* Plates() const { return home ? "uil0015_DifficultyList00_OR" : "uil0016_DifficultyList00_AC"; }
+    const char* OtherCards() const { return home ? "uil0012_MusicDiff_AC00" : "uil0011_MusicDiff_OR00"; }
+    const char* OtherPlates() const { return home ? "uil0016_DifficultyList00_AC" : "uil0015_DifficultyList00_OR"; }
+};
 // The parts of the step layout that belong to other steps or popups (song step shows the song list only)
 constexpr const char* kOtherSteps[] = {"uil0025_CosSelect00", "uil0070_LiveViewBanner00",
                                        "uil0071_LiveViewInfo00", "uil0072_LiveViewCaution00",
-                                       "uip0019_MusicPreviewLock00", "uil0015_DifficultyList00_OR",
-                                       // home-version difficulty strip and save results in the song info panel
-                                       "uil0010_MusicSelect00/uil0011_MusicDiff_OR00",
+                                       "uip0019_MusicPreviewLock00",
+                                       // save results in the song info panel
                                        "uil0010_MusicSelect00/uip0031_PlayResult00",
                                        // the list's second button/arrow set and the other steps' counters
                                        "uil0013_MusicList00/common_uip0002_InfoButton00_01",
@@ -55,10 +67,9 @@ std::string Plate(int k) {
     std::snprintf(s, sizeof(s), "%s/uil0013_MusicList00/uil0030_SelectPlate00_%02d", kRoot, k);
     return s;
 }
-std::string DifficultyPlate(int k) {
+std::string DifficultyPlate(const Mode& mode, int k) {
     char s[160];
-    std::snprintf(s, sizeof(s), "%s/uil0016_DifficultyList00_AC/uil0031_SelectPlate01_%02d/uip0030_DifficultySelect00",
-                  kRoot, k);
+    std::snprintf(s, sizeof(s), "%s/%s/uil0031_SelectPlate01_%02d/uip0030_DifficultySelect00", kRoot, mode.Plates(), k);
     return s;
 }
 int PlateOffset(int k) { return k == 0 ? 0 : (k % 2 ? -(k + 1) / 2 : k / 2); }  // 1 -> -1, 2 -> +1, 3 -> -2 ...
@@ -165,6 +176,17 @@ const save::ChartRecord* Record(const save::SaveData* save, int song, int varian
     return it != save->records.end() && it->second.best_rank >= 0 ? &it->second : nullptr;
 }
 
+// ADVENTURE (home, the last card) opens with rank A or better on the song's HYPER: the card's own text, "Unlock by
+// getting A or higher in HYPER" (shadPS4, M10). shortcut: the arcade CHALLENGE lock ("... in EXTREME(AC)") is not
+// applied, so the arcade mode stays as before; add it when the user wants the game's arcade lock too
+// shortcut: the game also darkens a locked card and plate; the UI layer has no colour override for parts, so the port
+// shows only the padlock and the hint. Add a tint when it is wanted
+bool Locked(const Mode& mode, const save::SaveData* save, int song, int d) {
+    if (!mode.home || d != 3) return false;
+    const save::ChartRecord* hyper = Record(save, song, mode.Variant(2));
+    return !hyper || hyper->best_rank < 3;  // 0 D, 1 C, 2 B, 3 A
+}
+
 // The costume step, the port's own: one costume for every member (the game dresses each member through member
 // cards, which the port does not have). It uses the song list's plates' uip0045_CosSelect00: the costume thumbnail
 // (ui_dress_thumbnail dress_thumb_NNNN) in its icon slot and the name in text box 0; the member-card pictures are
@@ -191,16 +213,22 @@ void ApplyCostumes(UiScreen& ui, const std::vector<DressInfo>& costumes, int cos
     }
 }
 
-void Apply(UiScreen& ui, const std::vector<SongInfo>& songs, int current, Step step, int difficulty,
+void Apply(UiScreen& ui, const Mode& mode, const std::vector<SongInfo>& songs, int current, Step step, int difficulty,
            const std::vector<StageInfo>& stages, int stage, const std::vector<DressInfo>& costumes, int costume,
            const save::SaveData* save) {
     for (const char* other : kOtherSteps) ui.HideInstance(std::string(kRoot) + "/" + other, true);
     ui.HideInstance(std::string(kRoot) + "/uil0013_MusicList00", step == kDifficultyStep);
-    ui.HideInstance(std::string(kRoot) + "/uil0016_DifficultyList00_AC", step != kDifficultyStep);
-    // the header's page name: setup_title_page00_T cells (2 columns, rows of 1/8): Select Song, Select Difficulty,
-    // Stage Selection, Select Costume
+    ui.HideInstance(std::string(kRoot) + "/" + mode.Plates(), step != kDifficultyStep);
+    ui.HideInstance(std::string(kRoot) + "/" + mode.OtherPlates(), true);
+    ui.HideInstance(std::string(kRoot) + "/uil0010_MusicSelect00/" + mode.OtherCards(), true);
+    // the header: the mode (setup_title_mode00_T rows of 1/4: Play Live Show, Play Live Show(AC), View Live Show, Live
+    // Show Medley) and the page name (setup_title_page00_T, 2 columns, rows of 1/8: Select Song, Select Difficulty,
+    // Stage Selection, Select Costume; pink in the top half, green in the bottom half). The game's home select is pink
+    // (shadPS4, M10); the AC mode's title is green, so its page names take the green half (Hypothesis: not seen)
     static constexpr float kPageUv[4][2] = {{0, 0}, {0.5f, 0}, {0, 0.125f}, {0.5f, 0.125f}};
-    ui.SetMaterialUv(std::string(kRoot) + "/uip0002_StepTop00", "title_page01", kPageUv[step][0], kPageUv[step][1]);
+    const std::string top = std::string(kRoot) + "/uip0002_StepTop00";
+    ui.SetMaterialUv(top, "title_mode00", 0, mode.home ? 0.0f : 0.25f);
+    ui.SetMaterialUv(top, "title_page01", kPageUv[step][0], kPageUv[step][1] + (mode.home ? 0.0f : 0.5f));
     ApplyStages(ui, stages, stage, step == kStageStep);
     ApplyCostumes(ui, costumes, costume, step == kCostumeStep);
     const int n = int(songs.size());
@@ -240,55 +268,57 @@ void Apply(UiScreen& ui, const std::vector<SongInfo>& songs, int current, Step s
         const auto group = UnitLogo(song->group, -1), unit = UnitLogo(song->group, song->unit);
         ui.SetMaterialUv(panel, "logo00_M", group[0], group[1]);
         ui.SetMaterialUv(panel, "logo01_M", unit[0], unit[1]);
-        ApplyPanelDifficulty(ui, panel, 4 + difficulty, song->stars[size_t(difficulty)]);
+        ApplyPanelDifficulty(ui, panel, mode.Label(difficulty), song->stars[size_t(mode.Index(difficulty))]);
         const std::string music = std::string(kRoot) + "/uil0010_MusicSelect00/";
         ApplyMembers(ui, music + "uip0018_SDMember00", panel, song->members);
         // the group signs (uip0012_GroupName00): group_logo00 twice, group_logo02 once; group and unit (Hypothesis)
         ui.SetMaterialUv(music + "uip0012_GroupName00", "group_logo00", group[0], group[1]);
         ui.SetMaterialUv(music + "uip0012_GroupName00", "group_logo02", unit[0], unit[1]);
     }
-    // the song step's five arcade difficulty cards: label, level badge; no chart -> no card
-    const std::string cards = std::string(kRoot) + "/uil0010_MusicSelect00/uil0012_MusicDiff_AC00/";
-    for (int d = 0; d < kDifficulties; ++d) {
+    // the song step's difficulty cards (five arcade or four home): label, level badge; no chart -> no card
+    const std::string cards = std::string(kRoot) + "/uil0010_MusicSelect00/" + mode.Cards() + "/";
+    for (int d = 0; d < mode.Count(); ++d) {
         char k[8];
         std::snprintf(k, sizeof(k), "_%02d", d);
-        const int level = song ? song->stars[size_t(d)] : 0;
+        const int level = song ? song->stars[size_t(mode.Index(d))] : 0;
         const std::string card = cards + "uip0011_MusicDifficulty00" + k, badge = cards + "common_uip0010_DifficultyStar00" + k;
         ui.HideInstance(card, level == 0);
         ui.HideInstance(badge, level == 0);
         ui.HideInstance(cards + "uip0020_Clear_status00" + k, true);
-        const auto label = Cell(4 + d), cell = Cell(std::clamp(level, 1, 15) - 1);
+        const auto label = Cell(mode.Label(d)), cell = Cell(std::clamp(level, 1, 15) - 1);
         ui.SetMaterialUv(card, "difficulty_level00", label[0], label[1]);
         // the best rank: setup_result_evaluation00 holds D C B A S SS SSS in cells of 0.125
-        const save::ChartRecord* record = song ? Record(save, song->id, d) : nullptr;
+        const save::ChartRecord* record = song ? Record(save, song->id, mode.Variant(d)) : nullptr;
         ui.HideNode(card, "lank_result00", !record);
         if (record) ui.SetMaterialUv(card, "result_evaluation00", 0.125f * float(record->best_rank), 0);
-        ui.HideNode(card, "lock_icon00", true);
+        ui.HideNode(card, "lock_icon00", !song || !Locked(mode, save, song->id, d));
         ui.SetMaterialUv(badge, "difficulty_star00", cell[0], cell[1]);
     }
-    ui.HideInstance(std::string(kRoot) + "/uil0010_MusicSelect00/uil0012_MusicDiff_AC00", step >= kStageStep);  // under the preview
-    for (int d = 0; d < kDifficulties; ++d) {
-        const std::string plate = DifficultyPlate(d);
-        const int stars = song ? song->stars[size_t(d)] : 0;
+    ui.HideInstance(std::string(kRoot) + "/uil0010_MusicSelect00/" + mode.Cards(), step >= kStageStep);  // under the preview
+    for (int d = 0; d < mode.Count(); ++d) {
+        const std::string plate = DifficultyPlate(mode, d);
+        const int stars = song ? song->stars[size_t(mode.Index(d))] : 0;
         for (int s = 0; s < 10; ++s) {
             char node[24];
             std::snprintf(node, sizeof(node), "difficultyStar%02d", s);
             ui.HideNode(plate, node, s >= stars);
         }
-        for (const char* node : {"select_playstatus_tex00", "select_playstatus_tex01", "setup_difficulty_lock00",
-                                 "select_bg_eff00"}) {  // unlock hints and locks: nothing is locked in the port
-            ui.HideNode(plate, node, true);
-        }
+        // a locked chart: the padlock and the unlock hint (setup_select_playstatus_text00_01 "Unlock by getting A or
+        // higher in HYPER"; _02 is the AC one, "... in EXTREME(AC)", not used: the port keeps CHALLENGE open)
+        const bool locked = song && Locked(mode, save, song->id, d);
+        ui.HideNode(plate, "select_playstatus_tex00", !locked);
+        ui.HideNode(plate, "setup_difficulty_lock00", !locked);
+        for (const char* node : {"select_playstatus_tex01", "select_bg_eff00"}) ui.HideNode(plate, node, true);
         // played: best rank instead of "Unplayed", and FULL COMBO (setup_result_combo00 row 1 of 4) once achieved
-        const save::ChartRecord* record = song ? Record(save, song->id, d) : nullptr;
-        ui.HideNode(plate, "notplayed00", record != nullptr);
+        const save::ChartRecord* record = song ? Record(save, song->id, mode.Variant(d)) : nullptr;
+        ui.HideNode(plate, "notplayed00", record != nullptr || locked);
         ui.HideNode(plate, "clearrank00", !record);
         ui.HideNode(plate, "combostatus00", !record || record->full_combos == 0);
         if (record) {
             ui.SetMaterialUv(plate, "M_clearrank00", 0.125f * float(record->best_rank), 0);
             ui.SetMaterialUv(plate, "M_combostatus00", 0, 0.25f);
         }
-        const auto label = Cell(4 + d);
+        const auto label = Cell(mode.Label(d));
         ui.SetMaterialUv(plate, "M_difficulty_level00_big", label[0], label[1]);
         ui.HideNode(plate, "select_bg00_on", d != difficulty);
         ui.HideNode(plate, "select_bg00_off", d == difficulty);
@@ -299,8 +329,9 @@ void Apply(UiScreen& ui, const std::vector<SongInfo>& songs, int current, Step s
 
 SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, long max_frames,
                          const SongChoice& previous, const save::SaveData* save, const dlc::Ownership* owned,
-                         const costume::Data* costume_data) {
+                         const costume::Data* costume_data, bool home) {
     route::SetScreen("select");
+    const Mode mode{home};
     std::vector<SongInfo> songs;
     std::string error;
     const int language = lang == "en" ? 1 : lang == "cn" ? 2 : lang == "tw" ? 3 : 0;
@@ -324,10 +355,13 @@ SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs,
     ui.HideNode("complete00", true);
     std::vector<StageInfo> stages;
     if (!LoadStageList(vfs, language, stages, &error)) LogWarn("song select: stages: {}", error);
-    LogInfo("song select: {} songs, {} stages", songs.size(), stages.size());
-    int current = 0, difficulty = kDifficulties - 1, stage = 0;
+    LogInfo("song select: {} songs, {} stages, {}", songs.size(), stages.size(), home ? "Play Live Show" : "Play Live Show (AC)");
+    // first focus: CHALLENGE in the arcade mode (the port's choice so far), STANDARD in the home mode (the game, M10)
+    int current = 0, difficulty = home ? 1 : mode.Count() - 1, stage = 0;
     for (size_t i = 0; i < songs.size(); ++i) {
-        if (songs[i].id == previous.song) current = int(i), difficulty = previous.variant;
+        if (songs[i].id != previous.song) continue;
+        current = int(i);
+        if (live::IsHomeVariant(previous.variant) == home) difficulty = home ? previous.variant - 10 : previous.variant;
     }
     const std::string last_stage = previous.stage.empty() ? "st017" : previous.stage;  // else the live default
     for (size_t i = 0; i < stages.size(); ++i) {
@@ -360,7 +394,7 @@ SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs,
     SongChoice choice;
     bool running = true;
     ScreenFade fade;
-    Apply(ui, songs, current, step, difficulty, stages, stage, costumes, costume, save);
+    Apply(ui, mode, songs, current, step, difficulty, stages, stage, costumes, costume, save);
     uint64_t last = SDL_GetTicksNS();
     for (long frame = 0; running && !fade.Left() && (max_frames < 0 || frame < max_frames); ++frame) {
         SDL_Event e;
@@ -376,13 +410,17 @@ SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs,
                     else current = (current + n - 1) % n;
                     break;
                 case SDL_SCANCODE_RIGHT:
-                    if (step == kDifficultyStep) difficulty = std::min(kDifficulties - 1, difficulty + 1);
+                    if (step == kDifficultyStep) difficulty = std::min(mode.Count() - 1, difficulty + 1);
                     else if (step == kStageStep) stage = (stage + 1) % ns;
                     else if (step == kCostumeStep) costume = (costume + 1) % nc;
                     else current = (current + 1) % n;
                     break;
                 case SDL_SCANCODE_RETURN:
                 case SDL_SCANCODE_SPACE:
+                    if (step == kDifficultyStep && Locked(mode, save, songs[size_t(current)].id, difficulty)) {
+                        LogInfo("song select: difficulty {} is locked", difficulty);
+                        break;
+                    }
                     // the next step with something to choose; after the last one the live starts
                     step = Step(step + 1);
                     if (step == kStageStep && stages.empty()) step = kCostumeStep;
@@ -392,7 +430,7 @@ SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs,
                     }
                     if (step > kCostumeStep) {
                         step = kCostumeStep;
-                        choice = {songs[size_t(current)].id, difficulty};
+                        choice = {songs[size_t(current)].id, mode.Variant(difficulty)};
                         if (!stages.empty()) {
                             char folder[16];
                             std::snprintf(folder, sizeof(folder), "st%03d", stages[size_t(stage)].model);
@@ -414,7 +452,7 @@ SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs,
                     break;
                 default: break;
             }
-            Apply(ui, songs, current, step, difficulty, stages, stage, costumes, costume, save);
+            Apply(ui, mode, songs, current, step, difficulty, stages, stage, costumes, costume, save);
             const SongInfo& s = songs[size_t(current)];
             char title[256];
             std::snprintf(title, sizeof(title), "SIF port - %04d %s%s", s.id, s.title.c_str(),

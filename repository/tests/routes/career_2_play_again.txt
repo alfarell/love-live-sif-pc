@@ -5,8 +5,11 @@ timeout 300s
 expect screen title 30s
 press enter until menu 30s
 wait 1500ms
+key down
+wait 600ms
 key enter
 expect screen select 20s
+expect log Play Live Show (AC)
 wait 1500ms
 key enter
 wait 800ms

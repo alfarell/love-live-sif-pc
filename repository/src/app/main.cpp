@@ -318,6 +318,7 @@ int main(int argc, char** argv) {
         if (boot && audio_ok && (!options.title || sif::RunTitle(window, renderer, vfs, lang, options.frames))) {
             bool open = true;
             sif::SongChoice last;
+            bool home_mode = false;  // the song select's mode: top-menu entry 0 "Play Live Show" (home), else arcade
             // the port's own save; one that cannot be read is left alone (played without saving), never overwritten
             const auto save_path = options.data_dir / "save.txt";
             sif::save::SaveData save;
@@ -364,6 +365,7 @@ int main(int argc, char** argv) {
                     sif::Nameplate plate = MakeNameplate(missions, accolades, badges, save);
                     const int entry = sif::RunTopMenu(window, renderer, vfs, lang, options.frames, &mode, &audio, &plate);
                     if (entry < 0) break;
+                    home_mode = entry == 0;
                     if (mode == 4 && entry == 15) {  // Collection: Profile Card (Change Accolade or Name Plate)
                         loading.Show(renderer);
                         const size_t shown_accolade = plate.accolade, shown_badge = plate.badge, shown_plate = plate.name_plate;
@@ -414,7 +416,7 @@ int main(int argc, char** argv) {
                 }
                 loading.Show(renderer);
                 const sif::SongChoice choice = sif::RunSongSelect(window, renderer, vfs, lang, options.frames, last, &save, &owned,
-                                                                  has_costumes ? &costume_data : nullptr);
+                                                                  has_costumes ? &costume_data : nullptr, home_mode);
                 if (choice.closed || (choice.song < 0 && options.select)) break;
                 menu = choice.song < 0;
                 if (menu) continue;
