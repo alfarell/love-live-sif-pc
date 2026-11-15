@@ -75,13 +75,13 @@ Your own play is the reference. [PLAY.md](PLAY.md) lists the keys and what is no
 
 ## Home charts: Play Live Show (M10; routes `home_select`, `home_unlocked`, `live_home`, `controls_home`; Shot: `home_difficulty`, `home_unlocked`, `home_live`, `live_home`, `controls_home`)
 
-- [ ] **Menu:** Play → Play Live Show opens the song select with the pink "Play Live Show:" header; Play Live Show (AC) keeps the arcade select with the green "Play Live Show(AC):" header.
-- [ ] **Difficulty step:** four cards, BEGINNER, STANDARD, HYPER, ADVENTURE, with the song's levels; STANDARD is chosen first.
-- [ ] **ADVENTURE lock:** it shows a padlock and "Unlock by getting A or higher in HYPER", and opens after an A (or better) on that song's HYPER.
-- [ ] **The live:** six rings: blue L1 and R1 in the top corners, Left and Circle at the sides, Down and Cross low. L1/R1 notes are blue. BEGINNER and STANDARD use only L1, Down, Cross and R1.
-- [ ] **Keys:** `S D F J K L` on the keyboard; L1, Left, Down, Cross, Circle, R1 on the controller.
-- [ ] **Control Settings:** the list has BEGINNER/STANDARD, HYPER/ADVENTURE and the AC row; Modify on a home row opens the 6-lane Button Controls, and a change there is used in that row's lives.
-- [ ] **Records:** each home difficulty keeps its own best rank and score.
+- [x] **Menu:** Play → Play Live Show opens the song select with the pink "Play Live Show:" header; Play Live Show (AC) keeps the arcade select with the green "Play Live Show(AC):" header.
+- [x] **Difficulty step:** four cards, BEGINNER, STANDARD, HYPER, ADVENTURE, with the song's levels; STANDARD is chosen first.
+- [x] **ADVENTURE lock:** it shows a padlock and "Unlock by getting A or higher in HYPER", and opens after an A (or better) on that song's HYPER.
+- [x] **The live:** six rings: blue L1 and R1 in the top corners, Left and Circle at the sides, Down and Cross low. L1/R1 notes are blue. BEGINNER and STANDARD use only L1, Down, Cross and R1.
+- [x] **Keys:** `S D F J K L` on the keyboard; L1, Left, Down, Cross, Circle, R1 on the controller.
+- [x] **Control Settings:** the list has BEGINNER/STANDARD, HYPER/ADVENTURE and the AC row; Modify on a home row opens the 6-lane Button Controls, and a change there is used in that row's lives.
+- [x] **Records:** each home difficulty keeps its own best rank and score.
 
 ## Options (routes `options_1_change`, `options_2_kept`, `controls`; Shot: `options_sound`, `control_settings`, `controls`)
 
