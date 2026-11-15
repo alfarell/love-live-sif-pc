@@ -98,8 +98,13 @@ static void Groups() {
     Check(got == "0/2 0/2 1/-1 1/-1 ", "a tap pair between a hold pair's heads and tails takes the next number: " + got);
     got = groups({{0, 100, 200}, {1, 100, 250}});
     Check(got == "0/-1 0/-1 ", "holds that start together but end apart: no tail group: " + got);
-    got = groups({{0, 100, 200}, {1, 200, -1}});
-    Check(got == "-1/-1 -1/-1 ", "a tail and a head at the same time do not form a group: " + got);
+    // a hold that ends as another note is pressed: the tail and the press share one group (the user's PS4 still)
+    got = groups({{0, 100, 300}, {2, 300, -1}});
+    Check(got == "-1/0 0/-1 ", "a tail and a tap at one time: one group: " + got);
+    got = groups({{0, 100, 300}, {2, 300, -1}, {3, 300, -1}});
+    Check(got == "-1/0 0/-1 0/-1 ", "a tail and two taps at one time: one group: " + got);
+    got = groups({{0, 100, 300}, {1, 100, 300}, {2, 300, -1}, {3, 400, -1}});
+    Check(got == "0/1 0/1 1/-1 -1/-1 ", "a hold pair's tails and a tap: one group after the heads' group: " + got);
 }
 
 static void Real(const char* root) {

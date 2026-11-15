@@ -42,6 +42,7 @@ Your own play is the reference. [PLAY.md](PLAY.md) lists the keys and what is no
 - [x] **Indicators and notes:** nine indicators with their button icons. Notes come out from under the microphone and are the indicator's size when they arrive.
 - [x] **Holds:** a white band with a solid white end cap; both turn pink while held.
 - [x] **Simultaneous notes:** brackets that alternate orange and blue. A pair of holds has brackets at both ends, in opposite colours.
+- [x] **A hold ending on a press:** when a hold ends just as another note is to be pressed (0010 HYPER at 13.3 s: the ↓ hold ends on an R1 press), the hold's end cap and the other note both wear brackets, in the same colour.
 - [x] **Judgement text** at each lane (PERFECT, GREAT …), and the **hit sounds**, one per judgement.
 - [x] **Combo** low in the centre, see-through.
 - [x] **Top bar:** score, the rank gauge, LOVELIVE! letters lighting up with the rhythm icons.

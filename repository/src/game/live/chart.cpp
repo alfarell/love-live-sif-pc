@@ -109,41 +109,27 @@ void GroupNotes(Chart& chart) {
         bool tail;
         size_t note;
     };
-    std::vector<Event> heads, tails;
+    std::vector<Event> events;  // every press and every hold release
     for (size_t i = 0; i < chart.notes.size(); ++i) {
         Note& n = chart.notes[i];
         n.group = n.end_group = -1;
-        heads.push_back({n.time_ms, false, i});
-        if (n.IsHold()) tails.push_back({n.end_ms, true, i});
+        events.push_back({n.time_ms, false, i});
+        if (n.IsHold()) events.push_back({n.end_ms, true, i});
     }
-    const auto by_time = [](const Event& a, const Event& b) { return a.t < b.t; };
-    std::stable_sort(heads.begin(), heads.end(), by_time);
-    std::stable_sort(tails.begin(), tails.end(), by_time);
-    // chains of 2+ events of one kind, each 1 ms or less after the previous: [first, last) into its list
-    struct Span {
-        double t;
-        bool tail;
-        const std::vector<Event>* list;
-        size_t first, last;
-    };
-    std::vector<Span> spans;
-    for (const std::vector<Event>* list : {&heads, &tails}) {
-        const auto& e = *list;
-        for (size_t i = 0; i < e.size();) {
-            size_t j = i + 1;
-            while (j < e.size() && e[j].t - e[j - 1].t <= 1) ++j;
-            if (j - i > 1) spans.push_back({e[i].t, e[i].tail, list, i, j});
-            i = j;
+    std::stable_sort(events.begin(), events.end(), [](const Event& a, const Event& b) { return a.t < b.t; });
+    // chains of 2+ events, each 1 ms or less after the previous, numbered in time order
+    int g = 0;
+    for (size_t i = 0; i < events.size();) {
+        size_t j = i + 1;
+        while (j < events.size() && events[j].t - events[j - 1].t <= 1) ++j;
+        if (j - i > 1) {
+            for (size_t k = i; k < j; ++k) {
+                Note& n = chart.notes[events[k].note];
+                (events[k].tail ? n.end_group : n.group) = g;
+            }
+            ++g;
         }
-    }
-    std::stable_sort(spans.begin(), spans.end(), [](const Span& a, const Span& b) {
-        return a.t != b.t ? a.t < b.t : !a.tail && b.tail;
-    });
-    for (size_t g = 0; g < spans.size(); ++g) {
-        for (size_t k = spans[g].first; k < spans[g].last; ++k) {
-            const Event& e = (*spans[g].list)[k];
-            (e.tail ? chart.notes[e.note].end_group : chart.notes[e.note].group) = int(g);
-        }
+        i = j;
     }
 }
 

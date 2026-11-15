@@ -46,10 +46,11 @@ struct Chart {
 
 bool ParseChart(std::span<const uint8_t> scor, Chart& out, std::string* error = nullptr);
 
-// Sets Note::group and Note::end_group. Heads within 1 ms of the previous head form a group, and so do hold tails
-// within 1 ms of the previous tail (heads and tails never mix). All groups are then numbered 0, 1, 2 ... in time order
-// (a head group before a tail group at the same time), so brackets coloured by number % 2 alternate over heads and
-// tails: a hold pair's heads and tails get opposite colours (user feedback, image 4; analysis 202611082306, rule A).
+// Sets Note::group and Note::end_group. Presses and hold releases (tails) within 1 ms of the previous one form a
+// group, numbered 0, 1, 2 ... in time order, so brackets coloured by number % 2 alternate: a hold pair's heads and
+// tails get opposite colours (user feedback, image 4; analysis 202611082306, rule A). A tail that ends with another
+// note's press shares that press's group, and both wear the same brackets (the user's PS4 still, analysis
+// 202611072212-gameplay-feedback/202611151457; in the game's charts such a press is never on the tail's own lane).
 // ParseChart calls it; call it again after adding notes.
 void GroupNotes(Chart& chart);
 
