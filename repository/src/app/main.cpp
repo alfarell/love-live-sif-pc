@@ -458,6 +458,7 @@ int main(int argc, char** argv) {
                     std::snprintf(folder, sizeof(folder), "d%03d", dress);
                     options.live_options.wear[member] = folder;
                 }
+                options.live_options.skills = sif::LiveSkills(skills);  // the played member's set cards (M11 S5)
                 code = sif::RunLive(window, renderer, audio, vfs, settings, options.live_options, &result);
                 sif::save::NewBests news;
                 if (code == 0 && !result.closed && result.finished) {

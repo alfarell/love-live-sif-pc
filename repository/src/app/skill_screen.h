@@ -4,8 +4,10 @@
 // uil0012_GallerySkillWin00), as captured in shadPS4 (S2: work/m11/shad/s07, s08, s14-s17).
 
 #include <string>
+#include <vector>
 
 #include "game/card/card.h"
+#include "game/live/judge.h"
 #include "game/save/save.h"
 
 struct SDL_Window;
@@ -25,7 +27,12 @@ struct SkillSetup {
     int member = 1;
 };
 
-// The skill card picture: "ui/ui_skill_card_thumbnail[_s][_<lang>].pac/texture.pac/skc[_s]_<id>".
+// The played member's set cards as live skills, at their owned levels (M11 S5).
+std::vector<live::Skill> LiveSkills(const SkillSetup& setup);
+// The v offset of a skill's plate row by the card's series (skill_name_plate00, ui_ingame_skill_frame00): purple 0 for
+// live skills, yellow 0.25 for friendship, camera and shoutouts, cyan 0.5 for materials and boosters.
+float SkillPlateV(int card);
+// The skill card picture:"ui/ui_skill_card_thumbnail[_s][_<lang>].pac/texture.pac/skc[_s]_<id>".
 std::string SkillThumbPath(int card, const std::string& lang, bool small);
 // The three "Skill Card in Use" rows of a uip0001_SkillList00 / uip0002_SkillList01 instance: name and "Lv.N" on a
 // plate coloured by the card's series, or "Skill not set." on the grey bar of the background.

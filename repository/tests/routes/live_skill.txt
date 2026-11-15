@@ -1,0 +1,30 @@
+# M11 S5: a home live (song 0010 STANDARD, autoplay) with Judge Support Lv.3 in slot 1 and Finale Support in slot 2
+# (seed): the first icon note of phase 1 is the skill note, hitting it fires Judge Support and shows its banner
+#! seed live_skills
+#! args --autoplay
+timeout 150s
+expect screen title 30s
+press enter until menu 30s
+wait 1500ms
+key enter
+expect screen select 20s
+wait 1500ms
+key enter
+wait 1200ms
+key enter
+wait 800ms
+key enter
+wait 800ms
+key enter
+expect screen prepare 20s
+wait 600ms
+key enter
+expect screen live 30s
+expect log live: skill slot 1: card 11000 kind 13, 7000 ms, skill note at 34285 ms
+expect log live: skill slot 2: card 11003 kind 14, untimed, amount 1
+wait 25s
+expect log live: skill fired: slot 1 card 11000 kind 13
+shot skill_banner
+key esc
+expect screen select 30s
+expect nolog error

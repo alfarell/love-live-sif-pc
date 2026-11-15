@@ -28,6 +28,7 @@ struct Note {
     int end_group = -1;     // simultaneous group of a hold's release; -1 if the tail ends alone or for taps
     int channel = 1;        // chart file _chN: 1 the main notes, 2-4 the extra notes of the three phases
     bool icon = false;      // carries the Finale Rhythm Icon (one of the nine LOVELIVE! letters)
+    int skill = -1;         // a skill note: hitting it fires the skill card of this slot (0-2); see MarkSkillNotes
     bool IsHold() const { return end_ms >= 0; }
 };
 
@@ -60,6 +61,12 @@ bool ParseTimeline(std::span<const uint8_t> scor, Chart& chart, std::string* err
 // After channels 2-4 are appended (Note::channel set): sorts the notes by time, sets Note::icon for the icon channel
 // of each phase, and regroups.
 void MarkIcons(Chart& chart);
+// After MarkIcons: for each slot k with a set skill card, the first icon note of phase k becomes its skill note
+// (Note::skill = k; it stays an icon note). The eboot (0xA1DF0, M11 S5) turns the icon-channel notes of the slot's
+// phase that belong to the player into skill notes; shortcut: which note belongs to the player (0x99280: its index in
+// one of nine note lists equals the player's index, 0 for the played member) is read as "the first one", one per
+// slot, which fits the Rhythm Icon bag holding 9 minus the set cards (0xA0D80).
+void MarkSkillNotes(Chart& chart, const std::array<bool, 3>& slots);
 
 // Chart names carry the song's short title ("score_0010_04_bokurara_ch1.scd"), so callers list
 // live/<id>/<id>.pac/score.pac and pick the entry that starts with this prefix and ends with "_ch1.scd".

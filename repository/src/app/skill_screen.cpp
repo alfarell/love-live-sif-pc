@@ -34,7 +34,6 @@ std::string Message(const Messages& messages, int id, const char* fallback) {
 // Series (the id's thousands digit): 1 live skills, 2 materials and boosters, 3 friendship, camera and shoutouts.
 // skill_name_plate00 rows: purple (v 0), yellow (0.25), cyan (0.5); proc_skill_icon01 cells: mic, face, dress.
 int Series(int card) { return card / 1000 % 10; }
-float PlateV(int card) { return Series(card) == 1 ? 0.0f : Series(card) == 3 ? 0.25f : 0.5f; }
 float IconU(int card) { return Series(card) == 1 ? 0.0f : Series(card) == 3 ? 0.25f : 0.5f; }
 
 // The 20 member tabs of col_type_tab_plate00_00 (5 x 5 cells of 0.2): µ's 1-9, Aqours 11-19, Saint Snow 21-22.
@@ -86,6 +85,22 @@ void ApplyCell(UiScreen& ui, const std::string& cell, int id, bool face_up, bool
 
 }
 
+float SkillPlateV(int card) { return Series(card) == 1 ? 0.0f : Series(card) == 3 ? 0.25f : 0.5f; }
+
+std::vector<live::Skill> LiveSkills(const SkillSetup& setup) {
+    std::vector<live::Skill> out;
+    if (!setup.cards || !setup.save) return out;
+    const std::array<int, card::kSlots> slots = card::Slots(*setup.cards, *setup.save, setup.member);
+    for (int k = 0; k < card::kSlots; ++k) {
+        const card::SkillCard* c = card::FindSkill(*setup.cards, slots[size_t(k)]);
+        if (!c) continue;
+        const card::LevelRow& row = c->At(card::Level(*setup.cards, *setup.save, c->id));
+        // the level's seconds x 1000 (eboot 0x5E89EC); the played member's cards count in full (no support share)
+        out.push_back({k, c->id, c->kind, row.seconds > 0 ? double(row.seconds) * 1000.0 : 0.0, row.amount});
+    }
+    return out;
+}
+
 std::string SkillThumbPath(int card, const std::string& lang, bool small) {
     std::string path = small ? "ui/ui_skill_card_thumbnail_s" : "ui/ui_skill_card_thumbnail";
     if (!lang.empty()) path += "_" + lang;
@@ -100,7 +115,7 @@ void ApplySkillRows(UiScreen& ui, const std::string& instance, const SkillSetup&
         const card::SkillCard* c = slots[size_t(k)] ? card::FindSkill(*setup.cards, slots[size_t(k)]) : nullptr;
         const std::string plate = Two("skill_effect%02d", k);
         ui.HideNode(instance, plate, !c);
-        if (c) ui.SetMaterialUv(instance, plate + "_M", 0, PlateV(c->id));
+        if (c) ui.SetMaterialUv(instance, plate + "_M", 0, SkillPlateV(c->id));
         ui.SetInstanceText(instance, 2 * k, c ? c->name[size_t(language)] : Message(messages, 684, "Skill not set."));
         ui.SetInstanceText(instance, 2 * k + 1, c ? "Lv." + std::to_string(card::Level(*setup.cards, *setup.save, c->id)) : "");
     }

@@ -5,6 +5,9 @@
 #include <cstdint>
 #include <map>
 #include <string>
+#include <vector>
+
+#include "game/live/judge.h"
 
 struct SDL_Window;
 
@@ -30,6 +33,7 @@ struct LiveOptions {
     int member = 0;  // only chr/cNN (1-9 µ's, 11-19 Aqours, 21-22 Saint Snow); 0 = every member who dances the song
     long max_frames = -1;
     std::string lang = "en";  // UI language of the in-game HUD (ui2/90_ingame_<lang>): en, cn, tw or "" (Japanese)
+    std::vector<live::Skill> skills;  // the played member's set skill cards (M11 S5; LiveSkills in skill_screen.h)
 };
 
 struct LiveResult;

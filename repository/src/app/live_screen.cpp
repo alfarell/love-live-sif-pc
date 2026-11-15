@@ -17,6 +17,7 @@
 #include "app/input.h"
 #include "app/result_screen.h"
 #include "app/route.h"
+#include "app/skill_screen.h"
 #include "engine/audio/audio_output.h"
 #include "engine/audio/sound_bank.h"
 #include "engine/core/log.h"
@@ -664,6 +665,29 @@ struct LiveScene {
 const float kGradeColor[live::kGrades][4] = {
     {1.0f, 0.85f, 0.2f, 1}, {1.0f, 0.45f, 0.7f, 1}, {0.4f, 0.9f, 0.5f, 1}, {0.35f, 0.5f, 1.0f, 1}, {0.5f, 0.5f, 0.55f, 1}};
 
+// The skill banner: ui2/90_ingame uil0005_ActiveSkillLayout00 places six uip0018_ActiveSkill00 (a plate of
+// ui_ingame_skill_frame00 and a name of ui_ingame_skill_text00_T); the port uses the four at the top (_00-_03; _04/_05
+// at the bottom corners are a guess for the support players). The name atlas has 4 x 10 cells (320 x 48 px) by kind.
+const std::string kSkillHud = "uil0005_ActiveSkillLayout00";
+constexpr int kSkillBanners = 4;
+constexpr double kUseBannerMs = 2000;  // shortcut: an untimed skill's use shows this long; the game's time is not traced
+std::array<float, 2> SkillNameCell(int kind) {
+    switch (kind) {
+    case 13: return {0, 0};      // Judge Support
+    case 0: return {0.25f, 0};   // Judge Plus
+    case 1: return {0.5f, 0};    // Combo Support
+    case 14: return {0.75f, 0};  // Finale Support
+    case 15: return {0, 0.1f};   // Long Notes Support
+    case 38: return {0.25f, 0.1f};  // Judge Support +
+    case 17: return {0.5f, 0.1f};   // Starting Combo Support
+    case 16: return {0, 0.2f};      // Shoutout
+    case 6: return {0.75f, 0.2f};   // Member Focus
+    case 36: return {0, 0.4f};      // Special Effect Shower
+    case 37: return {0.25f, 0.4f};  // Special Effect Frame
+    default: return {0, 0};
+    }
+}
+
 }
 
 int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vfs& vfs, const AppSettings& settings,
@@ -685,8 +709,20 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
     LogInfo("live: difficulty index {}, note speed {}, travel {:.0f} ms", song.rules.difficulty, opt.note_speed, approach_ms);
     const live::Chart& chart = song.chart;
     const double audio_ms = std::max(1.0, double(music.Frames()) * 1000.0 / music.rate);
+    std::array<bool, 3> set_slots{};
+    for (const live::Skill& s : opt.skills) set_slots[size_t(std::clamp(s.slot, 0, 2))] = true;
+    live::MarkSkillNotes(song.chart, set_slots);
+    for (const live::Skill& s : opt.skills) {
+        double at = -1;
+        for (const live::Note& n : chart.notes) {
+            if (n.skill == s.slot) at = n.time_ms;
+        }
+        LogInfo("live: skill slot {}: card {} kind {}, {}, skill note at {}", s.slot + 1, s.card, s.kind,
+                s.duration_ms > 0 ? std::to_string(int(s.duration_ms)) + " ms" : "untimed, amount " + std::to_string(s.amount),
+                at >= 0 ? std::to_string(int(at)) + " ms" : "none");
+    }
     live::Judge judge;
-    judge.Reset(chart, song.windows, song.rules);
+    judge.Reset(chart, song.windows, song.rules, opt.skills);
     const double offset = settings.timing.audio_offset_ms;
     LiveScene scene;
     LiveOptions dressed = opt;
@@ -742,6 +778,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
     bool has_hud = hud_text.Load(vfs, opt.lang, &error) && hud.Load(renderer, vfs, "ui2/90_ingame", opt.lang, &error, &hud_text);
     if (has_hud) {
         hud.HideInstance("uil0001_Ingame00/uip0008_FinaleON00", true);
+        for (int k = 0; k < 6; ++k) hud.HideInstance(kSkillHud + "/uip0018_ActiveSkill00_0" + std::to_string(k), true);
         hud.HideNode("IngamesonggageCol", true);  // the play field draws the filled part of this ring
         for (int k = 0; k < 9; ++k) hud.HideInstance("uil0001_Ingame00/uip0007_FFmark_ef_0" + std::to_string(k), true);
         // the LOVELIVE! marks: the layout's texture is the mu's set; the other groups use their own
@@ -769,7 +806,8 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
     std::vector<double> flash(kLanes, -1e9);
     std::vector<Grade> flash_grade(kLanes, Grade::Miss);
     std::vector<double> missed(kLanes, -1e9);  // the latest Miss per lane, for the ring break
-    size_t log_seen = 0, auto_next = 0;
+    size_t log_seen = 0, auto_next = 0, skill_seen = 0;
+    std::vector<live::SkillEvent> banners;  // skills in effect, shown by the HUD
     std::vector<std::pair<double, int>> auto_releases;  // autoplay: (time, lane)
     uint64_t end_ticks = 0;  // when every note was judged (0: not yet)
     // The ending, in ms after end_ticks (the game's frames, analysis/202611101907-checklist-feedback/): FULL COMBO or
@@ -837,6 +875,30 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
             if (!(played & bit)) {
                 played |= bit;
                 audio.PlayEffect(&hit_sound[size_t(finale)][size_t(j.grade)]);
+            }
+        }
+
+        // skills taking effect: a log line each and the skill banner while they last. shortcut: the firing voice
+        // (eVoice_invokeSkillMain) and the skill effects (ef_842/843) are not traced; skill notes look like icon notes
+        for (; skill_seen < judge.SkillLog().size(); ++skill_seen) {
+            live::SkillEvent e = judge.SkillLog()[skill_seen];
+            const live::Skill& s = judge.Skills()[size_t(e.skill)];
+            LogInfo("live: skill fired: slot {} card {} kind {} at {:.0f} ms, until {:.0f} ms", s.slot + 1, s.card, s.kind,
+                    e.t_ms, e.until_ms);
+            if (e.until_ms <= e.t_ms) e.until_ms = e.t_ms + kUseBannerMs;
+            banners.push_back(e);
+        }
+        std::erase_if(banners, [&](const live::SkillEvent& b) { return now >= b.until_ms; });
+        if (has_hud) {
+            for (int k = 0; k < kSkillBanners; ++k) {
+                const std::string inst = kSkillHud + "/uip0018_ActiveSkill00_0" + std::to_string(k);
+                const bool on = size_t(k) < banners.size();
+                hud.HideInstance(inst, !on);
+                if (!on) continue;
+                const live::Skill& s = judge.Skills()[size_t(banners[size_t(k)].skill)];
+                const auto cell = SkillNameCell(s.kind);
+                hud.SetMaterialUv(inst, "skill_plate00_M", 0, SkillPlateV(s.card));
+                hud.SetMaterialUv(inst, "skill_name00_M", cell[0], cell[1]);
             }
         }
 
@@ -916,6 +978,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
             }
             // the HUD and the centre circle (gauge track, fan, mic) over the notes: notes come out from under the mic
             if (has_hud) hud.DrawLayout(renderer, "uil0001_Ingame00", 1.0f);
+            if (has_hud && !banners.empty()) hud.DrawLayout(renderer, kSkillHud, 1.0f);
             if (field.loaded) {
                 field.Draw(renderer, field.gauge_fan, field.center_gauge, field.center[0], field.center[1], Playfield::kGaugeSize, {1, 1, 1, 1});
                 field.Draw(renderer, unit_quad, field.center_mic, field.center[0], field.center[1], field.center_size * 0.55f, {1, 1, 1, 1});

@@ -88,19 +88,37 @@ bool ParseTimeline(std::span<const uint8_t> s, Chart& chart, std::string* error)
     return true;
 }
 
+namespace {
+int PhaseOf(const Chart& chart, const Note& n) {
+    int phase = -1;
+    for (int k = 0; k < 3; ++k) {
+        if (chart.phase_ms[size_t(k)] >= 0 && n.time_ms >= chart.phase_ms[size_t(k)]) phase = k;
+    }
+    return phase;
+}
+}
+
 void MarkIcons(Chart& chart) {
     std::stable_sort(chart.notes.begin(), chart.notes.end(), [](const Note& a, const Note& b) { return a.time_ms < b.time_ms; });
     // shortcut: the icon channel per phase (2, 4, 3) is what song 0340 showed in shadPS4 (G0); the game's rule
     // (eboot 0xABAC0) is not traced
     constexpr int kIconChannel[3] = {2, 4, 3};
     for (Note& n : chart.notes) {
-        int phase = -1;
-        for (int k = 0; k < 3; ++k) {
-            if (chart.phase_ms[size_t(k)] >= 0 && n.time_ms >= chart.phase_ms[size_t(k)]) phase = k;
-        }
+        const int phase = PhaseOf(chart, n);
         n.icon = phase >= 0 && n.channel == kIconChannel[phase];
     }
     GroupNotes(chart);
+}
+
+void MarkSkillNotes(Chart& chart, const std::array<bool, 3>& slots) {
+    std::array<bool, 3> done{};
+    for (Note& n : chart.notes) {
+        n.skill = -1;
+        const int phase = n.icon ? PhaseOf(chart, n) : -1;
+        if (phase < 0 || !slots[size_t(phase)] || done[size_t(phase)]) continue;
+        n.skill = phase;
+        done[size_t(phase)] = true;
+    }
 }
 
 void GroupNotes(Chart& chart) {

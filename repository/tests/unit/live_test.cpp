@@ -107,6 +107,84 @@ static void Groups() {
     Check(got == "0/1 0/1 1/-1 -1/-1 ", "a hold pair's tails and a tap: one group after the heads' group: " + got);
 }
 
+// Live skills (M11 S5): a chart with one icon note per phase (the first is phase 0's skill note), then plain taps.
+static void Skills() {
+    WindowSet w = GameWindows();
+    w.press_wide.early = w.press_wide.late = {60, 153, 220, 287};  // groups 2-3: +20 ms (live_params.bin)
+    w.release_wide.early = w.release_wide.late = {153, 220, 287, 353};
+    Chart c;
+    c.phase_ms = {0, 20000, 30000};
+    for (double t : {1000.0, 1500.0, 20000.0, 30000.0}) c.notes.push_back({0, t, -1, -1, -1, 2, true});
+    c.notes.push_back({1, 2000, -1});
+    c.notes.push_back({2, 3000, 3500});  // a hold
+    c.notes.push_back({1, 8000, -1});    // after a 5 s skill fired at 1000
+    std::stable_sort(c.notes.begin(), c.notes.end(), [](const Note& a, const Note& b) { return a.time_ms < b.time_ms; });
+    MarkSkillNotes(c, {true, false, true});
+    std::string got;
+    for (const Note& n : c.notes) got += std::to_string(n.skill) + " ";
+    Check(got == "0 -1 -1 -1 -1 -1 2 ", "skill notes: the first icon note of each set slot's phase: " + got);
+    const auto play = [&](std::vector<Skill> skills, bool hit_skill_note, double tap_offset) {
+        Judge j;
+        j.Reset(c, w, {}, std::move(skills));
+        if (hit_skill_note) {
+            j.Press(0, 1000);
+            j.Press(0, 1500);
+        }
+        j.Update(1990);
+        j.Press(1, 2000 + tap_offset);
+        j.Update(7990);
+        j.Press(1, 8000 + tap_offset);
+        return j;
+    };
+    const auto grade = [](const Judge& j, int note) {
+        for (const Judgement& g : j.Log()) {
+            if (g.note == note && !g.release) return g.grade;
+        }
+        return Grade::Miss;
+    };
+    // +150 ms late: Good in the normal windows (Great < 133), Great in the wide ones (< 153)
+    const Skill support{0, 11000, 13, 5000, 82};
+    Judge j = play({support}, true, 150);
+    Check(grade(j, 2) == Grade::Great && grade(j, 4) == Grade::Good, "Judge Support: +20 ms windows for 5 s from the hit");
+    Check(j.SkillLog().size() == 1 && j.SkillLog()[0].t_ms == 1000 && j.SkillLog()[0].until_ms == 6000, "Judge Support fired once, 1000-6000 ms");
+    j = play({support}, false, 150);
+    Check(grade(j, 2) == Grade::Good && j.SkillLog().empty(), "a missed skill note fires nothing");
+    j = play({{0, 11001, 0, 5000, 82}}, true, 150);
+    Check(grade(j, 2) == Grade::Great && grade(j, 4) == Grade::Good, "Judge Plus: Good -> Great while active");
+    j = play({{0, 11001, 0, 5000, 82}}, true, 50);
+    Check(grade(j, 2) == Grade::Perfect, "Judge Plus: Great -> Perfect");
+    j = play({{0, 11002, 1, 5000, 82}}, true, 150);
+    Check(grade(j, 2) == Grade::Good && j.combo == 0 && j.max_combo == 3, "Combo Support: a Good keeps the combo while active");
+    j = play({{0, 11009, 38, 5000, 82}}, true, 160);
+    Check(grade(j, 2) == Grade::Good && j.max_combo == 3, "Judge Support +: wide windows, and a Good keeps the combo");
+    // Starting Combo Support: wide windows from the start until the first combo break
+    j = play({{1, 11010, 17, 0, 1}}, true, 150);
+    Check(grade(j, 2) == Grade::Great, "Starting Combo Support: wide windows from the start");
+    Check(grade(j, 4) == Grade::Good && j.SkillLog().size() == 1, "Starting Combo Support: ends at the first combo break (the missed hold)");
+    // Finale Support: missed icons are collected, `amount` times
+    j = play({{1, 11003, 14, 0, 2}}, false, 0);
+    j.Update(100000);
+    Check(j.icons == 2 && j.SkillLog().size() == 2, "Finale Support (2): 2 of 4 missed icons collected");
+    // Long Notes Support: a hold pressed while active ends Perfect without a release
+    {
+        Judge h;
+        h.Reset(c, w, {}, {{0, 11005, 15, 5000, 82}});
+        h.Press(0, 1000);
+        h.Update(2990);
+        h.Press(2, 3000);
+        h.Release(2, 3100);  // let go early: ignored
+        h.Update(3600);
+        bool perfect_end = false;
+        for (const Judgement& g : h.Log()) perfect_end |= g.note == 3 && g.release && g.grade == Grade::Perfect;
+        Check(perfect_end && !h.Held(3), "Long Notes Support: the hold ends Perfect at its end without a release");
+        Judge plain;
+        plain.Reset(c, w);
+        plain.Press(2, 3000);
+        plain.Release(2, 3100);
+        Check(plain.counts[3] == 1, "without it, letting go early is a Bad release");
+    }
+}
+
 static void Real(const char* root) {
     sif::Vfs vfs;
     Check(vfs.Mount(sif::os::PathFromUtf8(root)), "mount");
@@ -130,6 +208,7 @@ static void Real(const char* root) {
     }
     const WindowSet& w = song.windows;
     Check(w.press.early[0] == 40 && w.press.late[3] == 267 && w.release.late[3] == 333, "windows read from live_params.bin");
+    Check(w.press_wide.early[0] == 60 && w.press_wide.late[3] == 287 && w.release_wide.late[3] == 353, "groups 2-3: the same +20 ms (Judge Support)");
     for (double off : {0.0, 30.0, -100.0, 180.0}) {
         const Judge j = Autoplay(song.chart, w, off);
         std::printf("offset %+5.0f ms: P %d  Gr %d  Go %d  B %d  M %d  max combo %d  score %.0f\n", off, j.counts[0],
@@ -245,6 +324,7 @@ static void Real(const char* root) {
 int main(int argc, char** argv) {
     Synthetic();
     Groups();
+    Skills();
     if (argc > 1) Real(argv[1]);
     std::printf("%s\n", failures ? "live_test FAILED" : "live_test ok");
     return failures ? 1 : 0;

@@ -3,13 +3,15 @@
 #include <algorithm>
 #include <cmath>
 
+#include "game/card/card.h"
+
 namespace sif::live {
 namespace {
 
 int32_t S32(const uint8_t* p) { return int32_t(uint32_t(p[0]) | uint32_t(p[1]) << 8 | uint32_t(p[2]) << 16 | uint32_t(p[3]) << 24); }
 
-// Perfect and Great keep the combo; Good, Bad and Miss break it (eboot 0xAA3B0; Good keeps it only under the
-// "combo softening" skills, not implemented).
+// Perfect and Great keep the combo; Good, Bad and Miss break it (eboot 0xAA3B0); a Good keeps it under Combo Support
+// and Judge Support + (Record).
 bool KeepsCombo(Grade g) { return g == Grade::Perfect || g == Grade::Great; }
 // points = round(100 x weight[grade] x difficulty multiplier [x tick rate]) per judgement or hold tick, capped at
 // 9,999,999 (eboot 0xAA520, 0xA9D80). Weights and base 100 are s_CommonParam +0xC0..+0xCC and +0xB4.
@@ -38,11 +40,25 @@ bool WindowsFromTable(std::span<const uint8_t> t, WindowSet& out, std::string* e
     };
     group(0, out.press);
     group(1, out.release);
+    if (t.size() >= 128) {
+        group(2, out.press_wide);
+        group(3, out.release_wide);
+    } else {
+        out.press_wide = out.press;
+        out.release_wide = out.release;
+    }
     return true;
 }
 
-void Judge::Reset(const Chart& chart, const WindowSet& windows, const ScoreRules& rules) {
+void Judge::Reset(const Chart& chart, const WindowSet& windows, const ScoreRules& rules, std::vector<Skill> skills) {
     chart_ = &chart;
+    skills_ = std::move(skills);
+    until_.assign(skills_.size(), -1);
+    uses_.assign(skills_.size(), 0);
+    for (size_t k = 0; k < skills_.size(); ++k) {
+        if (skills_[k].duration_ms <= 0) uses_[k] = skills_[k].amount;  // untimed: armed at the start (eboot 0xAE3F0)
+    }
+    skill_log_.clear();
     win_ = windows;
     rules_ = rules;
     state_.assign(chart.notes.size(), State::Pending);
@@ -62,6 +78,35 @@ void Judge::CheckFinale(double now) {
     finale = icons >= kFinaleIcons;
 }
 
+bool Judge::SkillActive(int kind, double t) const {
+    for (size_t k = 0; k < skills_.size(); ++k) {
+        const Skill& s = skills_[k];
+        if (s.kind != kind) continue;
+        if (s.duration_ms > 0 ? until_[k] >= 0 && t >= until_[k] - s.duration_ms && t < until_[k] : uses_[k] > 0) return true;
+    }
+    return false;
+}
+
+void Judge::Use(int kind, double t) {
+    for (size_t k = 0; k < skills_.size(); ++k) {
+        if (skills_[k].kind == kind && skills_[k].duration_ms <= 0 && uses_[k] > 0) {
+            --uses_[k];
+            skill_log_.push_back({int(k), t, t});
+            return;
+        }
+    }
+}
+
+Grade Judge::Judged(const Windows& normal, const Windows& wide, double dt, double t) const {
+    // Judge Support (+) and Starting Combo Support judge with the +20 ms windows (eboot 0xA0200)
+    const bool widened = SkillActive(card::kJudgeSupport, t) || SkillActive(card::kJudgeSupportPlus, t) ||
+                         SkillActive(card::kStartingComboSupport, t);
+    Grade g = Classify(widened ? wide : normal, dt);
+    // Judge Plus: Great -> Perfect, Good -> Great (eboot 0xA0070)
+    if ((g == Grade::Great || g == Grade::Good) && SkillActive(card::kJudgePlus, t)) g = Grade(int(g) - 1);
+    return g;
+}
+
 Grade Judge::Classify(const Windows& w, double dt) const {
     // eboot 0xA0070: inner bounds are strict (|dt| == 40 is Great), the Bad bound is inclusive, beyond it a Miss
     const double a = std::abs(dt);
@@ -72,13 +117,44 @@ Grade Judge::Classify(const Windows& w, double dt) const {
     return a <= b[kBounds - 1] ? Grade::Bad : Grade::Miss;
 }
 
-void Judge::Record(int note, bool release, Grade grade, double offset) {
+void Judge::Record(int note, bool release, Grade grade, double offset, double t) {
     log_.push_back({note, release, grade, offset});
     ++counts[size_t(grade)];
-    if (!release && grade != Grade::Miss && chart_->notes[size_t(note)].icon) ++icons;
+    const Note& n = chart_->notes[size_t(note)];
+    if (!release && n.icon) {
+        if (grade != Grade::Miss) {
+            ++icons;
+        } else if (SkillActive(card::kFinaleSupport, t)) {  // Finale Support collects a missed icon (eboot 0xAAA10)
+            ++icons;
+            Use(card::kFinaleSupport, t);
+        }
+    }
     AddPoints(size_t(note), 1.0, grade);
-    combo = KeepsCombo(grade) ? combo + 1 : 0;
+    const bool keep = KeepsCombo(grade) || (grade == Grade::Good && (SkillActive(card::kComboSupport, t) ||
+                                                                     SkillActive(card::kJudgeSupportPlus, t)));
+    // Starting Combo Support ends at a combo break, one use per break (eboot 0xAF760(..., 0x11, 1))
+    if (!keep && SkillActive(card::kStartingComboSupport, t)) Use(card::kStartingComboSupport, t);
+    combo = keep ? combo + 1 : 0;
     if (combo > max_combo) max_combo = combo;
+    // a hit skill note fires its slot's timed skill for its duration from the hit (eboot 0xAF350, 0xAEF80)
+    if (!release && grade != Grade::Miss && n.skill >= 0) {
+        for (size_t k = 0; k < skills_.size(); ++k) {
+            if (skills_[k].slot == n.skill && skills_[k].duration_ms > 0) {
+                until_[k] = t + skills_[k].duration_ms;
+                skill_log_.push_back({int(k), t, until_[k]});
+            }
+        }
+    }
+}
+
+void Judge::EndHold(size_t i, Grade grade, double offset, double t) {
+    Ticks(i, t);
+    holding_[size_t(chart_->notes[i].lane)] = -1;
+    state_[i] = State::Done;
+    Record(int(i), true, grade, offset, t);
+    // a Perfect or Great release awards the ticks not yet given, at the release grade (eboot 0x9ECC0)
+    Hold& h = holds_[i];
+    if (grade <= Grade::Great) AddPoints(i, rules_.tick_rate, grade, h.ticks - h.ticked);
 }
 
 void Judge::AddPoints(size_t note, double note_fraction, Grade grade, int count) {
@@ -109,13 +185,14 @@ void Judge::Press(int lane, double t) {
         const double dt = t - n.time_ms;
         if (dt < -win_.press.EarlyLimit()) return;  // too early for this lane's next note: ignored
         if (dt > win_.press.LateLimit()) continue;  // already late (Update will miss it)
-        const Grade g = Classify(win_.press, dt);
-        Record(int(i), false, g, dt);
+        const Grade g = Judged(win_.press, win_.press_wide, dt, t);
+        Record(int(i), false, g, dt, t);
         // eboot 0x9ECC0: only a Good-or-better press starts holding; a Bad press ends the hold without a release
         if (n.IsHold() && g <= Grade::Good) {
             state_[i] = State::Holding;
             holding_[size_t(lane)] = int(i);
-            holds_[i] = {g, t, int(std::round((n.end_ms - n.time_ms) / rules_.tick_ms)), 0};
+            holds_[i] = {g, t, int(std::round((n.end_ms - n.time_ms) / rules_.tick_ms)), 0,
+                         SkillActive(card::kLongNotesSupport, t)};
         } else {
             state_[i] = State::Done;
         }
@@ -126,18 +203,12 @@ void Judge::Press(int lane, double t) {
 void Judge::Release(int lane, double t) {
     if (!chart_ || lane < 0 || lane >= kLanes) return;
     const int i = holding_[size_t(lane)];
-    if (i < 0) return;
+    if (i < 0 || holds_[size_t(i)].auto_end) return;  // Long Notes Support: Update ends the hold
     CheckFinale(t);
-    Ticks(size_t(i), t);
-    holding_[size_t(lane)] = -1;
-    state_[size_t(i)] = State::Done;
     const double dt = t - chart_->notes[size_t(i)].end_ms;
     // released before the release window opens: Bad (eboot 0xA0070, release path)
-    const Grade g = dt < -win_.release.EarlyLimit() ? Grade::Bad : Classify(win_.release, dt);
-    Record(i, true, g, dt);
-    // a Perfect or Great release awards the ticks not yet given, at the release grade (eboot 0x9ECC0)
-    Hold& h = holds_[size_t(i)];
-    if (g <= Grade::Great) AddPoints(size_t(i), rules_.tick_rate, g, h.ticks - h.ticked);
+    const Grade g = dt < -win_.release.EarlyLimit() ? Grade::Bad : Judged(win_.release, win_.release_wide, dt, t);
+    EndHold(size_t(i), g, dt, t);
 }
 
 void Judge::Update(double now) {
@@ -147,13 +218,15 @@ void Judge::Update(double now) {
         const Note& n = chart_->notes[i];
         if (state_[i] == State::Pending && now - n.time_ms > win_.press.LateLimit()) {
             state_[i] = State::Done;
-            Record(int(i), false, Grade::Miss, 0);  // an unpressed hold is one Miss (eboot 0x9FDF0 -> 0x9ECC0)
+            Record(int(i), false, Grade::Miss, 0, now);  // an unpressed hold is one Miss (eboot 0x9FDF0 -> 0x9ECC0)
         } else if (state_[i] == State::Holding) {
+            if (holds_[i].auto_end && now >= n.end_ms) {
+                EndHold(i, Grade::Perfect, 0, n.end_ms);  // Long Notes Support: a Perfect end without a release
+                continue;
+            }
             Ticks(i, now);
             if (now - n.end_ms <= win_.release.LateLimit()) continue;
-            state_[i] = State::Done;
-            holding_[size_t(n.lane)] = -1;
-            Record(int(i), true, Grade::Miss, 0);  // held past the release Bad bound (eboot 0x9FDF0, state 2)
+            EndHold(i, Grade::Miss, 0, now);  // held past the release Bad bound (eboot 0x9FDF0, state 2)
         }
     }
 }
