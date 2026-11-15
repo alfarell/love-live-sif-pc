@@ -35,17 +35,18 @@ To keep several setups apart, start with `--data <folder>`.
 | Move in menus | Arrow keys | D-pad |
 | Confirm | Enter | Cross or Start |
 | Back | Esc | Circle |
-| The 9 lanes in a song, left to right | `A S D F Space J K L ;` | L2, L1, Left, Down, Right or Square (centre), Cross, Circle, R1, R2 |
+| The 9 lanes of an arcade song (AC), left to right | `A S D F Space J K L ;` | L2, L1, Left, Down, Right or Square (centre), Cross, Circle, R1, R2 |
+| The 6 lanes of a home song, left to right | `S D F J K L` | L1, Left, Down, Cross, Circle, R1 |
 | Leave a song | Esc | Start |
 | Next page / tab (Task List, Profile, Costumes) | PageUp / PageDown | L1 / R1 |
 | Another line from the navigator (top menu) | T | Triangle |
 
-Options → Control Settings changes the controller's lane buttons.
+Options → Control Settings changes the controller's lane buttons, separately for BEGINNER/STANDARD, HYPER/ADVENTURE and the arcade charts (Modify on each row).
 
 ## Playing
 
 - **Top menu:** Left/Right turn the wheel, Up/Down pick an entry.
-- **Playing a song:** Play leads to the song select. Pick a song, an arcade difficulty, a stage and a costume (Left/Right, then Enter at each step); the last Enter starts the live. At the end ALL PERFECT or FULL COMBO shows if you earned it, then LIVE CLEAR; the result screen then shows your score, and any key returns to the song select.
+- **Playing a song:** Play → **Play Live Show** has the home charts (BEGINNER, STANDARD, HYPER, ADVENTURE, on 6 lanes); **Play Live Show (AC)** has the arcade charts (EASY to CHALLENGE, on 9 lanes). Pick a song, a difficulty, a stage and a costume (Left/Right, then Enter at each step); the last Enter starts the live. ADVENTURE opens once you get A or better on that song's HYPER. At the end ALL PERFECT or FULL COMBO shows if you earned it, then LIVE CLEAR; the result screen then shows your score, and any key returns to the song select.
 - **Lives** show the stage with its screens playing the song's video, and the members dancing to the song's own camera.
 - **Saves:** best scores, ranks and play counts are kept in `save.txt`. The song select shows each chart's best rank; the result screen marks new bests.
 - **Costumes:**
@@ -67,18 +68,18 @@ Options → Control Settings changes the controller's lane buttons.
 | `[game]` | `folder` (your `CUSA24620` dump), `dlc_folder` (your add-ons; empty = `Extracted` and `DLC` next to the dump) |
 | `[play]` | `note_speed` (Rhythm Icon Speed 0-4: Slow, A Bit Slow, Normal, A Bit Fast, Fast; an old `approach_ms` is converted once) |
 | `[timing]` | `audio_offset_ms` (from calibration), `input_offset_ms` |
-| `[controls]` | `pad_lanes` (the controller's lane buttons) |
+| `[controls]` | `pad_lanes` (the controller's 9 arcade lane buttons), `pad_lanes_home_easy` and `pad_lanes_home_hard` (the 6 home lane buttons for BEGINNER/STANDARD and HYPER/ADVENTURE); empty = the game's defaults |
 
 ## What the port does not have (yet)
 
 - **Online features:** rankings, the add-on store and its trial movies, network events. There will be no purchasing.
 - **Not built yet:**
-  - home-version charts (3- and 6-lane modes);
   - skills and member or skill cards;
   - boosters, Friendship levels and events;
   - "Trying It On" and special costume colours;
   - the 3D navigator (the top menu shows Honoka's voice lines only).
-- **Simplified:** some screen transitions, animations and small icons.
+- **Not built either:** View Live Show and Live Show Medley, the "Prepare for the Live Show" screen, controller vibration.
+- **Simplified:** some screen transitions, animations and small icons; a locked difficulty shows its padlock but is not darkened; the arcade CHALLENGE chart is open from the start (the game asks for A on EXTREME first).
 
 The project's roadmap lists the details.
 
