@@ -1,5 +1,6 @@
 // Headless autoplay test for the live (song play) rules. Synthetic: window edges, combo, holds. With the CUSA24620
 // dump folder as the first argument: song 0010 (ac_challenge chart) autoplayed at fixed input offsets.
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdio>
@@ -159,6 +160,32 @@ static void Real(const char* root) {
     Check(all.icons == kFinaleIcons && all.finale, "autoplay collects all nine icons and plays the finale");
     Check(Autoplay(normal.chart, w, 1000).icons == 0, "no hit, no icon");
     Check(normal.rules.finale_multiplier == 3.0f, "finale multiplier 3.0 (s_CommonParam +0x120)");
+    // M10 K1: home-version charts. 0340 HYPER with no input: the game's result counts MISS 414 (389 ch1 events, 2 of
+    // them note 0, plus 27 extra notes); every home note is on one of the six home lanes
+    Check(!normal.chart.home, "song 0340/01 is an arcade chart");
+    for (int v : {10, 11, 12, 13}) {
+        Song home;
+        Check(LoadSong(vfs, 340, v, home, &error), "load song 0340/" + std::to_string(v) + ": " + error);
+        Check(home.chart.home, "song 0340/" + std::to_string(v) + " is a home chart");
+        std::array<int, kLanes> per_lane{};
+        for (const Note& n : home.chart.notes) ++per_lane[size_t(n.lane)];
+        int off_home = 0;
+        for (int l = 0; l < kLanes; ++l) {
+            if (std::find(kHomeLanes.begin(), kHomeLanes.end(), l) == kHomeLanes.end()) off_home += per_lane[size_t(l)];
+        }
+        Check(off_home == 0, "song 0340/" + std::to_string(v) + ": every note on a home lane");
+        if (v <= 11) {
+            Check(per_lane[2] == 0 && per_lane[6] == 0, "song 0340/" + std::to_string(v) + ": BEGINNER/STANDARD use L1 Down Cross R1 only");
+        }
+        std::printf("song 0340/%d: %zu notes, %d note-0 events skipped, difficulty index %d\n", v, home.chart.notes.size(),
+                    home.chart.skipped, home.rules.difficulty);
+        if (v == 12) {
+            Check(home.chart.notes.size() == 414 && home.chart.skipped == 2, "song 0340/12: 387 + 27 = 414 notes, 2 note-0 events");
+            const Judge none = Autoplay(home.chart, w, 1e6, 0, home.rules);
+            Check(none.counts[4] == 414, "song 0340/12 with no hit: MISS 414, got " + std::to_string(none.counts[4]));
+            Check(home.rules.difficulty == 7 && home.rules.approach_ms[2] == 1000, "song 0340/12: difficulty 7, Normal 1000 ms");
+        }
+    }
     // Rhythm Icon Speed (F3): s_CommonParam +0x00, row = difficulty index, Slow .. Fast; Normal measured in shadPS4 (about
     // 1.6 s visible on Easy, 1.3 s on Normal, the start hidden under the mic)
     Check(easy.rules.difficulty == 0 && easy.rules.approach_ms == std::array<double, 5>{2300, 2100, 1900, 1650, 1300},

@@ -260,6 +260,7 @@ bool LoadSong(const Vfs& vfs, int id, int variant, Song& out, std::string* error
         }
     }
     MarkIcons(out.chart);
+    out.chart.home = IsHomeVariant(variant);
     return LoadWindows(vfs, out.windows, error) && LoadScoreRules(vfs, id, variant, out.rules, error) &&
            LoadMusicRecord(vfs, id, out, error);
 }

@@ -14,6 +14,11 @@ constexpr int kLanes = 9;
 // note numbers 55..63 = lanes 0..8, left to right: L2 L1 Left Down Right/Square Cross Circle R1 R2 (confirmed in
 // shadPS4 live frames, M4)
 constexpr int kFirstNoteNumber = 55;
+// Home-version charts (variants 10-13, "Play Live Show") use six of those lanes, L1 Left Down Cross Circle R1 (note
+// numbers 56 57 58 60 61 62; BEGINNER and STANDARD only 56 58 60 62), the game's 6-lane Button Controls default. They
+// keep the arcade lane numbers, so keys and pad buttons need no remapping (analysis/202611141918-home-charts/)
+constexpr std::array<int, 6> kHomeLanes = {1, 2, 3, 5, 6, 7};
+constexpr bool IsHomeVariant(int variant) { return variant >= 10; }
 
 struct Note {
     int lane = 0;
@@ -30,7 +35,10 @@ struct Chart {
     std::vector<Note> notes;  // sorted by time
     double lead_in_ms = 0;    // header 0x14
     double first_bpm = 0;
-    int skipped = 0;          // notes outside lanes 55..63 (note number 0 in home-version charts; meaning unknown)
+    // events outside lanes 55..63: note number 0, only in home charts; the game does not count them (0340 HYPER: 389
+    // events - 2 + 27 extra notes = the result's 414), so they are cues of another kind, not notes
+    int skipped = 0;
+    bool home = false;        // a home-version chart: its notes use only kHomeLanes (6-lane field)
     // from channel 5 (ParseTimeline): the start of phases 1-3 and of the finale section; < 0 when absent
     std::array<double, 3> phase_ms{-1, -1, -1};
     double finale_ms = -1;
