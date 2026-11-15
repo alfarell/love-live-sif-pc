@@ -80,6 +80,10 @@ struct Playfield {
     static constexpr float kIconGap = 30;               // two icons in one lane (→ □): centres ±30 px at 1:1
     Texture atlas, mark, center_gauge, center_mic, combo_tex;
     GpuMesh indicator, note_ring, note_fill, combo_label, gauge_fan;
+    // the home charts' L1/R1 lanes are blue (shadPS4, analysis/202611141918-home-charts/): the blue indicator (mark
+    // (1, 0)), the blue note ring (3, 0) and the dark blue fill (3, 4)
+    GpuMesh indicator_blue, note_ring_blue, note_fill_blue;
+    bool home = false;  // a home-version chart: six lanes (live::kHomeLanes)
     std::array<GpuMesh, 2> bracket;  // simultaneous-note brackets: orange (3, 3), blue (4, 3)
     GpuMesh finale_disc;  // the finale note's yellow disc: star (0, 1), anchor (1, 1) or snowman (2, 1) by group
     GpuMesh icon_mark;  // the Finale Rhythm Icon on a note: two stars (3, 2), anchors (4, 2) or snowmen (0, 3) by group
@@ -254,11 +258,30 @@ struct Playfield {
         }
     }
     GpuMesh corner_centered;  // centred unit quad over a whole texture
+    // Home charts: only the six home lanes have rings; L1 and R1 are the blue ones
+    bool Shown(int lane) const {
+        return !home || std::find(live::kHomeLanes.begin(), live::kHomeLanes.end(), lane) != live::kHomeLanes.end();
+    }
+    bool Blue(int lane) const { return home && (lane == 1 || lane == 7); }
+    // Home charts place their six rings on the arcade rings' arc (centre between ring01 and ring09, radius down to
+    // ring05) at 180, 140, 112.5, 67.5, 40 and 0 degrees: L1 and R1 (lanes 1, 7) move out to the corners (ring01 and
+    // ring09's spots), ← and ○ (lanes 2, 6) to 140 and 40 degrees; ↓ and ✕ keep ring04 and ring06. Measured in shadPS4
+    // (0340 HYPER, ±1 degree). Hypothesis: no table in the dump holds the 140 and 40
+    void SetHome(bool on) {
+        home = on;
+        if (!on) return;
+        const float cx = (lane[0][0] + lane[8][0]) / 2, cy = (lane[0][1] + lane[8][1]) / 2, radius = lane[4][1] - cy;
+        for (const auto& [l, degrees] : {std::pair<int, float>{1, 180.0f}, {2, 140.0f}, {6, 40.0f}, {7, 0.0f}}) {
+            const float a = degrees * 3.14159265f / 180.0f;
+            lane[size_t(l)] = {cx + radius * std::cos(a), cy + radius * std::sin(a)};
+        }
+    }
     // A normal note: fill (its cell has 40% alpha built in), ring, then the lane's icons; `size` is its quad
     // `finale`: a note of the finale section, on the yellow group disc instead of the pink fill (shadPS4 run 1)
     void DrawNote(Renderer& r, int lane, float x, float y, float size, float alpha, bool finale = false) const {
-        Draw(r, finale ? finale_disc : note_fill, atlas, x, y, size, {1, 1, 1, alpha});
-        Draw(r, note_ring, atlas, x, y, size, {1, 1, 1, alpha});
+        const bool blue = Blue(lane);
+        Draw(r, finale ? finale_disc : blue ? note_fill_blue : note_fill, atlas, x, y, size, {1, 1, 1, alpha});
+        Draw(r, blue ? note_ring_blue : note_ring, atlas, x, y, size, {1, 1, 1, alpha});
         DrawIcons(r, lane, x, y, size / kCell, true);
     }
     // ui_ingame_combo_num (840 x 200): digits 0-9 in 84 x 100 cells on the top row, the "COMBO" label below
@@ -334,7 +357,8 @@ struct Playfield {
         }
         loaded = LoadTexture(r, vfs, "ui/ui_ingame.pac/texture.pac/ui_ingame_notes", atlas) &&
                  LoadTexture(r, vfs, "ui/ui_ingame.pac/texture.pac/ui_ingame_judgering_all_mark", mark) &&
-                 MarkCell(r, 0, 0, indicator) && LoadIcons(r) && LoadBands(r, vfs) && Quad(r, 0, 0, 1, 1, corner_centered) &&
+                 MarkCell(r, 0, 0, indicator) && MarkCell(r, 1, 0, indicator_blue) && Cell(r, 3, 0, note_ring_blue) &&
+                 Cell(r, 3, 4, note_fill_blue) && LoadIcons(r) && LoadBands(r, vfs) && Quad(r, 0, 0, 1, 1, corner_centered) &&
                  // the HUD song gauge's own colour ring (ui2/90_ingame part uip0006_Songgage, 188 px), so the fill
                  // lines up with the HUD's track
                  LoadTexture(r, vfs, "ui2/90_ingame.pac/uip0006_Songgage.pac/texture.pac/IngamesonggageCol.btx", center_gauge) &&
@@ -448,6 +472,7 @@ struct Playfield {
         r.Release(corner_centered);
         for (auto& [name, t] : fad_textures) r.Release(t);
         r.Release(corner);
+        for (GpuMesh* m : {&indicator_blue, &note_ring_blue, &note_fill_blue}) r.Release(*m);
         r.Release(completion);
         for (GpuMesh& m : completion_half) r.Release(m);
         for (GpuMesh* m : {&indicator, &note_ring, &note_fill, &combo_label, &gauge_fan, &bracket[0], &bracket[1], &icon_mark, &finale_disc, &end_cap[0], &end_cap[1]}) r.Release(*m);
@@ -705,6 +730,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
     Layout layout;
     Playfield field;
     field.Load(renderer, vfs, song.group);
+    field.SetHome(chart.home);
     // the game's top HUD bar (ui2/90_ingame, layout uil0001_Ingame00); shortcut: gauges and the FULL COMBO marks
     // stay at their defaults until the HUD logic is traced
     long hud_score = -1;
@@ -847,8 +873,10 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
             scene.Draw(renderer, now, song.dance_start_frame);
             if (field.loaded) {
                 for (int l = 0; l < kLanes; ++l) {
+                    if (!field.Shown(l)) continue;
                     const auto& p = field.lane[size_t(l)];
-                    field.Draw(renderer, field.indicator, field.mark, p[0], p[1], Playfield::kCell, {1, 1, 1, 1});
+                    field.Draw(renderer, field.Blue(l) ? field.indicator_blue : field.indicator, field.mark, p[0], p[1],
+                               Playfield::kCell, {1, 1, 1, 1});
                     field.DrawIcons(renderer, l, p[0], p[1], 1.0f, false);
                 }
                 // a Miss breaks the lane's ring (shortcut: the trigger is a guess from the animation's name and its

@@ -1,0 +1,8 @@
+# a home-version chart straight into the live (M10): song 0340 HYPER on the 6-lane field, autoplay, for 30 s
+#! args --live 340:12 --autoplay
+timeout 90s
+expect screen live 30s
+expect log live: difficulty index 7, note speed 2, travel 1000 ms
+wait 30s
+shot live_home
+expect nolog error
