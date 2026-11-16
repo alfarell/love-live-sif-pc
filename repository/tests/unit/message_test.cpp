@@ -28,6 +28,9 @@ int main(int argc, char** argv) {
     Check(en.Load(vfs, 1, &error), "English: " + error);
     Check(jp.Load(vfs, 0, &error), "Japanese: " + error);
     Check(en.Size() == 816 && jp.Size() == 816, "816 messages per language");
+    if (argc > 2 && std::string(argv[2]) == "--dump") {  // every English message, one per line (finding ids)
+        for (size_t i = 0; i < en.Size(); ++i) std::printf("%zu\t%s\n", i, en.Get(int(i)).c_str());
+    }
     Check(en.Get(6) == "New Player" && en.Get(9) == "OK" && en.Get(10) == "Cancel" && en.Get(11) == "Yes",
           "English 6/9/10/11: New Player, OK, Cancel, Yes (the whole text, not cut short)");
     Check(en.Get(814) == "Profile Card Support", "English 814: Profile Card Support");

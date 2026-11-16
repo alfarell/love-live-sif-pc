@@ -4,6 +4,7 @@
 // docs/formats/card.md and analysis/202611151530-skills-and-cards/ (S1: eboot, S2: shadPS4).
 
 #include <array>
+#include <random>
 #include <string>
 #include <vector>
 
@@ -86,6 +87,17 @@ int AddSkill(const Data& data, save::SaveData& save, int id);
 std::vector<const SkillCard*> OwnedSkills(const Data& data, const save::SaveData& save, int member);
 // A member's three set cards (0 = empty). Cards no longer owned or of another member read as empty.
 std::array<int, kSlots> Slots(const Data& data, const save::SaveData& save, int member);
+// The sum of the level-row amounts of `member`'s set cards of `kind` (eboot FUN_000caaa0; the played member's cards
+// count in full, support players' at their share, which the port leaves out).
+int SkillSum(const Data& data, const save::SaveData& save, int member, int kind);
+
+// After-live skill card drop (eboot FUN_000a68d0 -> FUN_001f2ab0 pool 0; analysis 202611151530-skills-and-cards/):
+// one member of the played member's group by weight (µ's 11 each, Aqours and Saint Snow 9 each, the played member
+// + `boost`), then one of that member's cards in drop_pool uniformly. 0 if the member has none.
+int DrawSkillCard(const Data& data, int member, int boost, std::mt19937& random);
+// The cards one finished live drops: one draw (Skill Drop Boost as `boost`), and a second one at rank S or better
+// (`rank` > 3) with Getting Skills Charge % chance. Does not change the save (AddSkill each).
+std::vector<int> RollSkillDrops(const Data& data, const save::SaveData& save, int member, int rank, std::mt19937& random);
 
 }
 }

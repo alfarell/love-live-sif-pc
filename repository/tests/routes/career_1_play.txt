@@ -1,4 +1,4 @@
-# career 1: menu -> Play -> song select -> song, difficulty, stage, costume -> a full live (autoplay) -> result ->
+# career 1: menu -> Play -> song select -> song, difficulty, stage, costume -> a full live (autoplay) -> result -> Items Obtained (one skill card) ->
 # back to the song select; the save records the play
 #! data career
 #! args --autoplay
@@ -32,6 +32,12 @@ expect log live result: Perfect
 expect log played 1 times
 wait 2s
 shot career_result
+key enter
+expect screen result_items 20s
+expect log skill card: 
+expect log result: items obtained: 1 skill cards
+wait 1500ms
+shot career_items
 key enter
 expect screen select 20s
 expect nolog error

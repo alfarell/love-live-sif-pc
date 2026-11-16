@@ -11,16 +11,109 @@
 #include "app/fade.h"
 #include "app/input.h"
 #include "app/route.h"
+#include "app/skill_screen.h"
 #include "engine/core/log.h"
 #include "engine/render/renderer.h"
 #include "engine/ui/ui_screen.h"
 #include "game/live/song.h"
+#include "game/text/messages.h"
 
 namespace sif {
 namespace {
 
 constexpr const char* kRoot = "uil0001_ResultTop00";
 constexpr const char* kLayout = "uil0001_ResultTop00/uil0002_ResultLayout00";
+// The Items Obtained page (shadPS4, M11 S2 s22): drawn instead of uil0002_ResultLayout00
+const std::string kReward = "uil0003_RewardLayout00";
+// the list scrolls inside a stencil: _00 sits under the left arrow, so the visible icons are _01-_08 (as in s22)
+constexpr int kIcons = 8, kKeySlots = 2, kStandardSlots = 16;
+
+std::string Two(const char* format, int k) {
+    char s[96];
+    std::snprintf(s, sizeof(s), format, k);
+    return s;
+}
+std::string IconPath(int k) { return kReward + "/uil0011_RewNomalList00" + Two("/uip0020_RewIcon00_%02d", k + 1); }
+
+// Fills a message's "%s" places in order.
+std::string Fill(std::string text, std::initializer_list<std::string> values) {
+    for (const std::string& v : values) {
+        const size_t at = text.find("%s");
+        if (at == std::string::npos) break;
+        text.replace(at, 2, v);
+    }
+    return text;
+}
+
+// "Lv. 3", "Lv.MAX" (messages 555, 556)
+std::string LevelText(const Messages& m, int level, int max_level) {
+    if (level >= max_level) return m.Get(556);
+    char s[32];
+    std::snprintf(s, sizeof(s), m.Get(555).c_str(), level);
+    return s;
+}
+
+// Items Obtained: one icon per skill card (uil0011_RewNomalList00), the materials split into key materials (two
+// slots) and standard ones (16) with "x amount" and the new total (uil0012_RewMaterialList00).
+// shortcut: Friendship Points (uip0010_PlayerLevel00) are not built, so the bar is hidden; profile cards, boosters and
+// badges are never dropped by the port
+void FillRewards(UiScreen& ui, const LiveResult& r, const ResultItems& items, const Messages& m) {
+    ui.HideInstance(kReward + "/uip0010_PlayerLevel00", true);
+    const std::string list = kReward + "/uil0011_RewNomalList00";
+    ui.HideInstance(list + "/common_uip0007_ArrowRight00", true);
+    ui.HideInstance(list + "/common_uip0006_ArrowLeft00", true);
+    ui.HideInstance(list + "/uip0020_RewIcon00_00", true);
+    for (int k = 0; k < kIcons; ++k) {
+        ui.HideInstance(IconPath(k), k >= int(r.skills.size()));
+        ui.HideNode(IconPath(k), "icon_frame00_eff", true);
+    }
+    const std::string mats = kReward + "/uil0012_RewMaterialList00";
+    ui.SetInstanceText(mats + "/uip0012_RewMaterialWin00", 0, m.Get(548));  // [Key Materials]
+    ui.SetInstanceText(mats + "/uip0012_RewMaterialWin00", 1, m.Get(549));  // [Standard Materials]
+    int keys = 0, standard = 0;
+    for (const auto& [item, amount] : r.materials) {
+        const costume::Item* i = items.costumes ? costume::FindItem(*items.costumes, item) : nullptr;
+        const bool key = i && (i->type == 1 || i->type == 2);  // key_ms, key_aq
+        if (key ? keys >= kKeySlots : standard >= kStandardSlots) continue;
+        const std::string row = key ? mats + Two("/common_uip0018_MaterialChange00_%02d", keys++)
+                                    : mats + Two("/common_uip0019_MaterialChange01_%02d", standard++);
+        if (i) ui.SetMaterialTexture(row, "icon_materiai00_M", costume::IconPath(*i));
+        ui.SetInstanceNumber(row, 0, "x" + std::to_string(amount));  // "x1 (17)": the gain and the new total
+        if (items.save) ui.SetInstanceNumber(row, 1, "(" + std::to_string(costume::ItemCount(*items.save, item)) + ")");
+    }
+    for (int k = keys; k < kKeySlots; ++k) ui.HideInstance(mats + Two("/common_uip0018_MaterialChange00_%02d", k), true);
+    for (int k = standard; k < kStandardSlots; ++k) ui.HideInstance(mats + Two("/common_uip0019_MaterialChange01_%02d", k), true);
+}
+
+// The focused skill card: its picture (uil0013_RewPreview00), "Skill Card", and member, skill and level (message
+// 560; a duplicate shows "old → new", message 554).
+void ShowCard(UiScreen& ui, const LiveResult& r, const ResultItems& items, const Messages& m, int language,
+              const std::string& lang, int focus) {
+    const std::string preview = kReward + "/uil0013_RewPreview00", window = kReward + "/uip0015_RewWindow00";
+    const card::SkillCard* c =
+        focus < int(r.skills.size()) && items.cards ? card::FindSkill(*items.cards, r.skills[size_t(focus)].card) : nullptr;
+    ui.HideInstance(preview, !c);
+    ui.HideInstance(window, !c);
+    for (int k = 0; k < kIcons; ++k) {
+        ui.HideNode(IconPath(k), "icon_frame00_on", k != focus);
+        ui.HideNode(IconPath(k), "icon_frame00_off", k == focus);
+    }
+    if (!c) return;
+    const LiveResult::Skill& s = r.skills[size_t(focus)];
+    ui.SetMaterialTexture(preview + "/uip0013_Reward00", "rew_card00_M", SkillThumbPath(c->id, lang, false));
+    for (const char* node : {"rew_card_frame01", "boost_item00"}) ui.HideNode(preview + "/uip0013_Reward00", node, true);
+    for (const char* inst : {"/ctg03_uip0006_Badge00", "/common_uip0020_CheckMark00_00", "/common_uip0020_CheckMark00_01"}) {
+        ui.HideInstance(preview + inst, true);
+    }
+    ui.SetInstanceText(preview + "/uip0014_RewName00", 0, m.Get(550));
+    ui.SetInstanceText(preview + "/uip0013_Reward00", 0, "");  // a profile card's caption
+    ui.SetInstanceText(window, 1, "");                         // the profile card note (message 563)
+    std::string level = LevelText(m, s.level, c->max_level);
+    if (s.level_before > 0 && s.level_before != s.level) level = Fill(m.Get(554), {LevelText(m, s.level_before, c->max_level), level});
+    // member names: messages 197-216 in the drop table's member order (µ's 1-9, Aqours 11-19, Saint Snow 21-22)
+    const int index = c->member <= 9 ? c->member - 1 : c->member <= 19 ? c->member - 2 : c->member - 3;
+    ui.SetInstanceText(window, 0, Fill(m.Get(560), {m.Get(197 + index), c->name[size_t(language)], level}));
+}
 
 }
 
@@ -28,7 +121,7 @@ constexpr const char* kLayout = "uil0001_ResultTop00/uil0002_ResultLayout00";
 // show their parts' defaults; the values the port knows are filled in (score, counts, max combo, clear rate, rank,
 // title, cover)
 bool RunResult(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, const LiveResult& r,
-               long max_frames, const save::NewBests& news) {
+               long max_frames, const save::NewBests& news, const ResultItems* items) {
     route::SetScreen("result");
     UiText text;
     std::string error;
@@ -76,6 +169,13 @@ bool RunResult(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
         for (const live::SongInfo& s : songs) {
             if (s.id != r.song) continue;
             ui.SetInstanceText(song_data, 0, s.title);
+            // the group header (00_common parts) follows the song, as in the song select (it showed Aqours always)
+            const bool aqours = s.group != 0;
+            const std::string bg = std::string(kRoot) + "/common_uil0101_ComBGGroup_Member01";
+            ui.HideInstance(bg + "/common_uip0400_ComTopBG_Ms00", aqours);
+            ui.HideInstance(bg + "/common_uip0410_ComTopBG_Aqours00", !aqours);
+            ui.HideNode(std::string(kRoot) + "/common_uip0008_GroupTab00", "select_group00", aqours);
+            ui.HideNode(std::string(kRoot) + "/common_uip0008_GroupTab00", "select_group01", !aqours);
             char cover[96];
             std::snprintf(cover, sizeof(cover), "ui/ui_music_thumbnail.pac/texture.pac/cd_cover_%04d", s.id);
             ui.SetMaterialTexture(song_data, "cd_jacket00_M", cover);
@@ -101,6 +201,22 @@ bool RunResult(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
     SDL_SetWindowTitle(window, "SIF port - result");
     LogInfo("result: song {:04d}/{:02d}, score {:.0f}, max combo {}, clear rate {}, rank {}", r.song, r.variant, r.score,
             r.max_combo, rate, r.rank);
+    Messages messages;
+    if (items && !messages.Load(vfs, language, &error)) LogWarn("result: messages: {}", error);
+    bool rewards = false;  // the Items Obtained page is showing
+    int focus = 0;
+    const auto turn_page = [&] {
+        rewards = true;
+        route::SetScreen("result_items");
+        ui.HideInstance(kLayout, true);
+        ui.SetMaterialUv(std::string(kRoot) + "/uip0001_ResuitTitle00", "title_page00_M", 0.5f, 0);  // "Items Obtained"
+        FillRewards(ui, r, *items, messages);
+        ShowCard(ui, r, *items, messages, language, lang, focus);
+        ui.Play("*", UiScreen::ClipName(1), false);
+        std::string cards;
+        for (const LiveResult::Skill& s : r.skills) cards += " " + std::to_string(s.card);
+        LogInfo("result: items obtained: {} skill cards{}, {} materials", r.skills.size(), cards, r.materials.size());
+    };
     bool open = true;
     ScreenFade fade;
     uint64_t last = SDL_GetTicksNS();
@@ -108,7 +224,19 @@ bool RunResult(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
         SDL_Event e;
         while (PollEvent(e)) {
             if (e.type == SDL_EVENT_QUIT) open = false;
-            if ((e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat) || e.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN) fade.Leave(ui);
+            if (!((e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat) || e.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN)) continue;
+            const bool left = e.type == SDL_EVENT_KEY_DOWN && e.key.scancode == SDL_SCANCODE_LEFT;
+            const bool right = e.type == SDL_EVENT_KEY_DOWN && e.key.scancode == SDL_SCANCODE_RIGHT;
+            if (items && !rewards) {
+                turn_page();
+            } else if (rewards && (left || right)) {
+                const int n = std::max(1, int(r.skills.size()));
+                focus = (focus + (right ? 1 : n - 1)) % n;
+                ShowCard(ui, r, *items, messages, language, lang, focus);
+                if (focus < int(r.skills.size())) LogInfo("result: skill card {}", r.skills[size_t(focus)].card);
+            } else {
+                fade.Leave(ui);
+            }
         }
         const uint64_t now = SDL_GetTicksNS();
         ui.Update(double(now - last) / 1e9);
@@ -119,6 +247,7 @@ bool RunResult(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
             continue;
         }
         ui.DrawLayout(renderer, kRoot, 1.0f);
+        if (rewards) ui.DrawLayout(renderer, kReward, 1.0f);
         fade.Draw(renderer);
         renderer.EndFrame();
     }

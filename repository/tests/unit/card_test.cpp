@@ -1,5 +1,7 @@
 // Skill cards and member cards (src/game/card/card.cpp) against the user's own dump, and the save's skill slots.
+#include <cmath>
 #include <cstdio>
+#include <random>
 #include <filesystem>
 #include <string>
 
@@ -96,6 +98,42 @@ int main(int argc, char** argv) {
     Check(save::Load(file, back, &error) && back.skill_slots == save.skill_slots && back.owned == save.owned,
           "save round trip of skill slots and copies");
     std::filesystem::remove(file);
+
+    // after-live drops (S6): member weights 11 (µ's) / 9 (Aqours, Saint Snow), + Skill Drop Boost for the played member
+    std::mt19937 random(12345);
+    const auto member_share = [&](int member, int boost, int target) {
+        int hits = 0, wrong_group = 0;
+        constexpr int kDraws = 20000;
+        for (int i = 0; i < kDraws; ++i) {
+            const card::SkillCard* c = card::FindSkill(data, card::DrawSkillCard(data, member, boost, random));
+            if (!c || (member <= 9) != (c->member <= 9) || c->no_drop) ++wrong_group;
+            if (c && c->member == target) ++hits;
+        }
+        return wrong_group ? -1.0 : double(hits) / kDraws;
+    };
+    const double plain = member_share(1, 0, 1), boosted = member_share(1, 50, 1), aqours = member_share(11, 0, 21);
+    Check(std::abs(plain - 1.0 / 9) < 0.01, "µ's: each member 1/9 of the draws: " + std::to_string(plain));
+    Check(std::abs(boosted - 61.0 / 149) < 0.015, "boost 50: the played member 61/149: " + std::to_string(boosted));
+    Check(std::abs(aqours - 1.0 / 11) < 0.01, "Aqours draw: Saint Snow's Sarah 1/11, never µ's: " + std::to_string(aqours));
+    const card::SkillCard* charge = nullptr;
+    for (const card::SkillCard& c : data.skills) {
+        if (!charge && c.member == 1 && c.kind == card::kGettingSkillsCharge) charge = &c;
+    }
+    Check(charge != nullptr, "Honoka has a Getting Skills Charge card");
+    if (charge) {
+        save::SaveData s;
+        for (int k = 0; k < 10; ++k) card::AddSkill(data, s, charge->id);  // level 10
+        s.skill_slots[1] = {charge->id, 0, 0};
+        const int pct = card::SkillSum(data, s, 1, card::kGettingSkillsCharge);
+        int two_at_s = 0, two_at_a = 0;
+        for (int i = 0; i < 10000; ++i) {
+            two_at_s += card::RollSkillDrops(data, s, 1, 4, random).size() == 2;
+            two_at_a += card::RollSkillDrops(data, s, 1, 3, random).size() == 2;
+        }
+        Check(pct == charge->At(10).amount && std::abs(two_at_s / 100.0 - pct) < 1.5 && two_at_a == 0,
+              "Getting Skills Charge " + std::to_string(pct) + "%: a second card at rank S (" + std::to_string(two_at_s) +
+                  " of 10000), never at A");
+    }
 
     std::printf(failures ? "card_test FAILED\n" : "card_test OK\n");
     return failures ? 1 : 0;

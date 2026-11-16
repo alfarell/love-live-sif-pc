@@ -87,7 +87,9 @@ bool UiScreen::Load(Renderer& renderer, const Vfs& vfs, const std::string& scree
                                 {{1, -1, 0}, {0, 0, 1}, {1, 1}}, {{0, -1, 0}, {0, 0, 1}, {0, 1}}};
     const uint16_t indices[6] = {0, 1, 2, 0, 2, 3};
     if (!renderer.CreateMesh(quad, indices, false, unit_quad_, error)) return false;
-    {
+    // number tables per package, like the text tables: parts borrowed from 00_common (e.g. the material rows of the
+    // result's Items Obtained page) take their boxes and digit textures from their own package
+    for (const auto& [num_package, part_prefix] : packages_) {
         // ll3::ui::s_ui_number_info_table: 24-byte records (u32 part id, u32 box | numtex id << 16,
         // u32 digit count << 16, u32 alignment, u64 default string*); s_ui_numtex_datas: 200-byte records (u32 id,
         // u32 0, u64 texture name*, f32 x0, y0, cell w, h, u64 0, 20 x (f32 advance, u32 0))
@@ -95,8 +97,8 @@ bool UiScreen::Load(Renderer& renderer, const Vfs& vfs, const std::string& scree
         std::vector<blbn::Symbol> nsym, tsym;
         const blbn::Symbol* ntab = nullptr;
         const blbn::Symbol* ttab = nullptr;
-        if (vfs.Read(package_ + "/ui_number.bin", nfile) && blbn::Parse(nfile, nsym) &&
-            (ntab = blbn::Find(nsym, "ll3::ui::s_ui_number_info_table")) && vfs.Read(package_ + "/numtex_datas.bin", tfile) &&
+        if (vfs.Read(num_package + "/ui_number.bin", nfile) && blbn::Parse(nfile, nsym) &&
+            (ntab = blbn::Find(nsym, "ll3::ui::s_ui_number_info_table")) && vfs.Read(num_package + "/numtex_datas.bin", tfile) &&
             blbn::Parse(tfile, tsym) && (ttab = blbn::Find(tsym, "ll3::ui::s_ui_numtex_datas"))) {
             const auto u32 = [](const std::vector<uint8_t>& f, size_t off) {
                 uint32_t v = 0;
@@ -121,9 +123,9 @@ bool UiScreen::Load(Renderer& renderer, const Vfs& vfs, const std::string& scree
                 char prefix[16];
                 std::snprintf(prefix, sizeof(prefix), "uip%04u_", id);
                 for (const auto& [name, part] : parts_) {
-                    if (!name.starts_with(prefix)) continue;
+                    if (!name.starts_with(part_prefix + prefix)) continue;
                     numbers_[{name, int(packed & 0xFFFF)}] = {int(packed >> 16), int(u32(nfile, nbase + r + 8) >> 16),
-                                                             int(u32(nfile, nbase + r + 12)), str(nfile, def)};
+                                                             int(u32(nfile, nbase + r + 12)), str(nfile, def), part_prefix};
                 }
             }
             const size_t tbase = size_t(ttab->data.data() - tfile.data());
@@ -133,7 +135,7 @@ bool UiScreen::Load(Renderer& renderer, const Vfs& vfs, const std::string& scree
                 std::string tex = str(tfile, name);
                 // entries are named "x.btx" (or "x" with tag btx): "x.btx" matches both
                 if (tex.ends_with(".png")) tex.resize(tex.size() - 4);
-                t.texture = GetTexture(package_ + "/texture.pac/" + tex + ".btx");
+                t.texture = GetTexture(num_package + "/texture.pac/" + tex + ".btx");
                 t.x0 = f32(tfile, tbase + r + 16);
                 t.y0 = f32(tfile, tbase + r + 20);
                 t.w = f32(tfile, tbase + r + 24);
@@ -143,7 +145,7 @@ bool UiScreen::Load(Renderer& renderer, const Vfs& vfs, const std::string& scree
                 const float u = t.w / float(t.texture->width), v = t.h / float(t.texture->height);
                 const MeshVertex cell[4] = {{{0, 0, 0}, {0, 0, 1}, {0, 0}}, {{1, 0, 0}, {0, 0, 1}, {u, 0}},
                                             {{1, -1, 0}, {0, 0, 1}, {u, v}}, {{0, -1, 0}, {0, 0, 1}, {0, v}}};
-                if (renderer.CreateMesh(cell, indices, false, t.glyph, nullptr)) numtex_[int(u32(tfile, tbase + r))] = t;
+                if (renderer.CreateMesh(cell, indices, false, t.glyph, nullptr)) numtex_[{part_prefix, int(u32(tfile, tbase + r))}] = t;
             }
         }
     }
@@ -326,9 +328,14 @@ namespace {
 
 // Glyph slot of a number-box character: '0'-'9' are 0-9; res_record_num00's clear-rate row also has '%' in slot 15 and
 // '.' in slot 18 (their advances in s_ui_numtex_datas are the digits' width). -1: not drawn.
+// 00_common's com_material_number00/01 have the full second row: / ( ) + - % x * in slots 10-17.
 int GlyphSlot(char c) {
     if (c >= '0' && c <= '9') return c - '0';
-    return c == '%' ? 15 : c == '.' ? 18 : -1;
+    static constexpr char kRow2[] = "/()+-%x*";
+    for (int k = 0; k < 8; ++k) {
+        if (c == kRow2[k]) return 10 + k;
+    }
+    return c == '.' ? 18 : -1;
 }
 
 }
@@ -342,7 +349,7 @@ void UiScreen::DrawNumbers(Renderer& renderer, const std::string& part, const st
         if (boxes.empty()) boxes = model->second.model->TextBoxes();
         const int box = it->first.second;
         const NumberBox& spec = it->second;
-        const auto tex = numtex_.find(spec.numtex);
+        const auto tex = numtex_.find({spec.prefix, spec.numtex});
         if (tex == numtex_.end() || box >= int(boxes.size())) continue;
         const NumTex& nt = tex->second;
         const auto own = instance_numbers_.find({path, box});

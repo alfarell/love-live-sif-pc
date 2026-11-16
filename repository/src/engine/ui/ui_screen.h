@@ -144,6 +144,7 @@ private:
     struct NumberBox {
         int numtex = 0, digits = 0, align = 2;  // align: 0 left, 1 centre, 2 right (Hypothesis: 2 everywhere)
         std::string value;                      // the table's default
+        std::string prefix;                     // the part's package prefix ("", "common_" ...): numtex ids are per package
     };
     struct NumTex {
         const Texture* texture = nullptr;
@@ -152,7 +153,7 @@ private:
         GpuMesh glyph;                          // one cell's quad, (0,0)-(1,-1) with the cell's UV span
     };
     std::map<std::pair<std::string, int>, NumberBox> numbers_;      // (part, box)
-    std::map<int, NumTex> numtex_;                                  // numtex id
+    std::map<std::pair<std::string, int>, NumTex> numtex_;          // (package prefix, numtex id)
     std::map<std::pair<std::string, int>, std::string> instance_numbers_;
     GpuMesh unit_quad_;  // (0,0)-(1,-1), for text bitmaps
     Renderer* renderer_ = nullptr;

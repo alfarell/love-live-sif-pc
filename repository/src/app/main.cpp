@@ -469,9 +469,20 @@ int main(int argc, char** argv) {
                                             ? std::atoi(result.costume.c_str() + 1) : -1;
                     news = sif::save::Record(save, {result.song, result.variant, int(result.score), result.max_combo, result.rank,
                                                     result.clear_rate, full_combo, result.counts[0], result.counts[1], costume});
+                    if (has_cards) {  // skill cards (M11 S6): one draw, a second at rank S with Getting Skills Charge
+                        for (const int id : sif::card::RollSkillDrops(card_data, save, skills.member, result.rank, drop_random)) {
+                            const int before = sif::card::Level(card_data, save, id);
+                            const int level = sif::card::AddSkill(card_data, save, id);
+                            const sif::card::SkillCard* c = sif::card::FindSkill(card_data, id);
+                            sif::LogInfo("skill card: {} {} (member {}), level {} -> {}", id, c ? c->name[size_t(language)] : "",
+                                         c ? c->member : 0, before, level);
+                            result.skills.push_back({id, before, level});
+                        }
+                    }
                     if (has_costumes) {  // the song's materials (costume::RollDrops)
                         std::string got;
                         for (const auto& [item, amount] : sif::costume::RollDrops(costume_data, result.song, drop_random, save)) {
+                            result.materials.push_back({item, amount});
                             const sif::costume::Item* i = sif::costume::FindItem(costume_data, item);
                             got += (got.empty() ? "" : ", ") + (i ? i->name[size_t(language)] : std::to_string(item)) + " x" +
                                    std::to_string(amount);
@@ -486,9 +497,10 @@ int main(int argc, char** argv) {
                     }
                     LogNewMissions(missions, accolades, songs, dresses, language, before, save);
                 }
+                const sif::ResultItems result_items{has_cards ? &card_data : nullptr, has_costumes ? &costume_data : nullptr, &save};
                 open = code == 0 && !result.closed &&
                        (!result.finished || sif::RunResult(window, renderer, vfs, options.live_options.lang, result,
-                                                           options.frames, news));
+                                                           options.frames, news, &result_items));
             }
             loading.Release(renderer);
         } else if (boot) {

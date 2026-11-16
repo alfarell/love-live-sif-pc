@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
+#include <random>
 #include <span>
 
 #include "engine/formats/blbn.h"
@@ -127,6 +128,55 @@ std::array<int, kSlots> Slots(const Data& data, const save::SaveData& save, int 
         if (c && c->member == member && Level(data, save, id) > 0) slots[size_t(s)] = id;
     }
     return slots;
+}
+
+int SkillSum(const Data& data, const save::SaveData& save, int member, int kind) {
+    int sum = 0;
+    for (int id : Slots(data, save, member)) {
+        const SkillCard* c = FindSkill(data, id);
+        if (c && c->kind == kind) sum += c->At(Level(data, save, id)).amount;
+    }
+    return sum;
+}
+
+int DrawSkillCard(const Data& data, int member, int boost, std::mt19937& random) {
+    // eboot FUN_001f2ab0 pool 0: member index 0-8 (µ's 1-9) weigh 11 each, 9-19 (11-19, 21-22) weigh 9 each; the
+    // played member's weight gains the Skill Drop Boost sum (FUN_000a68d0)
+    static constexpr int kMembers[20] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19, 21, 22};
+    const bool mus = member >= 1 && member <= 9;
+    const int first = mus ? 0 : 9, last = mus ? 9 : 20;
+    const double base = mus ? 11 : 9;
+    double total = 0;
+    for (int i = first; i < last; ++i) total += base + (kMembers[i] == member ? boost : 0);
+    double r = std::uniform_real_distribution<double>(0, total)(random);
+    int picked = kMembers[last - 1];
+    for (int i = first; i < last; ++i) {
+        r -= base + (kMembers[i] == member ? boost : 0);
+        if (r < 0) {
+            picked = kMembers[i];
+            break;
+        }
+    }
+    // then one card uniformly among that member's cards in the pool
+    std::vector<int> cards;
+    for (int id : data.drop_pool) {
+        const SkillCard* c = FindSkill(data, id);
+        if (c && c->member == picked) cards.push_back(id);
+    }
+    if (cards.empty()) return 0;
+    return cards[std::uniform_int_distribution<size_t>(0, cards.size() - 1)(random)];
+}
+
+std::vector<int> RollSkillDrops(const Data& data, const save::SaveData& save, int member, int rank, std::mt19937& random) {
+    std::vector<int> got;
+    const int boost = SkillSum(data, save, member, kSkillDropBoost);
+    if (const int id = DrawSkillCard(data, member, boost, random)) got.push_back(id);
+    // a second draw at rank S or better (result +0xC87 > 3) with Getting Skills Charge %: roll x 100 <= the sum
+    const int charge = SkillSum(data, save, member, kGettingSkillsCharge);
+    if (rank > 3 && charge > 0 && std::uniform_real_distribution<double>(0, 100)(random) <= charge) {
+        if (const int id = DrawSkillCard(data, member, boost, random)) got.push_back(id);
+    }
+    return got;
 }
 
 }
