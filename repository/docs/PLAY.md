@@ -46,11 +46,17 @@ Options → Control Settings changes the controller's lane buttons, separately f
 ## Playing
 
 - **Top menu:** Left/Right turn the wheel, Up/Down pick an entry.
-- **Playing a song:** Play → **Play Live Show** has the home charts (BEGINNER, STANDARD, HYPER, ADVENTURE, on 6 lanes); **Play Live Show (AC)** has the arcade charts (EASY to CHALLENGE, on 9 lanes). Pick a song, a difficulty, a stage and a costume (Left/Right, then Enter at each step); the last Enter starts the live. ADVENTURE opens once you get A or better on that song's HYPER. At the end ALL PERFECT or FULL COMBO shows if you earned it, then LIVE CLEAR; the result screen then shows your score, and any key returns to the song select.
+- **Playing a song:** Play → **Play Live Show** has the home charts (BEGINNER, STANDARD, HYPER, ADVENTURE, on 6 lanes); **Play Live Show (AC)** has the arcade charts (EASY to CHALLENGE, on 9 lanes). Pick a song, a difficulty, a stage and a costume (Left/Right, then Enter at each step). The costume step shows the played member's member card for each costume. Then **Prepare for the Live Show**: Enter (or LIVE START) starts the live. ADVENTURE opens once you get A or better on that song's HYPER. At the end ALL PERFECT or FULL COMBO shows if you earned it, then LIVE CLEAR. The result screen shows your score; a key turns to **Items Obtained** (the skill cards and materials the live gave; Left/Right pick a card), and another key returns to the song select.
 - **Lives** show the stage with its screens playing the song's video, and the members dancing to the song's own camera.
 - **Saves:** best scores, ranks and play counts are kept in `save.txt`. The song select shows each chart's best rank; the result screen marks new bests.
+- **Skill cards:**
+  - every finished live drops a skill card (a second one at rank S with Getting Skills Charge); a copy you already own raises its level, up to its maximum;
+  - tasks give skill cards too;
+  - Prepare for the Live Show → Skill Card Selection sets up to three of the played member's cards (Space sets a card, Page Down removes one);
+  - Collection → Skill Card shows every member's cards (L1/R1 change the member, Tab the group);
+  - in a live, a set card fires on its phase's skill note (the first Rhythm Icon of the phase) and its name shows at the top: Judge Support and Judge Plus help the timing, Combo Support keeps the combo on a Good, Long Notes Support finishes holds, Finale Support collects missed icons; material and drop skills act after the live.
 - **Costumes:**
-  - every finished live gives materials;
+  - every finished live gives materials (more at higher ranks; a costume made for the song's materials helps);
   - Costumes → Costume Materials lists them;
   - Create/Change Costumes makes costumes and puts them on members (PageUp/PageDown changes the member).
 - **Missions:** Event → Task List shows the missions and their progress; Enter claims a reward.
@@ -74,11 +80,12 @@ Options → Control Settings changes the controller's lane buttons, separately f
 
 - **Online features:** rankings, the add-on store and its trial movies, network events. There will be no purchasing.
 - **Not built yet:**
-  - skills and member or skill cards;
+  - profile cards and their support skills, Collection → Member Card;
+  - the skill voice and 3D skill effects, Shoutout, Member Focus's camera;
   - boosters, Friendship levels and events;
   - "Trying It On" and special costume colours;
   - the 3D navigator (the top menu shows Honoka's voice lines only).
-- **Not built either:** View Live Show and Live Show Medley, the "Prepare for the Live Show" screen, controller vibration.
+- **Not built either:** View Live Show and Live Show Medley, Prepare's Game Settings button and booster panel, controller vibration.
 - **Simplified:** some screen transitions, animations and small icons; a locked difficulty shows its padlock but is not darkened; the arcade CHALLENGE chart is open from the start (the game asks for A on EXTREME first).
 
 The project's roadmap lists the details.

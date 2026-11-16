@@ -1,0 +1,30 @@
+# M11 S7: Play Live Show -> song -> difficulty -> stage -> Select Costume: the played member's member card in each
+# costume plate and the large card of the focused costume (shadPS4 S2 s12)
+timeout 120s
+expect screen title 30s
+press enter until menu 30s
+wait 1500ms
+key enter
+expect screen select 20s
+wait 1500ms
+key enter
+wait 1200ms
+key enter
+wait 800ms
+key enter
+wait 1500ms
+expect log song select: costume 31 'Bokura no LIVE Kimi to no LIFE', member 1 card mbc_10310
+shot costume_step
+key right
+wait 600ms
+expect log song select: costume 4 'Snow Halation', member 1 card mbc_10040
+shot costume_step_next
+key esc
+wait 600ms
+key esc
+wait 600ms
+key esc
+wait 600ms
+key esc
+expect screen menu 20s
+expect nolog error

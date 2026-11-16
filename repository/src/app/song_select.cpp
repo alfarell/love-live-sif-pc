@@ -189,11 +189,34 @@ bool Locked(const Mode& mode, const save::SaveData* save, int song, int d) {
     return !hyper || hyper->best_rank < 3;  // 0 D, 1 C, 2 B, 3 A
 }
 
-// The costume step, the port's own: one costume for every member (the game dresses each member through member
-// cards, which the port does not have). It uses the song list's plates' uip0045_CosSelect00: the costume thumbnail
-// (ui_dress_thumbnail dress_thumb_NNNN) in its icon slot and the name in text box 0; the member-card pictures are
-// hidden. The uniform (d000) has no thumbnail and keeps the part's icon.
-void ApplyCostumes(UiScreen& ui, const std::vector<DressInfo>& costumes, int costume, bool show) {
+// The played member's R member card for a costume (M11 S7): ui_member_card_thumbnail mbc_<card id>, the
+// s_member_card_datas row of that member whose +0x14 is the costume and whose id ends in 0 (the R picture; 1 is the HR
+// "special colour" one). "" when the member has no card for it (the uniform d000).
+std::string MemberCardPath(const card::Data* cards, int member, int dress) {
+    if (!cards) return {};
+    for (const card::MemberCard& c : cards->members) {
+        if (c.member == member && c.costume == dress && c.id % 10 == 0) {
+            return "ui/ui_member_card_thumbnail.pac/texture.pac/mbc_" + std::to_string(c.id);
+        }
+    }
+    return {};
+}
+
+// What the costume step shows besides the list: the played member's cards and the costume's description.
+struct CostumeArt {
+    const card::Data* cards = nullptr;
+    int member = 1;
+    const costume::Data* data = nullptr;
+    int language = 1;
+};
+
+// The costume step (Select Costume): the game's uil0025_CosSelect00 over the step layout (shadPS4 S2 s12) with the
+// costume's picture (ctg30 CosPreview), name, description (common SelectInfoWin) and the played member's large card
+// (uip0047_CharaCard00); the song list's plates' uip0045_CosSelect00 show that member's card for each costume, or the
+// costume thumbnail when there is no card (d000). shortcut: the 3D member behind the curtain, special colours (L2),
+// the costume effect line and the "N/M Sets" counter are not built
+constexpr const char* kCostumeLayout = "uil0025_CosSelect00";
+void ApplyCostumes(UiScreen& ui, const std::vector<DressInfo>& costumes, int costume, bool show, const CostumeArt& art) {
     const int n = int(costumes.size());
     for (int k = 0; k < kPlates; ++k) {
         const std::string plate = Plate(k) + "/uip0045_CosSelect00";
@@ -206,13 +229,52 @@ void ApplyCostumes(UiScreen& ui, const std::vector<DressInfo>& costumes, int cos
             ui.SetMaterialTexture(plate, "cos_icon00_M", thumb);
         }
         ui.SetInstanceText(plate, 0, d.name);
-        for (const char* node : {"card_side00", "card_side00_line", "card_center00", "card_center00_line", "cos_lock_ribbon00",
-                                 "lock_icon00", "cos_select_bg00_eff00"}) {
+        for (const char* node : {"card_side00", "card_side00_line", "cos_lock_ribbon00", "lock_icon00", "cos_select_bg00_eff00"}) {
             ui.HideNode(plate, node, true);
         }
+        const std::string card = MemberCardPath(art.cards, art.member, d.id);
+        if (!card.empty()) ui.SetMaterialTexture(plate, "card_center00_M", card);
+        for (const char* node : {"card_center00", "card_center00_line"}) ui.HideNode(plate, node, card.empty());
+        for (const char* node : {"cos_icon00", "cos_icon00_line"}) ui.HideNode(plate, node, !card.empty());
         ui.HideNode(plate, "cos_select_bg00_on", k != 0);
         ui.HideNode(plate, "cos_select_bg00_off", k == 0);
     }
+    // the list's counter: "N/M Sets" (uip0049_CosNumber00) instead of the songs' count and the Detail View button
+    // (Hypothesis: N is the focused costume's place in the list; s12 shows 13/29 on School Unity)
+    const std::string list = std::string(kRoot) + "/uil0013_MusicList00";
+    ui.HideInstance(list + "/uip0014_MusicNumber00", show);
+    ui.HideInstance(list + "/common_uip0002_InfoButton00_00", show);
+    ui.HideInstance(list + "/uip0049_CosNumber00", !show || n == 0);
+    if (!show || n == 0) return;
+    ui.SetInstanceNumber(list + "/uip0049_CosNumber00", 0, std::to_string(costume + 1) + "/" + std::to_string(n));
+    const std::string root = kCostumeLayout;
+    for (const char* p : {"/common_uip0014_OpeButton00", "/ctg30_uip0010_FittingMark00", "/uip0059_CosCurtain00"}) {
+        ui.HideInstance(root + p, true);
+    }
+    const DressInfo& d = costumes[size_t(costume)];
+    ui.SetInstanceText(root + "/ctg30_uip0003_CosName00", 0, d.name);
+    const std::string preview = root + "/ctg30_uip0007_CosPreview00";
+    if (d.id > 0) ui.SetMaterialTexture(preview, "costume_preview00_M", costume::ThumbPath(d.id));
+    for (const char* node : {"preview00_card00_R", "preview00_card00_R_line", "preview00_card00_HR", "preview00_card00_HR_line"}) {
+        ui.HideNode(preview, node, true);
+    }
+    // the costume's info picture (effect line, "Costumes for Nine", the members): ui_dress_info_popup cos_pop_info_NNNN_T
+    const std::string info = root + "/ctg30_uip0006_CosInfo00";
+    char pop[96];
+    std::snprintf(pop, sizeof(pop), "ui/ui_dress_info_popup%s.pac/texture.pac/cos_pop_info_%04d_T",
+                  art.language == 1 ? "_en" : art.language == 2 ? "_cn" : art.language == 3 ? "_tw" : "", d.id);
+    if (!ui.SetMaterialTexture(info, "cos_info_member00_M", pop)) LogWarn("song select: no {}", pop);
+    for (const char* node : {"status_label00", "status_label01", "status_label02", "status_label03", "cos_caution00"}) {
+        ui.HideNode(info, node, true);
+    }
+    const costume::Recipe* recipe = art.data ? costume::FindRecipe(*art.data, d.id) : nullptr;
+    ui.SetInstanceText(root + "/common_uip0009_SelectInfoWin00", 0, recipe ? recipe->text[size_t(art.language)] : "");
+    ui.SetInstanceText(root + "/common_uip0009_SelectInfoWin00", 1, "");
+    const std::string card = MemberCardPath(art.cards, art.member, d.id);
+    LogInfo("song select: costume {} '{}', member {} card {}", d.id, d.name, art.member,
+            card.empty() ? "none" : card.substr(card.rfind('/') + 1));
+    ui.HideInstance(root + "/uip0047_CharaCard00", card.empty());
+    if (!card.empty()) ui.SetMaterialTexture(root + "/uip0047_CharaCard00", "chara_card00_M", card);
 }
 
 // Prepare for the Live Show (uil0027_LiveStart00, drawn over the step layout; the game's screen in shadPS4,
@@ -258,12 +320,12 @@ void ApplyPrepare(UiScreen& ui, const SkillSetup* skills, const Messages& messag
 
 void Apply(UiScreen& ui, const Mode& mode, const std::vector<SongInfo>& songs, int current, Step step, int difficulty,
            const std::vector<StageInfo>& stages, int stage, const std::vector<DressInfo>& costumes, int costume,
-           const save::SaveData* save) {
+           const save::SaveData* save, const CostumeArt& art) {
     for (const char* other : kOtherSteps) ui.HideInstance(std::string(kRoot) + "/" + other, true);
     ui.HideInstance(std::string(kRoot) + "/uil0013_MusicList00", step == kDifficultyStep || step == kPrepareStep);
-    // Prepare shows its own panels where the song's preview, members and sort bar were (shadPS4 s13)
+    // Select Costume and Prepare show their own panels where the song's preview, members and sort bar were (s12, s13)
     for (const char* p : {"/uil0010_MusicSelect00", "/uip0010_MusicPreview00", "/uil0017_MenuPage00"}) {
-        ui.HideInstance(std::string(kRoot) + p, step == kPrepareStep);
+        ui.HideInstance(std::string(kRoot) + p, step == kPrepareStep || step == kCostumeStep);
     }
     ui.HideInstance(std::string(kRoot) + "/" + mode.Plates(), step != kDifficultyStep);
     ui.HideInstance(std::string(kRoot) + "/" + mode.OtherPlates(), true);
@@ -278,7 +340,7 @@ void Apply(UiScreen& ui, const Mode& mode, const std::vector<SongInfo>& songs, i
     ui.SetMaterialUv(top, "title_mode00", 0, mode.home ? 0.0f : 0.25f);
     ui.SetMaterialUv(top, "title_page01", kPageUv[step][0], kPageUv[step][1] + (mode.home ? 0.0f : 0.5f));
     ApplyStages(ui, stages, stage, step == kStageStep);
-    ApplyCostumes(ui, costumes, costume, step == kCostumeStep);
+    ApplyCostumes(ui, costumes, costume, step == kCostumeStep, art);
     const int n = int(songs.size());
     for (int k = 0; k < kPlates; ++k) {
         const std::string plate = Plate(k);
@@ -448,12 +510,13 @@ SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs,
     Messages messages;
     if (skills && !messages.Load(vfs, language, &error)) LogWarn("song select: messages: {}", error);
     const Step last_step = skills ? kPrepareStep : kCostumeStep;
+    const CostumeArt art{skills ? skills->cards : nullptr, skills ? skills->member : 1, costume_data, language};
     int prepare = 3;  // the Prepare step's focus: 0-2 the sub-buttons, 3 LIVE START
     Step step = kSongStep;
     SongChoice choice;
     bool running = true;
     ScreenFade fade;
-    Apply(ui, mode, songs, current, step, difficulty, stages, stage, costumes, costume, save);
+    Apply(ui, mode, songs, current, step, difficulty, stages, stage, costumes, costume, save, art);
     uint64_t last = SDL_GetTicksNS();
     for (long frame = 0; running && !fade.Left() && (max_frames < 0 || frame < max_frames); ++frame) {
         SDL_Event e;
@@ -531,7 +594,7 @@ SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs,
                     break;
                 default: break;
             }
-            Apply(ui, mode, songs, current, step, difficulty, stages, stage, costumes, costume, save);
+            Apply(ui, mode, songs, current, step, difficulty, stages, stage, costumes, costume, save, art);
             if (step == kPrepareStep) ApplyPrepare(ui, skills, messages, language, prepare);
             const SongInfo& s = songs[size_t(current)];
             char title[256];
@@ -552,6 +615,7 @@ SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs,
         }
         ui.DrawLayout(renderer, kRoot, 1.0f);
         if (step == kPrepareStep) ui.DrawLayout(renderer, kPrepare, 1.0f);
+        if (step == kCostumeStep && !costumes.empty()) ui.DrawLayout(renderer, kCostumeLayout, 1.0f);
         fade.Draw(renderer);
         renderer.EndFrame();
     }

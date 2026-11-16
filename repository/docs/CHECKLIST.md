@@ -55,7 +55,7 @@ Your own play is the reference. [PLAY.md](PLAY.md) lists the keys and what is no
 
 - [x] Score, max combo, the five counts and the rank match the play.
 - [x] NEW marks a new best only.
-- [x] Any key returns to the song select.
+- [x] Any key returns to the song select. (Since M11 the first key turns to Items Obtained; see below.)
 
 ## Costumes (routes `costumes`, `materials`; Shot: `costumes`, `costumes_made`, `materials`)
 
@@ -83,6 +83,16 @@ Your own play is the reference. [PLAY.md](PLAY.md) lists the keys and what is no
 - [x] **Keys:** `S D F J K L` on the keyboard; L1, Left, Down, Cross, Circle, R1 on the controller.
 - [x] **Control Settings:** the list has BEGINNER/STANDARD, HYPER/ADVENTURE and the AC row; Modify on a home row opens the 6-lane Button Controls, and a change there is used in that row's lives.
 - [x] **Records:** each home difficulty keeps its own best rank and score.
+
+## Skill and member cards (M11; routes `skill_collection`, `skill_select`, `live_skill`, `career_1_play`, `member_cards`; Shot: `skill_collection`, `skill_select`, `prepare_set`, `skill_banner`, `career_items`, `costume_step`)
+
+- [ ] **Prepare for the Live Show:** after the costume step; Skill Card in Use shows the played member's three cards (or "Skill not set."); Enter starts the live.
+- [ ] **Skill Card Selection:** only the played member's owned cards; Space on a slot then on a card sets it (a star marks cards in use); Page Down removes; OK keeps the choice after a restart.
+- [ ] **Collection → Skill Card:** member tabs (L1/R1, Tab for the group), owned cards face up, the others as card backs, Skill Info with the level.
+- [ ] **A skill in a live:** with Judge Support set, its banner appears when the first Rhythm Icon of phase 1 is hit, and slightly late presses are judged better for the card's seconds.
+- [ ] **Items Obtained:** after the results, a key shows the skill card the live dropped (picture, member, skill, level; "Lv. 1 → Lv. 2" for a copy) and the materials with ×gain and (total).
+- [ ] **Drops:** materials grow with the rank (about 5-8 units at D, 36-40 at SSS); a costume made for the song gives more.
+- [ ] **Select Costume:** the costume's picture, effect and description, and the played member's member card large on the right and on each costume plate.
 
 ## Options (routes `options_1_change`, `options_2_kept`, `controls`; Shot: `options_sound`, `control_settings`, `controls`)
 
