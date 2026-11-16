@@ -86,13 +86,13 @@ Your own play is the reference. [PLAY.md](PLAY.md) lists the keys and what is no
 
 ## Skill and member cards (M11; routes `skill_collection`, `skill_select`, `live_skill`, `career_1_play`, `member_cards`; Shot: `skill_collection`, `skill_select`, `prepare_set`, `skill_banner`, `career_items`, `costume_step`)
 
-- [ ] **Prepare for the Live Show:** after the costume step; Skill Card in Use shows the played member's three cards (or "Skill not set."); Enter starts the live.
-- [ ] **Skill Card Selection:** only the played member's owned cards; Space on a slot then on a card sets it (a star marks cards in use); Page Down removes; OK keeps the choice after a restart.
-- [ ] **Collection → Skill Card:** member tabs (L1/R1, Tab for the group), owned cards face up, the others as card backs, Skill Info with the level.
-- [ ] **A skill in a live:** with Judge Support set, its banner appears when the first Rhythm Icon of phase 1 is hit, and slightly late presses are judged better for the card's seconds.
-- [ ] **Items Obtained:** after the results, a key shows the skill card the live dropped (picture, member, skill, level; "Lv. 1 → Lv. 2" for a copy) and the materials with ×gain and (total).
-- [ ] **Drops:** materials grow with the rank (about 5-8 units at D, 36-40 at SSS); a costume made for the song gives more.
-- [ ] **Select Costume:** the costume's picture, effect and description, and the played member's member card large on the right and on each costume plate.
+- [x] **Prepare for the Live Show:** after the costume step; Skill Card in Use shows the played member's three cards (or "Skill not set."); Enter starts the live.
+- [x] **Skill Card Selection:** only the played member's owned cards; Space on a slot then on a card sets it (a star marks cards in use); Page Down removes; OK keeps the choice after a restart.
+- [x] **Collection → Skill Card:** member tabs (L1/R1, Tab for the group), owned cards face up, the others as card backs, Skill Info with the level.
+- [x] **A skill in a live:** with Judge Support set, its banner appears when the first Rhythm Icon of phase 1 is hit, and slightly late presses are judged better for the card's seconds.
+- [x] **Items Obtained:** after the results, a key shows the skill card the live dropped (picture, member, skill, level; "Lv. 1 → Lv. 2" for a copy) and the materials with ×gain and (total).
+- [x] **Drops:** materials grow with the rank (about 5-8 units at D, 36-40 at SSS); a costume made for the song gives more.
+- [x] **Select Costume:** the costume's picture, effect and description, and the played member's member card large on the right and on each costume plate.
 
 ## Options (routes `options_1_change`, `options_2_kept`, `controls`; Shot: `options_sound`, `control_settings`, `controls`)
 
