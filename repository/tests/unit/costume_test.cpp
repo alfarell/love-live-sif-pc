@@ -55,10 +55,44 @@ int main(int argc, char** argv) {
         Check(costume::Craft(*live, save) && costume::Owns(data, save, nullptr, 31), "craft costume 31");
         Check(costume::ItemCount(save, 1) == 1 && !costume::Craft(*live, save), "materials spent; made once");
     }
+    // the material drop (M11 S6b, eboot FUN_000679a0)
+    const costume::DropRules& rules = data.rules;
+    Check(rules.count[0] == std::pair{5, 8} && rules.count[6] == std::pair{36, 40} && rules.difficulty[0] == 0.8f &&
+              rules.difficulty[8] == 1.0f && rules.key_bonus == 1.2f,
+          "s_CommonParam: 5-8 units at rank D .. 36-40 at SSS, difficulty factors 0.8 .. 1.0, key bonus 1.2");
+    Check(rules.combine[0][0] == 1.5f && rules.combine[4][4] == 1.5f && rules.combine[0][4] == 1.0f,
+          "s_itemCombineDatas: 1.5 when the costume type matches the song type");
     std::mt19937 random(1);
-    int got = 0;
-    for (int i = 0; i < 100; ++i) got += int(costume::RollDrops(data, 10, random, save).size());
-    Check(got > 100 && got < 1500, "100 lives of 0010 drop some but not all materials: " + std::to_string(got));
+    const auto type_of = [&](int item) {
+        const costume::Item* i = costume::FindItem(data, item);
+        return i ? i->type : 0;
+    };
+    const auto units = [&](const costume::DropInput& in, int runs, int& lo, int& hi, bool& odd_keys, bool& common_yarn,
+                           bool& group_yarn) {
+        lo = 1 << 30, hi = 0, odd_keys = common_yarn = group_yarn = false;
+        for (int i = 0; i < runs; ++i) {
+            int n = 0;
+            bool group = false, common = false;
+            for (const auto& [item, amount] : costume::RollDrops(data, in, random, save)) {
+                n += amount;
+                odd_keys |= (type_of(item) == 1 || type_of(item) == 2) && amount % 2;
+                common |= type_of(item) == 3;
+                group |= type_of(item) >= 5 && type_of(item) % 2;
+            }
+            common_yarn |= common && group;  // a common yarn left although a group yarn dropped
+            group_yarn |= group;
+            lo = std::min(lo, n), hi = std::max(hi, n);
+        }
+    };
+    int lo, hi;
+    bool odd, common_left, group;
+    units({10, 0, 4, 0, {}}, 300, lo, hi, odd, common_left, group);
+    Check(lo >= 5 && hi <= 8, "rank D: 5-8 units per live: " + std::to_string(lo) + "-" + std::to_string(hi));
+    units({10, 6, 4, 0, {}}, 300, lo, hi, odd, common_left, group);
+    Check(lo >= 36 && hi <= 40, "rank SSS: 36-40 units: " + std::to_string(lo) + "-" + std::to_string(hi));
+    units({10, 6, 4, 0, {{34, 100}, {28, 100}}}, 300, lo, hi, odd, common_left, group);
+    Check(!odd && group && !common_left, "Lucky Key Charge 100%: keys come in twos; Converting Threads 100%: no common "
+                                         "yarn left when a group yarn dropped");
     std::printf("%s\n", failures ? "costume_test FAILED" : "costume_test ok");
     return failures ? 1 : 0;
 }

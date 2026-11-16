@@ -479,9 +479,15 @@ int main(int argc, char** argv) {
                             result.skills.push_back({id, before, level});
                         }
                     }
-                    if (has_costumes) {  // the song's materials (costume::RollDrops)
+                    if (has_costumes) {  // the song's materials (costume::RollDrops, eboot FUN_000679a0; M11 S6b)
+                        sif::costume::DropInput drop{result.song, result.rank,
+                                                     result.variant >= 10 ? result.variant - 5 : result.variant,
+                                                     costume > 0 ? costume : 0, {}};
+                        for (int kind = 27; kind <= 35 && has_cards; ++kind) {  // the material skills
+                            if (const int v = sif::card::SkillSum(card_data, save, skills.member, kind)) drop.skills[kind] = v;
+                        }
                         std::string got;
-                        for (const auto& [item, amount] : sif::costume::RollDrops(costume_data, result.song, drop_random, save)) {
+                        for (const auto& [item, amount] : sif::costume::RollDrops(costume_data, drop, drop_random, save)) {
                             result.materials.push_back({item, amount});
                             const sif::costume::Item* i = sif::costume::FindItem(costume_data, item);
                             got += (got.empty() ? "" : ", ") + (i ? i->name[size_t(language)] : std::to_string(item)) + " x" +
