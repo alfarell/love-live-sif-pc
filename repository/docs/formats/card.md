@@ -1,7 +1,8 @@
-# Skill cards and member cards (`common/common.pac/card.pac`)
+# Skill cards, member cards and profile cards (`common/common.pac/card.pac`)
 
 Status:
-- **Read** by `src/game/card/card.cpp` (M11 S3).
+- **Read** by `src/game/card/card.cpp` (M11 S3) and `src/game/profile/profile.cpp` (frames and presets, M12 P3).
+- **Profile cards and photos:** `analysis/202611161811-profile-cards/` (eboot P1, shadPS4 P2).
 - **Sources:** the eboot trace (`analysis/202611151530-skills-and-cards/202611151548-analysis.md`) and a shadPS4 run (`202611151632-analysis.md`).
 
 All tables are BLBN (`blbn.md`). They are little-endian, and their string fields are u64 file offsets of UTF-8 text.
@@ -72,7 +73,41 @@ All tables are BLBN (`blbn.md`). They are little-endian, and their string fields
 
 ## `preset_profilecard.bin`
 
-**`ll3::s_preset_profilecard`:** 20 records of 96 bytes. These are the NPC profile cards that support an offline live: index, member card id (`10031`), then skill slots that are empty in all presets.
+**`ll3::s_preset_profilecard`:** 20 records of 96 bytes. These are the NPC profile cards that support an offline live ("(NPC Profile Card)"). The fields are as the eboot copies them into a support player (`FUN_001f1210`; reader `src/game/profile/`):
+
+| Offset | Content |
+|---|---|
+| +0x00 | index 0-19 |
+| +0x04 | member card (10031, 111051, 212001; member = id / 10000) |
+| +0x08 … +0x1C | three skill card ids, then three levels (all 0) |
+| +0x20 | frame (the member's initial frame) |
+| +0x24 | live (120, 1120, 1900) |
+| +0x28 | Friendship level (0) |
+| +0x2C, +0x30, +0x34 | accolade, badge, name plate |
+| +0x38 | the card picture: `proca_preset/<name>` in the dump (a whole rendered card, 672 × 1100 JPEG; `_en`, `_cn` and `_tw` variants) |
+| +0x40 … +0x58 | the player name: JP, EN, CN, TW ("Maki's fan") |
+
+**Pick for a live** (`FUN_001d63d0`):
+- **Candidates:** the presets whose member is in the played group (µ's members 1-9; Aqours and Saint Snow).
+- **Two different picks,** each `index = (int)((x >> 16) / 65536 × candidates left)`. `x` comes from a xorshift128 that starts at `{0, 1, 1812433255, 1900727105}` once per game run.
+- **Not reproducible:** the generator state is shared with other game code, so the exact picks of a run cannot be predicted. The shadPS4 runs got Nico + Maki and Nico + Umi.
+
+## `profile_card_datas.bin`
+
+**`s_profile_card_frame_datas`:** 183 records of 160 bytes.
+
+| Offset | Content |
+|---|---|
+| +0x00 | frame id: 1001-1022 the members' initial frames; 1-76 and 5001+ birthday frames; 6011+, 7011+ group frames; 8011+, 9021+ birthday frames |
+| +0x04 | 1 = owned from the start (the 20 initial frames) |
+| +0x08 | member |
+| +0x10 … +0x28 | name: JP, EN, CN, TW ("Honoka Kosaka initial\nProfile Card Frame") |
+| +0x30 | a JP note ("shown and chosen only in <member>'s live history") |
+| +0x38 … | text colours with on/off flags (*not decoded*) |
+
+**Textures:** `ui/ui_profile_card.pac/texture.pac`, `pfc_bg_NNN` and `pfc_frame_*` (`_h` = landscape, *likely*). The profile card can be portrait or landscape with the same frame.
+
+**Owned frames:** the initial frame, plus task rewards of type 5 (a frame id).
 
 ## `reward.pac/reward_data.bin`
 
@@ -93,7 +128,12 @@ All tables are BLBN (`blbn.md`). They are little-endian, and their string fields
 
 - **Owned skill cards:** 16-byte entries (card id, level, …) at save `+0x466c`, with the count at `+0x628c` (room for 450).
 - **Set cards:** three per member, at `+0x8fd7c + member × 0xdc`.
+- **Photos** (M12): the JPEGs (1920 × 1080) in save slot 1, one per 0x57800 bytes; 30 records of 0x100 bytes at main `+0x60000` (stage, member card, live, favourite, then size, hash and time at +0x80); the count at `+0x61E00`.
+- **The profile card** ("MyProca", one in all): a record at main `+0xA0` ("Prof"; frame, live, member card, Friendship level, accolade, badge, name plate, three skill id/level pairs; landscape flag at +0xB8). Its picture (538 × 880 or 880 × 538 JPEG) is in save slot 2.
+- **Received cards** ("OtherProca"): the same fields from main `+0x5CD24` (online only).
 
 **The port's save** (`save.txt`):
 - **Copies:** `own 1 <card id> <copies>`. The level is min(copies, maximum level).
 - **Set cards:** `skills <member> <card> <card> <card>`, with 0 for an empty slot.
+- **Photos:** `photo <slot> <time> <stage> <member card> <live> <favourite>`; the picture is `photos/<slot, 2 digits>.png` in the data folder. A new photo takes the lowest free slot, else the oldest that is not a favourite.
+- **Profile card:** `profile_card <frame> <landscape> <crop> <live> <member card> <accolade> <badge> <name plate>`, then three `<skill> <level>` pairs. Its photo is copied to `profile_card.png` when it is saved.

@@ -19,6 +19,27 @@ struct ChartRecord {
     int plays = 0, clears = 0, full_combos = 0;
 };
 
+// A photo taken in View Live Show (M12). The picture is photos/NN.png in the data folder (NN = slot); the fields
+// follow the game's own "LiveViewSS" record (analysis/202611161811-profile-cards/202611162102-analysis.md).
+struct Photo {
+    long long time = 0;  // when it was taken (seconds since 1970), newest first in the gallery
+    int stage = 0;
+    int member_card = 0;  // the played member's card (10030 = Honoka, School Unity)
+    int live = 0;         // the game's live id (340011 = song 0340, live 011)
+    bool favourite = false;
+};
+
+// The player's one profile card (M12; the game's "MyProca" record). Its photo is copied to profile_card.png when the
+// card is saved, so later photos do not change it.
+struct ProfileCard {
+    int frame = 0;
+    bool landscape = false;
+    int crop = 0;         // the photo's left edge in the photo position adjustment, in photo pixels
+    int live = 0, member_card = 0;  // from the photo
+    int accolade = 0, badge = 0, name_plate = 0;
+    std::array<int, 3> skill{}, skill_level{};  // a snapshot when saved, as the game keeps it
+};
+
 struct SaveData {
     std::string player = "Player";
     int accolade = 0, badge = 0, name_plate = 0;  // the nameplate's choices (0 = not chosen)
@@ -32,6 +53,9 @@ struct SaveData {
     long long perfects = 0, greats = 0;                  // judged notes over every finished live
     std::map<int, int> costume_plays;                    // costume id (dNNN) -> finished lives wearing it
     std::map<int, int> wear;                             // member (1-9, 11-19, 21-22) -> the costume id they wear
+    std::map<int, Photo> photos;                         // slot (0-29) -> photo, M12
+    bool has_card = false;
+    ProfileCard card;                                    // valid when has_card
     std::vector<std::string> unknown;                    // lines of a newer version, written back unchanged
 };
 

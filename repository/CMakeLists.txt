@@ -102,6 +102,7 @@ add_library(sif_game STATIC
   src/game/live/judge.cpp
   src/game/live/song.cpp
   src/game/mission/mission.cpp
+  src/game/profile/profile.cpp
   src/game/save/save.cpp
   src/game/talk/talk.cpp
   src/game/text/messages.cpp)
@@ -146,6 +147,11 @@ add_executable(sif_card_test tests/unit/card_test.cpp)
 target_link_libraries(sif_card_test PRIVATE sif_game)
 if(MSVC)
   target_compile_options(sif_card_test PRIVATE /utf-8 /EHsc)
+endif()
+add_executable(sif_profile_test tests/unit/profile_test.cpp)
+target_link_libraries(sif_profile_test PRIVATE sif_game)
+if(MSVC)
+  target_compile_options(sif_profile_test PRIVATE /utf-8 /EHsc)
 endif()
 add_executable(sif_dlc_test tests/unit/dlc_test.cpp)
 target_link_libraries(sif_dlc_test PRIVATE sif_game)

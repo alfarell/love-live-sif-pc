@@ -59,6 +59,25 @@ bool Load(const std::filesystem::path& path, SaveData& out, std::string* error) 
             } else {
                 out.unknown.push_back(line);
             }
+        } else if (kind == "photo") {
+            int slot = 0, favourite = 0;
+            Photo p;
+            if (in >> slot >> p.time >> p.stage >> p.member_card >> p.live >> favourite) {
+                p.favourite = favourite != 0;
+                out.photos[slot] = p;
+            } else {
+                out.unknown.push_back(line);
+            }
+        } else if (kind == "profile_card") {
+            ProfileCard c;
+            int landscape = 0;
+            if (in >> c.frame >> landscape >> c.crop >> c.live >> c.member_card >> c.accolade >> c.badge >> c.name_plate >>
+                c.skill[0] >> c.skill_level[0] >> c.skill[1] >> c.skill_level[1] >> c.skill[2] >> c.skill_level[2]) {
+                c.landscape = landscape != 0;
+                out.card = c, out.has_card = true;
+            } else {
+                out.unknown.push_back(line);
+            }
         } else if (kind == "notes") {
             in >> out.perfects >> out.greats;
         } else if (kind == "costume") {
@@ -107,6 +126,17 @@ bool Write(const std::filesystem::path& path, const SaveData& data, std::string*
         for (const auto& [member, dress] : data.wear) f << "wear " << member << " " << dress << "\n";
         for (const auto& [member, s] : data.skill_slots) {
             f << "skills " << member << " " << s[0] << " " << s[1] << " " << s[2] << "\n";
+        }
+        for (const auto& [slot, p] : data.photos) {
+            f << "photo " << slot << " " << p.time << " " << p.stage << " " << p.member_card << " " << p.live << " "
+              << (p.favourite ? 1 : 0) << "\n";
+        }
+        if (data.has_card) {
+            const ProfileCard& c = data.card;
+            f << "profile_card " << c.frame << " " << (c.landscape ? 1 : 0) << " " << c.crop << " " << c.live << " "
+              << c.member_card << " " << c.accolade << " " << c.badge << " " << c.name_plate;
+            for (int i = 0; i < 3; ++i) f << " " << c.skill[size_t(i)] << " " << c.skill_level[size_t(i)];
+            f << "\n";
         }
         f << "notes " << data.perfects << " " << data.greats << "\n";
         for (const auto& [id, plays] : data.costume_plays) f << "costume " << id << " " << plays << "\n";
