@@ -14,6 +14,7 @@ PC port of the PS4 game **Love Live! School Idol Festival (CUSA24620)**, modeled
 | `D:\Games\PS4\Love Live School Idol Festival` | Game assets: PKG (`Love.Live.School.Idol.Festival-CUSA24620.v1.02.pkg`), DLC folder, game dump with `eboot.bin` under `CUSA24620`, extracted DLC under `Extracted` | **Read-only** |
 | `D:\Games\PS4\pt-pc` | Reference repository (PT port) | **Read-only** |
 | `D:\Games\PS4\shadPS4` | shadPS4 emulator source (GPL-2.0): emulation reference and NID names (`src/core/aerolib/aerolib.inl`) | **Read-only** |
+| `D:\Games\PS4\shadPS4\Build\x64-Clang-Release\shadps4.exe` | The user's own shadPS4 build (VS 2026); renders the game's 3D models correctly. Use it for every shadPS4 test, through `work/scripts/shadpost.ps1`, with `work/shadps4-run` as the working folder (its `user\` holds all emulator data). The old `work/shadps4-build` drew the models black; don't use it | **Read-only** (run only) |
 | `D:\Games\PS4\pt-pc-game` | User's own P.T. copy (pt-pc's input): PKG `PS4_P.T._Playable_Teaser_Silent_Hills_Demo_CUSA01127.pkg` and dump `CUSA01127` with `eboot.bin` | **Read-only** |
 
 Subfolders here:
