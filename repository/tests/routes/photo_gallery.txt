@@ -1,0 +1,48 @@
+# M12 P5: Collection -> Photo Gallery after live_view (the same data folder): its two photos newest first, the
+# favourite counter, a favourite set and cleared, full screen, and deleting the photo that is not a favourite
+#! data photos
+timeout 60s
+expect screen title 30s
+press enter until menu 30s
+wait 1500ms
+key right
+wait 400ms
+key right
+wait 400ms
+key right
+wait 400ms
+key right
+wait 400ms
+key down
+wait 400ms
+key down
+wait 400ms
+key down
+wait 400ms
+key enter
+expect log top menu: entry 18
+expect screen photo_gallery 20s
+expect log photo gallery: 2 photos, 1 favourites
+wait 1500ms
+shot photo_gallery
+key space
+expect log photo gallery: photo 1 full screen
+wait 800ms
+shot photo_full
+key esc
+wait 400ms
+key right
+key q
+expect log photo gallery: photo 0 favourite on
+key delete
+expect log photo gallery: photo 0 is a favourite, not deleted
+key q
+expect log photo gallery: photo 0 favourite off
+key delete
+expect log photo gallery: photo 0 deleted
+wait 600ms
+shot photo_gallery_deleted
+key esc
+expect screen menu 20s
+expect log photo gallery: 1 photos, 1 favourites
+expect nolog error

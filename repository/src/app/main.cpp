@@ -20,6 +20,7 @@
 #include <string>
 #include <vector>
 
+#include "app/collection_screen.h"
 #include "app/costume_screen.h"
 #include "app/fade.h"
 #include "app/first_run.h"
@@ -437,6 +438,20 @@ int main(int argc, char** argv) {
                             save.name_plate = plate.name_plates[plate.name_plate].id;
                             if (can_save && !sif::save::Write(save_path, save, &save_error)) sif::LogWarn("save: {}", save_error);
                         }
+                        continue;
+                    }
+                    if (mode == 4 && entry == 18) {  // Collection: Photo Gallery (M12 P5)
+                        loading.Show(renderer);
+                        open = sif::RunPhotoGallery(window, renderer, vfs, lang, options.data_dir, save, options.frames);
+                        if (can_save && !sif::save::Write(save_path, save, &save_error)) sif::LogWarn("save: {}", save_error);
+                        continue;
+                    }
+                    if (mode == 4 && entry == 16 && has_cards) {  // Collection: Member Card (M12 P5)
+                        loading.Show(renderer);
+                        sif::MemberCardSetup cards{&card_data, has_costumes ? &costume_data : nullptr, &save, &owned, {},
+                                                   skills.member};
+                        for (const auto& d : dresses) cards.names.push_back({d.id, d.name});
+                        open = sif::RunMemberCards(window, renderer, vfs, lang, cards, options.frames);
                         continue;
                     }
                     if (mode == 4 && entry == 17 && has_cards) {  // Collection: Skill Card (M11 S4)

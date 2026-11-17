@@ -27,6 +27,7 @@ const std::map<std::string, SDL_Scancode>& Keys() {
         {"k", SDL_SCANCODE_K},          {"l", SDL_SCANCODE_L},              {";", SDL_SCANCODE_SEMICOLON},
         {"q", SDL_SCANCODE_Q},          {"p", SDL_SCANCODE_P},              {"home", SDL_SCANCODE_HOME},
         {"end", SDL_SCANCODE_END},      {",", SDL_SCANCODE_COMMA},          {".", SDL_SCANCODE_PERIOD},
+        {"delete", SDL_SCANCODE_DELETE}, {"tab", SDL_SCANCODE_TAB},
     };
     return keys;
 }

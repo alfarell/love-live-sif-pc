@@ -14,5 +14,8 @@ namespace sif::png {
 std::vector<uint8_t> Encode(std::span<const uint8_t> rgba, uint32_t width, uint32_t height);
 bool Write(const std::filesystem::path& path, std::span<const uint8_t> rgba, uint32_t width, uint32_t height,
            std::string* error = nullptr);
+// Reads a PNG this writer made (8-bit RGBA, not interlaced; filter types 0-4 are undone). Other PNGs fail.
+bool Read(const std::filesystem::path& path, std::vector<uint8_t>& rgba, uint32_t& width, uint32_t& height,
+          std::string* error = nullptr);
 
 }

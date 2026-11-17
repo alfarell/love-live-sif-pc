@@ -2,6 +2,7 @@
 # with the camera help panel, then the live without notes; R1 (Page Down) changes the camera mode, Square (Q) hides
 # the HUD; the Member camera follows a member (comma/period switch), arrows orbit, L1 (Page Up) zooms; Circle (P) takes a photo; End the Live Show marks favourites (Square), then the photos are saved (shadPS4 work/m12/shad2/v01-v13)
 #! visible
+#! data photos
 timeout 120s
 expect screen title 30s
 press enter until menu 30s

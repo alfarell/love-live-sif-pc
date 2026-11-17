@@ -1,0 +1,29 @@
+# M12 P5: Collection -> Member Card: Honoka's member cards, the owned ones face up (the starting costumes), the
+# others as card backs; R1 turns to Eli
+timeout 60s
+expect screen title 30s
+press enter until menu 30s
+wait 1500ms
+key right
+wait 400ms
+key right
+wait 400ms
+key right
+wait 400ms
+key right
+wait 400ms
+key down
+wait 400ms
+key enter
+expect log top menu: entry 16
+expect screen member_card 20s
+expect log member cards: member 1,
+wait 1500ms
+shot member_card
+key pagedown
+expect log member cards: member 2,
+wait 600ms
+shot member_card_eli
+key esc
+expect screen menu 20s
+expect nolog error
