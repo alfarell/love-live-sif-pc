@@ -34,6 +34,9 @@ struct LiveOptions {
     long max_frames = -1;
     std::string lang = "en";  // UI language of the in-game HUD (ui2/90_ingame_<lang>): en, cn, tw or "" (Japanese)
     std::vector<live::Skill> skills;  // the played member's set skill cards (M11 S5; LiveSkills in skill_screen.h)
+    // View Live Show (M12 P4): the stage, members and camera only; no notes, judging or score. The HUD is the camera's
+    // (ui2/90_ingame uil0002_LiveView00); the live ends with the music
+    bool view = false;
 };
 
 struct LiveResult;

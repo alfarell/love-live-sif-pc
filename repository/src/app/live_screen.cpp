@@ -669,6 +669,33 @@ const float kGradeColor[live::kGrades][4] = {
 // ui_ingame_skill_frame00 and a name of ui_ingame_skill_text00_T); the port uses the four at the top (_00-_03; _04/_05
 // at the bottom corners are a guess for the support players). The name atlas has 4 x 10 cells (320 x 48 px) by kind.
 const std::string kSkillHud = "uil0005_ActiveSkillLayout00";
+
+// View Live Show's HUD (M12 P4; shadPS4 work/m12/shad2/v03-v11): ui2/90_ingame uil0002_LiveView00. The camera bar
+// (uip0010: "Camera: R1 MV >> Member >> View", the current mode lit), one key-help part per mode (uip0011-0013), the
+// Take Photo / Info ON/OFF buttons (uip0014), the member icons of the Member camera (uip0017), the photo counter
+// (uip0015) and up to five thumbnails (uip0016), and the song name (uip0005_Songname_00).
+const std::string kLiveViewHud = "uil0002_LiveView00";
+constexpr const char* kCameraModeNames[3] = {"MV", "Member", "View"};
+void ApplyLiveViewHud(UiScreen& hud, int mode, int photos) {
+    const std::string bar = kLiveViewHud + "/uip0010_CameraModeInfo00";
+    static constexpr const char* kNodes[3] = {"cam_mv", "cam_member", "cam_view"};
+    for (int m = 0; m < 3; ++m) {
+        hud.HideNode(bar, std::string(kNodes[m]) + "_on", m != mode);
+        hud.HideNode(bar, std::string(kNodes[m]) + "_off", m == mode);
+    }
+    // the MV help (L1 "Launch Finale Focus") was not shown in the game's MV mode (shad2/v03); Finale Focus is not built
+    hud.HideInstance(kLiveViewHud + "/uip0011_MvCameraInfo00", true);
+    hud.HideInstance(kLiveViewHud + "/uip0012_MembCameraInfo00", mode != 1);
+    hud.HideInstance(kLiveViewHud + "/uip0013_ViewCameraInfo00", mode != 2);
+    hud.HideInstance(kLiveViewHud + "/uip0017_CharaOrder00", mode != 1);
+    hud.HideInstance(kLiveViewHud + "/uip0020_Warning00", true);
+    // shortcut: "Photos" is the English label (message 657) in every language; the counter is the game's "n/5"
+    hud.SetInstanceText(kLiveViewHud + "/uip0015_PhotoNamber00", 0, "Photos");
+    hud.SetInstanceText(kLiveViewHud + "/uip0015_PhotoNamber00", 1, std::to_string(photos) + "/5");
+    for (int k = 0; k < 5; ++k) {
+        hud.HideNode(kLiveViewHud + "/uip0016_ScreenShot00", "screen_shot0" + std::to_string(k), k >= photos);
+    }
+}
 constexpr int kSkillBanners = 4;
 constexpr double kUseBannerMs = 2000;  // shortcut: an untimed skill's use shows this long; the game's time is not traced
 std::array<float, 2> SkillNameCell(int kind) {
@@ -768,7 +795,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
 
     Layout layout;
     Playfield field;
-    field.Load(renderer, vfs, song.group);
+    if (!opt.view) field.Load(renderer, vfs, song.group);
     field.SetHome(chart.home, opt.variant >= 12 ? HomeConfig::Hard : HomeConfig::Easy);
     // the game's top HUD bar (ui2/90_ingame, layout uil0001_Ingame00); shortcut: gauges and the FULL COMBO marks
     // stay at their defaults until the HUD logic is traced
@@ -790,9 +817,12 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
         const int language = opt.lang == "en" ? 1 : opt.lang == "cn" ? 2 : opt.lang == "tw" ? 3 : 0;
         if (live::LoadSongList(vfs, language, songs)) {
             for (const live::SongInfo& s : songs) {
-                if (s.id == opt.song) hud.SetInstanceText("uil0001_Ingame00/uip0005_Songname", 1, s.title);
+                if (s.id != opt.song) continue;
+                hud.SetInstanceText("uil0001_Ingame00/uip0005_Songname", 1, s.title);
+                hud.SetInstanceText(kLiveViewHud + "/uip0005_Songname_00", 1, s.title);
             }
         }
+        if (opt.view) ApplyLiveViewHud(hud, 0, 0);
     } else {
         LogWarn("live: HUD: {}", error);
     }
@@ -822,7 +852,10 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
     ScreenFade fade;  // in from black; out to black at the song's end or on Esc
     uint64_t fade_last = SDL_GetTicksNS();
     SetLiveHome(chart.home, live::IsHomeVariant(opt.variant) && opt.variant >= 12 ? HomeConfig::Hard : HomeConfig::Easy);
-    SetPadLayout(PadLayout::Live);
+    SetPadLayout(opt.view ? PadLayout::View : PadLayout::Live);
+    int camera_mode = 0;     // View Live Show: 0 MV, 1 Member, 2 View (R1 = Page Down cycles)
+    bool show_info = true;   // View Live Show: □ (Q) hides the whole HUD
+    bool view_ending = false;
     for (bool running = true; running && !fade.Left() && (opt.max_frames < 0 || frame < opt.max_frames); ++frame) {
         const uint64_t fade_now = SDL_GetTicksNS();
         fade.Update(double(fade_now - fade_last) / 1e9);
@@ -834,6 +867,16 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                 closed = true;
             } else if (e.type == SDL_EVENT_KEY_DOWN && e.key.scancode == SDL_SCANCODE_ESCAPE) {
                 fade.Leave(hud);
+            } else if (opt.view) {
+                if (e.type != SDL_EVENT_KEY_DOWN || e.key.repeat) continue;
+                if (e.key.scancode == SDL_SCANCODE_PAGEDOWN) {
+                    camera_mode = (camera_mode + 1) % 3;
+                    LogInfo("live view: camera mode {}", kCameraModeNames[camera_mode]);
+                } else if (e.key.scancode == SDL_SCANCODE_Q) {
+                    show_info = !show_info;
+                    LogInfo("live view: info {}", show_info ? "on" : "off");
+                }
+                if (has_hud) ApplyLiveViewHud(hud, camera_mode, 0);
             } else if ((e.type == SDL_EVENT_KEY_DOWN || e.type == SDL_EVENT_KEY_UP) && !e.key.repeat && !opt.autoplay) {
                 const int lane = LaneOf(e.key.scancode);
                 if (lane < 0) continue;
@@ -858,7 +901,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                 }
             }
         }
-        judge.Update(now);
+        if (!opt.view) judge.Update(now);
         // each judgement plays its sound, each sound at most once per frame (a simultaneous pair judged alike sounds
         // once; shortcut: the game's rule for this and for hold releases is not traced, its caller of 0xB06C0 is a
         // function pointer)
@@ -937,7 +980,9 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
         if (renderer.BeginFrame()) {
             const uint64_t draw_start = SDL_GetTicksNS();
             scene.Draw(renderer, now, song.dance_start_frame);
-            if (field.loaded) {
+            if (opt.view) {
+                if (has_hud && show_info) hud.DrawLayout(renderer, kLiveViewHud, 1.0f);
+            } else if (field.loaded) {
                 for (int l = 0; l < kLanes; ++l) {
                     if (!field.Shown(l)) continue;
                     const auto& p = field.lane[size_t(l)];
@@ -977,7 +1022,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                 }
             }
             // the HUD and the centre circle (gauge track, fan, mic) over the notes: notes come out from under the mic
-            if (has_hud) hud.DrawLayout(renderer, "uil0001_Ingame00", 1.0f);
+            if (has_hud && !opt.view) hud.DrawLayout(renderer, "uil0001_Ingame00", 1.0f);
             if (has_hud && !banners.empty()) hud.DrawLayout(renderer, kSkillHud, 1.0f);
             if (field.loaded) {
                 field.Draw(renderer, field.gauge_fan, field.center_gauge, field.center[0], field.center[1], Playfield::kGaugeSize, {1, 1, 1, 1});
@@ -995,7 +1040,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                     if (award >= 0) field.DrawFad(renderer, field.live_clear, since, field.banner[0], field.banner[1], award);
                     field.DrawFad(renderer, field.live_clear, since - clear_at, field.banner[0], field.banner[1]);
                 }
-            } else {  // placeholder lanes when the game's play field cannot be loaded
+            } else if (!opt.view) {  // placeholder lanes when the game's play field cannot be loaded
             layout.Fit(renderer.Width(), renderer.Height());
             const float ring[4] = {0.85f, 0.85f, 0.95f, 0.9f};
             for (int l = 0; l < kLanes; ++l) {
@@ -1052,7 +1097,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
             SDL_Delay(5);
         }
 
-        if (frame % 15 == 0) {
+        if (frame % 15 == 0 && !opt.view) {
             char title[256];
             std::snprintf(title, sizeof(title), "SIF port - %s [%02d]  combo %d  P %d / Gr %d / Go %d / B %d / M %d  score %.0f",
                           song.title.c_str(), opt.variant, judge.combo, judge.counts[0], judge.counts[1], judge.counts[2],
@@ -1061,7 +1106,12 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
         }
         // after the last judgement the ending plays (wall clock: the audio clock stops with the music), then the
         // screen fades out
-        if (judge.Finished() && !end_ticks) {
+        if (opt.view && !view_ending && !audio.Playing()) {  // the song is over: back to the song select (P4d: End screen)
+            view_ending = true;
+            LogInfo("live view end");
+            fade.Leave(hud);
+        }
+        if (!opt.view && judge.Finished() && !end_ticks) {
             end_ticks = SDL_GetTicksNS();
             const bool full_combo = judge.counts[2] + judge.counts[3] + judge.counts[4] == 0;  // as main.cpp's records
             award = full_combo ? (judge.counts[1] == 0 ? 1 : 0) : -1;

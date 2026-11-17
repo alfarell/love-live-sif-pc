@@ -31,9 +31,11 @@ struct SongChoice {
 // `home`: "Play Live Show" (the four home charts, variants 10-13) instead of "Play Live Show (AC)" (M10 K3).
 // `skills` (optional): after the costume step comes Prepare for the Live Show, with the played member's skill cards
 // and Skill Card Selection (M11 S4); without it the costume step starts the live as before.
+// `view`: View Live Show (M12 P4): song (with the "LIVE VIEW MODE" banner), stage, costume and a Prepare step with the
+// camera help panel; no difficulty step. The choice's variant is the home STANDARD chart (11), whose live it shows.
 SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, long max_frames,
                          const SongChoice& previous = {}, const save::SaveData* save = nullptr,
                          const dlc::Ownership* owned = nullptr, const costume::Data* costumes = nullptr, bool home = false,
-                         const SkillSetup* skills = nullptr);
+                         const SkillSetup* skills = nullptr, bool view = false);
 
 }

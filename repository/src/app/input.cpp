@@ -1,5 +1,6 @@
 #include "app/input.h"
 
+#include <span>
 #include <sstream>
 #include <utility>
 
@@ -23,6 +24,14 @@ constexpr std::pair<SDL_GamepadButton, SDL_Scancode> kMenu[] = {
     {SDL_GAMEPAD_BUTTON_START, SDL_SCANCODE_RETURN},   {SDL_GAMEPAD_BUTTON_NORTH, SDL_SCANCODE_T},
     {SDL_GAMEPAD_BUTTON_LEFT_SHOULDER, SDL_SCANCODE_PAGEUP}, {SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER, SDL_SCANCODE_PAGEDOWN},
 };
+constexpr std::pair<SDL_GamepadButton, SDL_Scancode> kView[] = {
+    {SDL_GAMEPAD_BUTTON_DPAD_LEFT, SDL_SCANCODE_LEFT}, {SDL_GAMEPAD_BUTTON_DPAD_RIGHT, SDL_SCANCODE_RIGHT},
+    {SDL_GAMEPAD_BUTTON_DPAD_UP, SDL_SCANCODE_UP},     {SDL_GAMEPAD_BUTTON_DPAD_DOWN, SDL_SCANCODE_DOWN},
+    {SDL_GAMEPAD_BUTTON_SOUTH, SDL_SCANCODE_SPACE},    {SDL_GAMEPAD_BUTTON_EAST, SDL_SCANCODE_P},
+    {SDL_GAMEPAD_BUTTON_WEST, SDL_SCANCODE_Q},         {SDL_GAMEPAD_BUTTON_START, SDL_SCANCODE_ESCAPE},
+    {SDL_GAMEPAD_BUTTON_LEFT_SHOULDER, SDL_SCANCODE_PAGEUP}, {SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER, SDL_SCANCODE_PAGEDOWN},
+};
+using KeyTable = std::span<const std::pair<SDL_GamepadButton, SDL_Scancode>>;
 // the live screen's lane keys (A S D F Space J K L ;), left to right
 constexpr SDL_Scancode kLaneKeys[9] = {SDL_SCANCODE_A, SDL_SCANCODE_S, SDL_SCANCODE_D, SDL_SCANCODE_F, SDL_SCANCODE_SPACE,
                                        SDL_SCANCODE_J, SDL_SCANCODE_K, SDL_SCANCODE_L, SDL_SCANCODE_SEMICOLON};
@@ -56,7 +65,7 @@ SDL_Scancode Mapped(Uint8 button) {
             if (kSdlButton[b] == button) return LiveKey(PadButton(b));
         }
     } else {
-        for (const auto& [b, key] : kMenu) {
+        for (const auto& [b, key] : g_layout == PadLayout::View ? KeyTable(kView) : KeyTable(kMenu)) {
             if (b == button) return key;
         }
     }
@@ -144,8 +153,9 @@ bool PollEvent(SDL_Event& e) {
         const bool down = e.gaxis.value > SDL_JOYSTICK_AXIS_MAX / 2;
         if (down != g_trigger_down[size_t(t)]) {
             g_trigger_down[size_t(t)] = down;
-            const SDL_Scancode key = g_layout == PadLayout::Live ? LiveKey(t ? PadButton::R2 : PadButton::L2)
-                                                                  : SDL_SCANCODE_UNKNOWN;
+            const SDL_Scancode key = g_layout == PadLayout::Live   ? LiveKey(t ? PadButton::R2 : PadButton::L2)
+                                     : g_layout == PadLayout::View ? (t ? SDL_SCANCODE_END : SDL_SCANCODE_HOME)
+                                                                   : SDL_SCANCODE_UNKNOWN;
             if (key != SDL_SCANCODE_UNKNOWN) ToKey(e, key, down, e.gaxis.timestamp);
         }
     }

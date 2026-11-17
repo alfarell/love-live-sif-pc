@@ -10,7 +10,9 @@ namespace sif {
 
 // Menu: D-pad = arrows, South (Cross) = Space (confirm), East (Circle) = Esc (back), Start = Return.
 // Live: the lane buttons of the Button Controls (below); Start = Esc.
-enum class PadLayout { Menu, Live };
+// View: View Live Show's camera (M12 P4): D-pad = arrows, Circle = P (Take Photo), Square = Q (Info ON/OFF), L1/R1 =
+// Page Up/Down, L2/R2 = Home/End, Cross = Space, Start = Esc.
+enum class PadLayout { Menu, Live, View };
 void SetPadLayout(PadLayout layout);
 
 // The 12 buttons the game's Button Controls offer, in the order of its icon atlas (ui2/60_option

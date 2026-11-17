@@ -329,6 +329,7 @@ int main(int argc, char** argv) {
             bool open = true;
             sif::SongChoice last;
             bool home_mode = false;  // the song select's mode: top-menu entry 0 "Play Live Show" (home), else arcade
+            bool view_mode = false;  // entry 2 "View Live Show" (M12 P4): the live without notes, for the camera
             // the port's own save; one that cannot be read is left alone (played without saving), never overwritten
             const auto save_path = options.data_dir / "save.txt";
             sif::save::SaveData save;
@@ -382,6 +383,7 @@ int main(int argc, char** argv) {
                     const int entry = sif::RunTopMenu(window, renderer, vfs, lang, options.frames, &mode, &audio, &plate);
                     if (entry < 0) break;
                     home_mode = entry == 0;
+                    view_mode = entry == 2;
                     if (mode == 4 && entry == 15) {  // Collection: Profile Card (Change Accolade or Name Plate)
                         loading.Show(renderer);
                         const size_t shown_accolade = plate.accolade, shown_badge = plate.badge, shown_plate = plate.name_plate;
@@ -438,7 +440,7 @@ int main(int argc, char** argv) {
                 loading.Show(renderer);
                 const sif::SongChoice choice = sif::RunSongSelect(window, renderer, vfs, lang, options.frames, last, &save, &owned,
                                                                   has_costumes ? &costume_data : nullptr, home_mode,
-                                                                  has_cards ? &skills : nullptr);
+                                                                  has_cards && !view_mode ? &skills : nullptr, view_mode);
                 if (has_cards && can_save && !sif::save::Write(save_path, save, &save_error)) {  // the skill slots (M11)
                     sif::LogWarn("save: {}", save_error);
                 }
@@ -458,7 +460,8 @@ int main(int argc, char** argv) {
                     std::snprintf(folder, sizeof(folder), "d%03d", dress);
                     options.live_options.wear[member] = folder;
                 }
-                options.live_options.skills = sif::LiveSkills(skills);  // the played member's set cards (M11 S5)
+                options.live_options.skills = view_mode ? std::vector<sif::live::Skill>{} : sif::LiveSkills(skills);
+                options.live_options.view = view_mode;  // a viewed live is not judged: no records, drops or result
                 code = sif::RunLive(window, renderer, audio, vfs, settings, options.live_options, &result);
                 sif::save::NewBests news;
                 if (code == 0 && !result.closed && result.finished) {

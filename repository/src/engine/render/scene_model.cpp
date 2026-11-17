@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdio>
 #include <cstring>
 #include <unordered_map>
 
@@ -273,6 +274,7 @@ void SceneModel::DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha, st
 
 std::vector<std::array<float, 4>> SceneModel::TextBoxes() const {
     std::vector<std::array<float, 4>> out;
+    std::vector<int> named;  // the NN of a "_textNN" node, else -1
     for (const Part& part : parts_) {
         if (!model_.materials[part.material].texture.empty()) continue;  // only meshes without a texture name
         // ... and not masks (e.g. uip0021_sound_param00's volume_gauge00_Stencil), which the game's ui_text boxes skip
@@ -282,8 +284,19 @@ std::vector<std::array<float, 4>> SceneModel::TextBoxes() const {
         const Vec3 a = TransformPoint(world_[part.node], {part.bounds[0], part.bounds[1], 0});
         const Vec3 b = TransformPoint(world_[part.node], {part.bounds[2], part.bounds[3], 0});
         out.push_back({std::min(a.x, b.x), std::min(a.y, b.y), std::max(a.x, b.x), std::max(a.y, b.y)});
+        int n = -1;
+        named.push_back(std::sscanf(node.c_str(), "_text%d", &n) == 1 ? n : -1);
     }
-    return out;
+    // Boxes go in mesh order. A part whose only box is "_text01" (uip0005_Songname: ui_text names box 1) would lose
+    // it, so when a "_textNN" number does not fit the mesh order the boxes are placed by their numbers instead
+    if (std::none_of(named.begin(), named.end(), [&](int n) { return n >= int(out.size()); })) return out;
+    std::vector<std::array<float, 4>> by_name;
+    for (size_t i = 0; i < out.size(); ++i) {
+        const size_t at = named[i] >= 0 ? size_t(named[i]) : i;
+        if (by_name.size() <= at) by_name.resize(at + 1, {0, 0, 0, 0});
+        by_name[at] = out[i];
+    }
+    return by_name;
 }
 
 void SceneModel::Release(Renderer& renderer) {
