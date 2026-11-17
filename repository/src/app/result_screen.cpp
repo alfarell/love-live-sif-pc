@@ -117,6 +117,142 @@ void ShowCard(UiScreen& ui, const LiveResult& r, const ResultItems& items, const
 
 }
 
+bool RunLiveViewEnd(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, const LiveResult& r,
+                    const std::string& stage, int member_card, long max_frames, std::vector<bool>& favourites) {
+    route::SetScreen("live_end");
+    favourites.assign(r.photos.size(), false);
+    UiText text;
+    std::string error;
+    if (!text.Load(vfs, lang, &error)) LogWarn("live end: text: {}", error);
+    UiScreen ui;
+    if (!ui.Load(renderer, vfs, "ui2/95_result", lang, &error, &text)) {
+        LogError("live end: {}", error);
+        return true;
+    }
+    ui.HideNode("new00", true);
+    ui.HideNode("complete00", true);
+    // the header: "View Live Show:" (res_title_text00_T row 3 of 4) and "End the Live Show" (res_title_text01_T row 3)
+    const std::string title = std::string(kRoot) + "/uip0001_ResuitTitle00";
+    ui.SetMaterialUv(title, "title_mode00_M", 0, 0.5f);
+    ui.SetMaterialUv(title, "title_page00_M", 0, 0.5f);
+    ui.HideInstance(kLayout, true);
+    const std::string end = "uil0020_LiveEndLayout00";
+    // shortcut: the 3D member on the right (uip0042_ViewChara00, a render target) is not drawn; the menus have no 3D
+    ui.HideInstance(end + "/uip0042_ViewChara00", true);
+    // the song plate: cover, title (box 0), "Stage / Costume:" (box 1), the stage thumbnail and the member card
+    const int language = lang == "en" ? 1 : lang == "cn" ? 2 : lang == "tw" ? 3 : 0;
+    const std::string plate = end + "/uip0040_SondData01";
+    std::vector<live::SongInfo> songs;
+    if (live::LoadSongList(vfs, language, songs)) {
+        for (const live::SongInfo& s : songs) {
+            if (s.id != r.song) continue;
+            ui.SetInstanceText(plate, 0, s.title);
+            const bool aqours = s.group != 0;
+            const std::string bg = std::string(kRoot) + "/common_uil0101_ComBGGroup_Member01";
+            ui.HideInstance(bg + "/common_uip0400_ComTopBG_Ms00", aqours);
+            ui.HideInstance(bg + "/common_uip0410_ComTopBG_Aqours00", !aqours);
+            ui.HideNode(std::string(kRoot) + "/common_uip0008_GroupTab00", "select_group00", aqours);
+            ui.HideNode(std::string(kRoot) + "/common_uip0008_GroupTab00", "select_group01", !aqours);
+            char cover[96];
+            std::snprintf(cover, sizeof(cover), "ui/ui_music_thumbnail.pac/texture.pac/cd_cover_%04d", s.id);
+            ui.SetMaterialTexture(plate, "cd_jacket00_M", cover);
+        }
+    }
+    std::vector<live::StageInfo> stages;
+    int model = 0;
+    std::sscanf(stage.c_str(), "st%d", &model);
+    if (live::LoadStageList(vfs, language, stages)) {
+        for (const live::StageInfo& s : stages) {
+            if (s.model != model) continue;
+            char thumb[80];
+            std::snprintf(thumb, sizeof(thumb), "ui/ui_stage_thumbnail.pac/texture.pac/stage_%03d", s.id);
+            ui.SetMaterialTexture(plate, "stage_preview00_M", thumb);
+        }
+    }
+    if (member_card > 0) {
+        ui.SetMaterialTexture(plate, "card_preview00_M",
+                              "ui/ui_member_card_thumbnail.pac/texture.pac/mbc_" + std::to_string(member_card));
+    }
+    // the photos: textures made from the pictures (the large preview and the five small ones show the same picture)
+    std::vector<Texture> textures(r.photos.size());
+    for (size_t k = 0; k < r.photos.size(); ++k) {
+        const LiveResult::Photo& p = r.photos[k];
+        if (!renderer.CreateTexture(p.width, p.height, textures[k], &error) || !renderer.UpdateTexture(textures[k], p.rgba)) {
+            LogWarn("live end: photo {}: {}", k + 1, error);
+        }
+    }
+    const std::string list = end + "/uip0041_PhotoList00";
+    // message 575 "Photos taken this time: " + n, 567 "Stage / Costume:" (the plate's box 1 is a JP placeholder)
+    Messages messages;
+    if (!messages.Load(vfs, language, &error)) LogWarn("live end: messages: {}", error);
+    const auto msg = [&](int id, const char* fallback) {
+        const std::string& m = messages.Get(id);
+        return m.empty() ? std::string(fallback) : m;
+    };
+    ui.SetInstanceText(list, 0, msg(575, "Photos taken this time: ") + std::to_string(r.photos.size()));
+    ui.SetInstanceText(plate, 1, msg(567, "Stage / Costume:"));
+    int focus = 0;
+    const auto apply = [&] {
+        for (int k = 0; k < 5; ++k) {
+            char node[40];
+            std::snprintf(node, sizeof(node), "photo_preview_S%02d", k);
+            const bool on = size_t(k) < r.photos.size();
+            ui.HideNode(list, node, !on);
+            ui.HideNode(list, std::string(node) + "_eff", k != focus);
+            if (on) ui.SetMaterialTexture(list, std::string(node) + "_ss", &textures[size_t(k)]);
+            const std::string mark = end + "/uil0021_LiveEndCheckMark/common_uip0020_CheckMark00_0" + std::to_string(k);
+            ui.HideInstance(mark, !on);
+            if (on) ui.SetMaterialUv(mark, "check00_M", favourites[size_t(k)] ? 0.5f : 0.0f, 0);
+        }
+        // shortcut: no photo shows the layout's "no image" text; the game skips this screen then (not seen)
+        if (!r.photos.empty()) ui.SetMaterialTexture(list, "photo_preview_L00_ss", &textures[size_t(focus)]);
+    };
+    apply();
+    ui.Play("*", UiScreen::ClipName(1), false);  // "in"
+    SDL_SetWindowTitle(window, "SIF port - end the live show");
+    LogInfo("live end: {} photos", r.photos.size());
+    bool open = true;
+    ScreenFade fade;
+    uint64_t last = SDL_GetTicksNS();
+    for (long frame = 0; open && !fade.Left() && (max_frames < 0 || frame < max_frames); ++frame) {
+        SDL_Event e;
+        while (PollEvent(e)) {
+            if (e.type == SDL_EVENT_QUIT) open = false;
+            if (e.type != SDL_EVENT_KEY_DOWN || e.key.repeat || fade.leaving) continue;
+            const int n = std::max(1, int(r.photos.size()));
+            switch (e.key.scancode) {
+                case SDL_SCANCODE_LEFT: focus = (focus + n - 1) % n; break;
+                case SDL_SCANCODE_RIGHT: focus = (focus + 1) % n; break;
+                case SDL_SCANCODE_Q:
+                    if (size_t(focus) < favourites.size()) {
+                        favourites[size_t(focus)] = !favourites[size_t(focus)];
+                        LogInfo("live end: photo {} favourite {}", focus + 1, favourites[size_t(focus)] ? "on" : "off");
+                    }
+                    break;
+                case SDL_SCANCODE_RETURN:
+                case SDL_SCANCODE_SPACE: fade.Leave(ui); break;
+                default: break;
+            }
+            apply();
+        }
+        const uint64_t now = SDL_GetTicksNS();
+        ui.Update(double(now - last) / 1e9);
+        fade.Update(double(now - last) / 1e9);
+        last = now;
+        if (!renderer.BeginFrame()) {
+            SDL_Delay(5);
+            continue;
+        }
+        ui.DrawLayout(renderer, kRoot, 1.0f);
+        ui.DrawLayout(renderer, end, 1.0f);
+        fade.Draw(renderer);
+        renderer.EndFrame();
+    }
+    ui.Release(renderer);
+    for (Texture& t : textures) renderer.Release(t);
+    return open;
+}
+
 // shortcut: the result screen's own logic (eboot) is not traced: the combo result (FULL COMBO), records and rewards
 // show their parts' defaults; the values the port knows are filled in (score, counts, max combo, clear rate, rank,
 // title, cover)

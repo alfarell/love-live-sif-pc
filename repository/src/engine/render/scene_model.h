@@ -33,7 +33,8 @@ public:
     // plays several per instance, e.g. an animation on layer 0 and the "switch" label clip on layer 1) apply their
     // node, visibility (ANVS) and material (ANMT: colour, UV offset) tracks; later layers win per node or material.
     // `hidden` (optional): node names hidden with their children, like the game's per-node visibility flag.
-    // `textures` (optional): material name -> texture replacing the material's own (e.g. a song's cover).
+    // `textures` (optional): material name -> texture replacing the material's own (e.g. a song's cover); a node name
+    // as the key replaces the texture of that node's meshes only, and wins over its material.
     // `uv_offsets` (optional): material name -> (U offset, V offset, U cut-off) set by code (e.g. a label atlas row, a
     // fill gauge); clip offsets win over the offset.
     void DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha, std::span<const bmar::Layer> clips = {},

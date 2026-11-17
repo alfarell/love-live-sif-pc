@@ -235,7 +235,8 @@ void SceneModel::DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha, st
         // text boxes (no texture named) are not drawn, unless the caller supplies a texture for the material (the
         // photo thumbnails of View Live Show, uip0016_ScreenShot00); a named texture missing from the dump (e.g. one
         // the game fills at run time, like the stage preview) is drawn only when the caller supplies one
-        const bool supplied = textures && textures->contains(model_.materials[part.material].name);
+        const std::string& node_name = model_.nodes[part.node].name;
+        const bool supplied = textures && (textures->contains(model_.materials[part.material].name) || textures->contains(node_name));
         if ((model_.materials[part.material].texture.empty() && !supplied) || !visible[part.node] ||
             Mask(model_.nodes[part.node].name)) continue;
         std::array<float, 4> tint{1, 1, 1, alpha};
@@ -264,6 +265,8 @@ void SceneModel::DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha, st
         const Texture* texture = part.texture >= 0 ? &textures_[size_t(part.texture)] : nullptr;
         if (textures) {
             if (const auto t = textures->find(material); t != textures->end() && t->second) texture = t->second;
+            // a node name wins: several nodes of one material can show different pictures (the End screen's photos)
+            if (const auto t = textures->find(node_name); t != textures->end() && t->second) texture = t->second;
         }
         // a clip colour of exactly 0 hides the material: the game's focus clips "fade" layers out that way (top menu
         // a005/a014 take a layer to 0 while another takes its place); drawn, it shows as a black shape. shortcut: a

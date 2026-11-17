@@ -48,6 +48,13 @@ struct ResultItems {
     const save::SaveData* save = nullptr;  // after the live's gains
 };
 
+// View Live Show's "End the Live Show" (M12 P4d; shadPS4 work/m12/shad2/v12-v13): the song, stage and member card,
+// "Photos taken this time: n", the focused photo large and the five as thumbnails. Left/Right pick a photo, Square (Q)
+// marks it as a favourite, Enter or Space ends. `favourites` gets one flag per photo; false if the window was closed.
+// `stage`: the stage folder ("st017"); `member_card`: the played member's card id (its R picture is shown).
+bool RunLiveViewEnd(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, const LiveResult& r,
+                    const std::string& stage, int member_card, long max_frames, std::vector<bool>& favourites);
+
 // Shows the result until a key or pad button (or `max_frames`); false if the window was closed. `news`: which
 // bests this play improved (the "NEW" marks). With `items`, a key first turns to the Items Obtained page (the skill
 // cards and materials the live gave); Left/Right pick the card shown there, any other key ends.
