@@ -11,8 +11,13 @@
 #include "app/input.h"
 #include "app/route.h"
 #include "engine/core/log.h"
+#include "engine/formats/png.h"
+#include "engine/platform/os.h"
 #include "engine/render/renderer.h"
 #include "engine/ui/ui_screen.h"
+#include "game/profile/profile.h"
+#include "game/save/save.h"
+#include "game/text/messages.h"
 
 namespace sif {
 namespace {
@@ -176,6 +181,141 @@ bool RunProfile(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const st
     }
     ui.Release(renderer);
     return open;
+}
+
+int RunProfileMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang,
+                   const ProfileMenuSetup& setup, long max_frames) {
+    route::SetScreen("profile_menu");
+    UiText text;
+    std::string error;
+    if (!text.Load(vfs, lang, &error)) LogWarn("profile menu: text: {}", error);
+    UiScreen ui;
+    if (!ui.Load(renderer, vfs, "ui2/40_collection", lang, &error, &text)) {
+        LogError("profile menu: {}", error);
+        return 0;
+    }
+    const std::string root = "uil0090_ProcMenuLayout00", buttons = root + "/uil0091_MenuButGroup00";
+    const Messages* m = setup.texts.messages;
+    const auto msg = [&](int id, const char* fallback) {
+        const std::string s = m ? m->Get(id) : std::string();
+        return s.empty() ? std::string(fallback) : s;
+    };
+    ui.SetInstanceText(root + "/uip0039_col_pro_top_title_plate00_00", 0, msg(680, "Current Profile Card"));
+    ui.SetInstanceText(root + "/uip0039_col_pro_top_title_plate00_01", 0, msg(681, "Current Accolade / Nameplate"));
+    ui.SetInstanceText(root + "/uip0036_ProcMenuPlate00", 0, msg(706, "Menu"));
+    ui.SetInstanceText(buttons + "/uip0037_ProcNowMemIcon00", 0, msg(683, "Card-setting member"));
+    if (setup.plate) ShowNameplate(ui, *setup.plate, root + "/ctg03_uip0004_Title00", root + "/ctg03_uil0005_NameSet00");
+
+    // the current card: drawn by the port from its parts, in place of the game's saved JPEG (uip0038's card nodes)
+    const bool has_card = setup.save && setup.save->has_card;
+    Texture photo;
+    ProfileCardArt art;
+    if (has_card) {
+        const save::ProfileCard& card = setup.save->card;
+        art = MakeProfileCardArt(card, setup.texts);
+        std::vector<uint8_t> rgba;
+        uint32_t w = 0, h = 0;
+        if (png::Read(setup.data_dir / "profile_card.png", rgba, w, h, &error)) {
+            MakeCardPhoto(renderer, rgba, w, h, card.landscape, card.crop, photo);
+        } else {
+            LogWarn("profile menu: {}", error);
+        }
+        ApplyProfileCard(ui, "uip0019_ProfileCardCustom00", art, photo.gpu ? &photo : nullptr);
+    }
+    const std::string bg = root + "/uip0038_ProcPreviewBG01";
+    ui.HideNode(bg, "card_bg_Noimg", has_card);
+    ui.HideNode(bg, "card_vertical00", true);
+    ui.HideNode(bg, "card_horizontal00", true);
+    // shortcut: the dissolve backgrounds behind the game's card JPEG are not drawn (they need the JPEG)
+    ui.HideNode(bg, "card_bg_vertical00", true);
+    ui.HideNode(bg, "card_bg_horizontal00", true);
+    // the button group's parts carry their own screen positions, and uil0090 places the group at (1336, -673) too:
+    // drawn as placed they are off screen, so the group is moved back (the game's placement rule is not traced)
+    ui.MoveInstance(buttons, -1336.0f, 673.0f);
+    // the group background and tab follow the card-setting member (µ's or Aqours / Saint Snow)
+    const bool aqours = setup.member > 9;
+    ui.HideInstance(root + "/common_uil0101_ComBGGroup_Member01/common_uip0400_ComTopBG_Ms00", aqours);
+    ui.HideInstance(root + "/common_uil0101_ComBGGroup_Member01/common_uip0410_ComTopBG_Aqours00", !aqours);
+    ui.HideNode(root + "/common_uip0008_GroupTab00", "select_group00", aqours);
+    ui.HideNode(root + "/common_uip0008_GroupTab00", "select_group01", !aqours);
+
+    // the buttons: each part holds all three kinds (plate_change, edit, user); the focused one shows its "on" form.
+    // shortcut: a button that cannot be chosen (Create without a photo, Everyone's Profile Cards) shows its "off" form;
+    // the game greys it
+    const bool can_create = setup.save && profile::CanCreateCard(*setup.save);
+    const std::array<bool, 3> enabled = {true, can_create, false};
+    static constexpr const char* kKinds[3] = {"plate_change00", "edit00", "user00"};
+    int focus = 0;
+    const auto show = [&] {
+        for (int k = 0; k < 3; ++k) {
+            char b[160];
+            std::snprintf(b, sizeof(b), "%s/uip0090_ProcMenuBut00_%02d", buttons.c_str(), k);
+            ui.HideNode(b, "select00_on", k != focus);
+            ui.HideNode(b, "select00_off", k == focus);
+            for (int kind = 0; kind < 3; ++kind) {
+                ui.HideNode(b, std::string(kKinds[kind]) + "_on", kind != k);
+                ui.HideNode(b, std::string(kKinds[kind]) + "_off", kind != k);
+            }
+        }
+    };
+    show();
+    LogInfo("profile menu: {}, create {}", has_card ? "a card" : "no card", can_create ? "open" : "greyed");
+    SDL_SetWindowTitle(window, "SIF port - profile card");
+    int result = 0;
+    bool open = true;
+    ScreenFade fade;
+    uint64_t last = SDL_GetTicksNS();
+    for (long frame = 0; open && !fade.Left() && (max_frames < 0 || frame < max_frames); ++frame) {
+        SDL_Event e;
+        while (PollEvent(e)) {
+            if (e.type == SDL_EVENT_QUIT) open = false, result = -1;
+            if (e.type != SDL_EVENT_KEY_DOWN || e.key.repeat || fade.leaving) continue;
+            switch (e.key.scancode) {
+                case SDL_SCANCODE_UP:
+                    for (int k = focus - 1; k >= 0; --k) {
+                        if (enabled[size_t(k)]) {
+                            focus = k;
+                            break;
+                        }
+                    }
+                    break;
+                case SDL_SCANCODE_DOWN:
+                    for (int k = focus + 1; k < 3; ++k) {
+                        if (enabled[size_t(k)]) {
+                            focus = k;
+                            break;
+                        }
+                    }
+                    break;
+                case SDL_SCANCODE_RETURN:
+                case SDL_SCANCODE_SPACE:
+                    result = focus + 1;
+                    LogInfo("profile menu: button {}", focus);
+                    fade.Leave(ui);
+                    break;
+                case SDL_SCANCODE_ESCAPE:
+                case SDL_SCANCODE_BACKSPACE: fade.Leave(ui); break;
+                default: break;
+            }
+            show();
+        }
+        const uint64_t now = SDL_GetTicksNS();
+        ui.Update(double(now - last) / 1e9);
+        fade.Update(double(now - last) / 1e9);
+        last = now;
+        if (!renderer.BeginFrame()) {
+            SDL_Delay(5);
+            continue;
+        }
+        ui.DrawLayout(renderer, root, 1.0f);
+        // the card in the preview box (uip0038 at (375, -577), about 0.76 of the card's own size, as in shad2/p09)
+        if (has_card) ui.DrawPart(renderer, "uip0019_ProfileCardCustom00", 375.0f, -577.0f, 1.0f, 0.76f);
+        fade.Draw(renderer);
+        renderer.EndFrame();
+    }
+    renderer.Release(photo);
+    ui.Release(renderer);
+    return open ? result : -1;
 }
 
 }

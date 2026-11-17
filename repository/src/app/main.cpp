@@ -54,6 +54,7 @@
 #include "game/mission/mission.h"
 #include "game/profile/profile.h"
 #include "game/save/save.h"
+#include "game/text/messages.h"
 
 #ifndef SIF_BUILD_ID
 #define SIF_BUILD_ID "dev"
@@ -428,15 +429,34 @@ int main(int argc, char** argv) {
                     if (entry < 0) break;
                     home_mode = entry == 0;
                     view_mode = entry == 2;
-                    if (mode == 4 && entry == 15) {  // Collection: Profile Card (Change Accolade or Name Plate)
-                        loading.Show(renderer);
-                        const size_t shown_accolade = plate.accolade, shown_badge = plate.badge, shown_plate = plate.name_plate;
-                        open = sif::RunProfile(window, renderer, vfs, lang, plate, options.frames);
-                        // only a real choice is saved
-                        if (plate.accolade != shown_accolade || plate.badge != shown_badge || plate.name_plate != shown_plate) {
-                            save.accolade = plate.accolades[plate.accolade].id, save.badge = plate.badges[plate.badge].id;
-                            save.name_plate = plate.name_plates[plate.name_plate].id;
-                            if (can_save && !sif::save::Write(save_path, save, &save_error)) sif::LogWarn("save: {}", save_error);
+                    if (mode == 4 && entry == 15) {  // Collection: Profile Card: its menu (M12 P6a), then the screens
+                        sif::Messages card_messages;
+                        if (!card_messages.Load(vfs, language, &why)) sif::LogWarn("profile: messages: {}", why);
+                        for (int choice = 1; open && choice > 0;) {
+                            loading.Show(renderer);
+                            sif::ProfileMenuSetup menu{&save, options.data_dir, &plate,
+                                                       {&plate, &songs, &dresses, has_cards ? &card_data : nullptr,
+                                                        &card_messages, language},
+                                                       skills.member};
+                            choice = sif::RunProfileMenu(window, renderer, vfs, lang, menu, options.frames);
+                            open = choice >= 0;
+                            if (choice == 1) {  // Change Accolade or Name Plate (M7)
+                                loading.Show(renderer);
+                                const size_t shown_accolade = plate.accolade, shown_badge = plate.badge,
+                                             shown_plate = plate.name_plate;
+                                open = sif::RunProfile(window, renderer, vfs, lang, plate, options.frames);
+                                // only a real choice is saved
+                                if (plate.accolade != shown_accolade || plate.badge != shown_badge ||
+                                    plate.name_plate != shown_plate) {
+                                    save.accolade = plate.accolades[plate.accolade].id, save.badge = plate.badges[plate.badge].id;
+                                    save.name_plate = plate.name_plates[plate.name_plate].id;
+                                    if (can_save && !sif::save::Write(save_path, save, &save_error)) {
+                                        sif::LogWarn("save: {}", save_error);
+                                    }
+                                }
+                            } else if (choice == 2) {
+                                sif::LogInfo("profile: Create a New Profile Card (the editor comes in M12 P6b)");
+                            }
                         }
                         continue;
                     }

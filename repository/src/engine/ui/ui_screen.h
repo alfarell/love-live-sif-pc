@@ -44,7 +44,8 @@ public:
     // Canvas -> clip space for the current window (letterboxed, aspect kept).
     static Mat4 CanvasToClip(int window_width, int window_height);
     // A part centred at canvas (x, y), e.g. "uip0010_TitleLogo00". Text-box quads (no texture) are not drawn.
-    void DrawPart(Renderer& renderer, const std::string& part, float x, float y, float alpha) const;
+    // `scale` (optional) sizes it about its centre, e.g. the profile card in the Profile Card menu's smaller box.
+    void DrawPart(Renderer& renderer, const std::string& part, float x, float y, float alpha, float scale = 1.0f) const;
     // Every part a layout places (recursively through nested layouts), at its node; `part_alpha` (optional) scales
     // each top-level node by name.
     void DrawLayout(Renderer& renderer, const std::string& layout, float alpha,

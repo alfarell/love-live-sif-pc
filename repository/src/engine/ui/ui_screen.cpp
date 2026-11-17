@@ -566,8 +566,9 @@ void UiScreen::DrawLayoutAt(Renderer& renderer, const std::string& key, const Ma
     }
 }
 
-void UiScreen::DrawPart(Renderer& renderer, const std::string& part, float x, float y, float alpha) const {
+void UiScreen::DrawPart(Renderer& renderer, const std::string& part, float x, float y, float alpha, float scale) const {
     Mat4 at;
+    at(0, 0) = at(1, 1) = at(2, 2) = scale;
     at(0, 3) = x;
     at(1, 3) = y;
     DrawPartAt(renderer, part, CanvasToClip(renderer.Width(), renderer.Height()) * at, part, alpha);

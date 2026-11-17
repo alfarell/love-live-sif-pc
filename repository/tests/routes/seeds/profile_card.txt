@@ -1,0 +1,7 @@
+sif-port save 1
+player Route Player
+own 1 11000 3
+own 1 12016 1
+skills 1 11000 0 12016
+photo 0 1794896658 17 10010 10011 1
+profile_card 1001 0 0 10011 10010 2 901001 19001 11000 3 0 0 12016 1

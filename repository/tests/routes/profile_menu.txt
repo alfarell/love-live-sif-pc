@@ -1,0 +1,29 @@
+# M12 P6a: Collection -> Profile Card's menu with a saved card (seed: Honoka's initial frame, portrait, two skill
+# cards; its photo file is missing, so the card shows without a photo): the card drawn on the left, Create open
+#! seed profile_card
+timeout 60s
+expect screen title 30s
+press enter until menu 30s
+wait 1500ms
+key right
+wait 400ms
+key right
+wait 400ms
+key right
+wait 400ms
+key right
+wait 400ms
+key enter
+expect log top menu: entry 15
+expect screen profile_menu 20s
+expect log profile menu: a card, create open
+wait 1500ms
+shot profile_menu_card
+key down
+wait 300ms
+key enter
+expect log profile menu: button 1
+expect log profile: Create a New Profile Card
+expect screen profile_menu 20s
+key esc
+expect screen menu 20s

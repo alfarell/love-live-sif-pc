@@ -1,4 +1,5 @@
-# Collection -> Profile Card: choose another item on the first tab
+# Collection -> Profile Card: the menu (M12 P6a: no card, Create greyed), then Change Accolade or Name Plate: choose
+# another item on the first tab
 timeout 60s
 expect screen title 30s
 press enter until menu 30s
@@ -14,6 +15,11 @@ wait 400ms
 wait 400ms
 key enter
 expect log top menu: entry 15
+expect screen profile_menu 20s
+expect log profile menu: no card, create greyed
+wait 1000ms
+shot profile_menu_empty
+key enter
 expect screen profile 20s
 wait 1500ms
 key right
@@ -22,6 +28,9 @@ key enter
 expect log profile: tab
 wait 600ms
 shot profile
+key esc
+expect screen profile_menu 20s
+wait 600ms
 key esc
 expect screen menu 20s
 expect nolog error
