@@ -934,6 +934,9 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
     uint64_t camera_last = SDL_GetTicksNS();
     bool show_info = true;   // View Live Show: □ (Q) hides the whole HUD
     bool view_ending = false;
+    bool take_photo = false;         // View Live Show: ○ (P) pressed; the next frame is captured before the HUD
+    std::vector<LiveResult::Photo> photos;
+    std::array<Texture, 5> thumbs;   // the photos as HUD thumbnails (a quarter size)
     for (bool running = true; running && !fade.Left() && (opt.max_frames < 0 || frame < opt.max_frames); ++frame) {
         const uint64_t fade_now = SDL_GetTicksNS();
         fade.Update(double(fade_now - fade_last) / 1e9);
@@ -961,6 +964,8 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                 if (e.key.scancode == SDL_SCANCODE_PAGEDOWN) {
                     rig.mode = (rig.mode + 1) % 3;
                     LogInfo("live view: camera mode {}", kCameraModeNames[rig.mode]);
+                } else if (e.key.scancode == SDL_SCANCODE_P && !take_photo && photos.size() < 5) {
+                    take_photo = true;
                 } else if (e.key.scancode == SDL_SCANCODE_Q) {
                     show_info = !show_info;
                     LogInfo("live view: info {}", show_info ? "on" : "off");
@@ -969,7 +974,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                     rig.member = (rig.member + (e.key.scancode == SDL_SCANCODE_PERIOD ? 1 : n - 1)) % n;
                     LogInfo("live view: member camera on member {}", dancing.empty() ? 0 : dancing[size_t(rig.member)]);
                 }
-                if (has_hud) ApplyLiveViewHud(hud, rig.mode, 0, dancing, rig.member);
+                if (has_hud) ApplyLiveViewHud(hud, rig.mode, int(photos.size()), dancing, rig.member);
             } else if ((e.type == SDL_EVENT_KEY_DOWN || e.type == SDL_EVENT_KEY_UP) && !e.key.repeat && !opt.autoplay) {
                 const int lane = LaneOf(e.key.scancode);
                 if (lane < 0) continue;
@@ -1083,6 +1088,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
         if (renderer.BeginFrame()) {
             const uint64_t draw_start = SDL_GetTicksNS();
             scene.Draw(renderer, now, song.dance_start_frame, opt.view ? &rig : nullptr);
+            if (take_photo) renderer.CaptureFrame();  // the 3D view only: the HUD is drawn after the copy
             if (opt.view) {
                 if (has_hud && show_info) hud.DrawLayout(renderer, kLiveViewHud, 1.0f);
             } else if (field.loaded) {
@@ -1194,6 +1200,27 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
             }
             fade.Draw(renderer);
             renderer.EndFrame();
+            LiveResult::Photo shot;
+            if (take_photo && renderer.TakeCapture(shot.rgba, shot.width, shot.height)) {
+                // the HUD thumbnail: every 4th pixel (shortcut: no filtering; it is 164 px wide on screen)
+                const uint32_t tw = std::max(1u, shot.width / 4), th = std::max(1u, shot.height / 4);
+                std::vector<uint8_t> small(size_t(tw) * th * 4);
+                for (uint32_t y = 0; y < th; ++y) {
+                    for (uint32_t x = 0; x < tw; ++x) {
+                        std::memcpy(&small[(size_t(y) * tw + x) * 4], &shot.rgba[(size_t(y) * 4 * shot.width + x * 4) * 4], 4);
+                    }
+                }
+                const size_t k = photos.size();
+                if (renderer.CreateTexture(tw, th, thumbs[k], nullptr) && renderer.UpdateTexture(thumbs[k], small) && has_hud) {
+                    hud.SetMaterialTexture(kLiveViewHud + "/uip0016_ScreenShot00", "screen_shot_0" + std::to_string(k) + "_M",
+                                           &thumbs[k]);
+                }
+                LogInfo("live view: photo {} taken ({}x{}, camera {})", k + 1, shot.width, shot.height,
+                        kCameraModeNames[rig.mode]);
+                photos.push_back(std::move(shot));
+                if (has_hud) ApplyLiveViewHud(hud, rig.mode, int(photos.size()), dancing, rig.member);
+            }
+            take_photo = false;
             const double cpu_ms = double(SDL_GetTicksNS() - draw_start) / 1e6;  // CPU cost of one frame, without the vsync wait
             frame_cpu_ms.push_back(cpu_ms);
         } else {
@@ -1227,6 +1254,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
     }
 
     audio.StopEffects();  // hit_sound is about to go away
+    for (Texture& t : thumbs) renderer.Release(t);
     scene.Release(renderer);
     field.Release(renderer);
     hud.Release(renderer);
@@ -1264,6 +1292,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                    judge.Rank()};
         std::copy(judge.counts.begin(), judge.counts.end(), result->counts.begin());
         result->costume = dressed.costume;
+        result->photos = std::move(photos);
     }
     return 0;
 }

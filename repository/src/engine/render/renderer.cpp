@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstring>
+#include <utility>
 #include <vector>
 
 #include "engine/core/log.h"
@@ -347,9 +348,65 @@ void Renderer::Use2D() {
 void Renderer::EndFrame() {
     if (!cmd_) return;
     if (pass_) SDL_EndGPURenderPass(pass_);
-    SDL_SubmitGPUCommandBuffer(cmd_);
+    if (!capture_) {
+        SDL_SubmitGPUCommandBuffer(cmd_);
+    } else {  // a photo was queued: wait for its copy and keep the pixels (one frame's stall, only when a photo is taken)
+        SDL_GPUFence* fence = SDL_SubmitGPUCommandBufferAndAcquireFence(cmd_);
+        if (fence && SDL_WaitForGPUFences(device_, true, &fence, 1)) {
+            const uint8_t* src = static_cast<const uint8_t*>(SDL_MapGPUTransferBuffer(device_, capture_, false));
+            if (src) {
+                const size_t n = size_t(capture_width_) * capture_height_ * 4;
+                captured_.assign(src, src + n);
+                // the swapchain is BGRA on the usual Vulkan and D3D12 drivers: turn it into RGBA, alpha opaque
+                const SDL_GPUTextureFormat f = SDL_GetGPUSwapchainTextureFormat(device_, window_);
+                const bool bgra = f == SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM || f == SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM_SRGB;
+                for (size_t i = 0; i < n; i += 4) {
+                    if (bgra) std::swap(captured_[i], captured_[i + 2]);
+                    captured_[i + 3] = 255;
+                }
+                has_capture_ = true;
+                SDL_UnmapGPUTransferBuffer(device_, capture_);
+            }
+        }
+        if (!has_capture_) LogError("renderer: capture failed: {}", SDL_GetError());
+        if (fence) SDL_ReleaseGPUFence(device_, fence);
+        SDL_ReleaseGPUTransferBuffer(device_, capture_);
+        capture_ = nullptr;
+    }
     cmd_ = nullptr;
     pass_ = nullptr;
+}
+
+bool Renderer::CaptureFrame() {
+    if (!cmd_ || !swapchain_ || capture_) return false;
+    if (pass_) SDL_EndGPURenderPass(pass_), pass_ = nullptr;
+    SDL_GPUTransferBufferCreateInfo info{};
+    info.usage = SDL_GPU_TRANSFERBUFFERUSAGE_DOWNLOAD;
+    info.size = width_ * height_ * 4;
+    capture_ = SDL_CreateGPUTransferBuffer(device_, &info);
+    if (!capture_) {
+        LogError("renderer: capture buffer: {}", SDL_GetError());
+    } else {
+        SDL_GPUCopyPass* copy = SDL_BeginGPUCopyPass(cmd_);
+        SDL_GPUTextureRegion from{};
+        from.texture = swapchain_;
+        from.w = width_, from.h = height_, from.d = 1;
+        SDL_GPUTextureTransferInfo to{};
+        to.transfer_buffer = capture_;
+        SDL_DownloadFromGPUTexture(copy, &from, &to);
+        SDL_EndGPUCopyPass(copy);
+        capture_width_ = width_, capture_height_ = height_;
+    }
+    BeginPass(false);  // what follows (the HUD) is drawn over the picture, as in a 2D pass
+    return capture_ != nullptr;
+}
+
+bool Renderer::TakeCapture(std::vector<uint8_t>& rgba, uint32_t& width, uint32_t& height) {
+    if (!has_capture_) return false;
+    rgba = std::move(captured_);
+    width = capture_width_, height = capture_height_;
+    has_capture_ = false;
+    return true;
 }
 
 bool Renderer::UploadBuffer(SDL_GPUBuffer* buffer, SDL_GPUTransferBuffer* staging, const void* data, uint32_t size) {

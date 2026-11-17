@@ -12,6 +12,7 @@ Usage: py -3.14 -I tools/routes.py --exe <sif.exe> --game <your CUSA24620 dump> 
 Route header directives (comment lines the port ignores):
   #! seed NAME          copy tests/routes/seeds/NAME.txt to the data folder as save.txt before the run
   #! args ARG ...       extra sif.exe arguments, e.g. `#! args --lang cn`
+  #! visible            always run with a visible window (a hidden one draws no frames, so nothing is captured)
   #! data NAME          routes with the same NAME share one data folder, run in name order (e.g. a save kept from
                         one route to the next); the first one starts it empty
 Every data folder starts with a settings.ini that names the dump and sets the volume to 0 (routes are silent).
@@ -29,7 +30,7 @@ ROUTES = REPO / "tests" / "routes"
 
 
 def directives(route: Path) -> dict:
-    out = {"seed": None, "args": [], "data": None}
+    out = {"seed": None, "args": [], "data": None, "visible": None}
     for line in route.read_text(encoding="utf-8").splitlines():
         m = re.match(r"\s*#!\s*(\w+)\s*(.*)$", line)
         if not m:
@@ -97,7 +98,7 @@ def main() -> int:
             shutil.copyfile(ROUTES / "seeds" / f"{d['seed']}.txt", data / "save.txt")
         (data / "sif.log").unlink(missing_ok=True)
         cmd = [str(exe), "--data", str(data), "--route", str(route), "--shots", str(data / "shots" / route.stem)]
-        if not args.shots:
+        if not args.shots and d["visible"] is None:  # a visible route needs drawn frames (e.g. photos)
             cmd.append("--hidden")
         cmd += d["args"]
         t0 = time.monotonic()

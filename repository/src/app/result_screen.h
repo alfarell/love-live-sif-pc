@@ -33,6 +33,12 @@ struct LiveResult {
     };
     std::vector<Skill> skills;                     // skill card drops (M11 S6)
     std::vector<std::pair<int, int>> materials;    // costume materials: item id, amount
+    // View Live Show (M12 P4c): the photos taken, RGBA8 at the window's size (saved by the caller)
+    struct Photo {
+        std::vector<uint8_t> rgba;
+        uint32_t width = 0, height = 0;
+    };
+    std::vector<Photo> photos;
 };
 
 // The tables the Items Obtained page needs (card names and pictures, material icons, owned totals); null = not shown.

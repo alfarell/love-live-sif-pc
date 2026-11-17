@@ -72,6 +72,7 @@ add_library(sif_engine STATIC
   src/engine/formats/bmar.cpp
   src/engine/formats/bscm.cpp
   src/engine/formats/btx.cpp
+  src/engine/formats/png.cpp
   src/engine/formats/fad.cpp
   src/engine/fs/pac.cpp
   src/engine/fs/vfs.cpp

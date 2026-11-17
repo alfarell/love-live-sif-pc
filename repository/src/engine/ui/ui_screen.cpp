@@ -304,6 +304,10 @@ const Texture* UiScreen::GetTexture(const std::string& vfs_path) {
     return &it->second;
 }
 
+void UiScreen::SetMaterialTexture(const std::string& instance, const std::string& material, const Texture* texture) {
+    instance_textures_[instance][material] = texture;
+}
+
 bool UiScreen::SetMaterialTexture(const std::string& instance, const std::string& material, const std::string& vfs_path) {
     const Texture* t = GetTexture(vfs_path);
     if (t) instance_textures_[instance][material] = t;

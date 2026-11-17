@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <span>
 #include <string>
+#include <vector>
 
 #include "engine/core/math.h"
 #include "engine/formats/btx.h"
@@ -84,6 +85,11 @@ public:
                     const std::array<float, 2>& uv_offset = {0, 0}, float u_max = 1e9f,
                     const std::array<float, 4>& add = {0, 0, 0, 0}, bool additive = false);
 
+    // Photos (M12 P4c): CaptureFrame inside a frame queues a copy of the window as drawn so far (e.g. the 3D scene
+    // before the HUD); EndFrame waits for it, and TakeCapture then hands over the pixels (RGBA8, top row first).
+    bool CaptureFrame();
+    bool TakeCapture(std::vector<uint8_t>& rgba, uint32_t& width, uint32_t& height);
+
     // Clears the window and draws `texture` (if any) fitted to the window. Returns false if nothing was presented.
     bool DrawFrame(const Texture* texture);
 
@@ -116,6 +122,10 @@ private:
     SDL_GPUTexture* swapchain_ = nullptr;
     bool pass_3d_ = false;  // the current pass has the depth buffer (3D); false = 2D overlay
     uint32_t width_ = 0, height_ = 0;
+    SDL_GPUTransferBuffer* capture_ = nullptr;  // the pending capture's download buffer
+    uint32_t capture_width_ = 0, capture_height_ = 0;
+    std::vector<uint8_t> captured_;
+    bool has_capture_ = false;
 };
 
 }

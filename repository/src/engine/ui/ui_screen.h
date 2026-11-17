@@ -67,6 +67,8 @@ public:
     // Replaces a material's texture in one placed instance with a btx from the dump (cached), e.g. a song cover:
     // the game's FUN_0024B850(instance, material) + texture assignment. False if the texture cannot be loaded.
     bool SetMaterialTexture(const std::string& instance, const std::string& material, const std::string& vfs_path);
+    // The same with a texture the caller owns (e.g. a photo just taken); it must outlive the screen's draws.
+    void SetMaterialTexture(const std::string& instance, const std::string& material, const Texture* texture);
     // Shifts a material's UVs in one placed instance (e.g. the row of a label atlas), in texture units.
     void SetMaterialUv(const std::string& instance, const std::string& material, float u, float v);
     // Draws a material in one placed instance only where its mesh U is at most `u_max` (a gauge filled to a fraction).

@@ -40,6 +40,7 @@
 #include "engine/core/crash_report.h"
 #include "engine/core/log.h"
 #include "engine/formats/btx.h"
+#include "engine/formats/png.h"
 #include "engine/fs/vfs.h"
 #include "engine/platform/os.h"
 #include "engine/platform/settings.h"
@@ -50,6 +51,7 @@
 #include "game/dlc/dlc.h"
 #include "game/live/song.h"
 #include "game/mission/mission.h"
+#include "game/profile/profile.h"
 #include "game/save/save.h"
 
 #ifndef SIF_BUILD_ID
@@ -209,6 +211,40 @@ int Quit(int code, const char* why) {
     return code;
 }
 
+}
+
+// Saves the photos of one View Live Show (M12 P4c): each goes to profile::NextPhotoSlot (a free slot, else the oldest
+// that is not a favourite) as photos/NN.png in the data folder, with a `photo` line in the save. The photo's member
+// card is the played member's card in the costume she wore ((member x 1000 + costume) x 10, the R picture); its live
+// is song x 1000 + variant, as the game's records (340011). shortcut: `stage` is the port's stage model number
+// (stNNN), not the game's stage id
+void SavePhotos(const std::filesystem::path& data_dir, sif::LiveResult& result, int member,
+                const sif::LiveOptions& live, sif::save::SaveData& save) {
+    std::error_code ec;
+    std::filesystem::create_directories(data_dir / "photos", ec);
+    std::string dress = result.costume;
+    if (const auto it = live.wear.find(member); it != live.wear.end()) dress = it->second;  // her own costume wins
+    const int costume = dress.size() == 4 && dress[0] == 'd' ? std::atoi(dress.c_str() + 1) : 0;
+    int stage = 0;
+    std::sscanf(live.stage.c_str(), "st%d", &stage);
+    const long long now = std::chrono::duration_cast<std::chrono::seconds>(
+                              std::chrono::system_clock::now().time_since_epoch()).count();
+    for (sif::LiveResult::Photo& p : result.photos) {
+        const int slot = sif::profile::NextPhotoSlot(save);
+        if (slot < 0) {
+            sif::LogWarn("photos: every slot holds a favourite; photo not saved");
+            break;
+        }
+        const std::filesystem::path file = data_dir / sif::os::PathFromUtf8(sif::profile::PhotoFile(slot));
+        std::string error;
+        if (!sif::png::Write(file, p.rgba, p.width, p.height, &error)) {
+            sif::LogWarn("photos: {}", error);
+            continue;
+        }
+        save.photos[slot] = {now, stage, (member * 1000 + costume) * 10, result.song * 1000 + result.variant, false};
+        sif::LogInfo("photos: slot {} = {} ({}x{}, member card {}, live {})", slot, sif::profile::PhotoFile(slot), p.width,
+                     p.height, save.photos[slot].member_card, save.photos[slot].live);
+    }
 }
 
 int main(int argc, char** argv) {
@@ -463,6 +499,11 @@ int main(int argc, char** argv) {
                 options.live_options.skills = view_mode ? std::vector<sif::live::Skill>{} : sif::LiveSkills(skills);
                 options.live_options.view = view_mode;  // a viewed live is not judged: no records, drops or result
                 code = sif::RunLive(window, renderer, audio, vfs, settings, options.live_options, &result);
+                if (view_mode && !result.photos.empty()) {  // View Live Show's photos (M12 P4c; P4d adds the End screen)
+                    loading.Show(renderer);
+                    SavePhotos(options.data_dir, result, skills.member, options.live_options, save);
+                    if (can_save && !sif::save::Write(save_path, save, &save_error)) sif::LogWarn("save: {}", save_error);
+                }
                 sif::save::NewBests news;
                 if (code == 0 && !result.closed && result.finished) {
                     loading.Show(renderer);

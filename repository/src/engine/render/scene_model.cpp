@@ -232,9 +232,11 @@ void SceneModel::DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha, st
         if (parent >= 0 && !visible[size_t(parent)]) visible[i] = false;
     }
     for (const Part& part : parts_) {
-        // text boxes (no texture named) are not drawn; a named texture missing from the dump (e.g. one the game
-        // fills at run time, like the stage preview) is drawn only when the caller supplies one
-        if (model_.materials[part.material].texture.empty() || !visible[part.node] ||
+        // text boxes (no texture named) are not drawn, unless the caller supplies a texture for the material (the
+        // photo thumbnails of View Live Show, uip0016_ScreenShot00); a named texture missing from the dump (e.g. one
+        // the game fills at run time, like the stage preview) is drawn only when the caller supplies one
+        const bool supplied = textures && textures->contains(model_.materials[part.material].name);
+        if ((model_.materials[part.material].texture.empty() && !supplied) || !visible[part.node] ||
             Mask(model_.nodes[part.node].name)) continue;
         std::array<float, 4> tint{1, 1, 1, alpha};
         std::array<float, 2> uv{0, 0};

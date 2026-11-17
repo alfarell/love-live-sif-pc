@@ -1,6 +1,7 @@
 # M12 P4a: Play -> View Live Show (top-menu entry 2): the song select in its view mode (no difficulty step), Prepare
 # with the camera help panel, then the live without notes; R1 (Page Down) changes the camera mode, Square (Q) hides
-# the HUD; the Member camera follows a member (comma/period switch), arrows orbit, L1 (Page Up) zooms (shadPS4 work/m12/shad2/v01-v13)
+# the HUD; the Member camera follows a member (comma/period switch), arrows orbit, L1 (Page Up) zooms; Circle (P) takes a photo, saved when the live ends (shadPS4 work/m12/shad2/v01-v13)
+#! visible
 timeout 120s
 expect screen title 30s
 press enter until menu 30s
@@ -31,6 +32,8 @@ wait 5s
 shot view_live
 key pagedown
 expect log live view: camera mode Member
+key p
+expect log live view: photo 1 taken
 wait 500ms
 shot view_member
 key .
@@ -44,6 +47,8 @@ key pagedown
 expect log live view: camera mode View
 key pageup 900ms
 expect log live view: View camera yaw
+key p
+expect log live view: photo 2 taken
 wait 300ms
 shot view_view
 key q
@@ -51,5 +56,7 @@ expect log live view: info off
 wait 500ms
 shot view_live_noinfo
 key esc
+expect log photos: slot 0 = photos/00.png
+expect log photos: slot 1 = photos/01.png
 expect screen select 30s
 expect nolog error
