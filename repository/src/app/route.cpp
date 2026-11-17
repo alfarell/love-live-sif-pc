@@ -26,7 +26,7 @@ const std::map<std::string, SDL_Scancode>& Keys() {
         {"d", SDL_SCANCODE_D},          {"f", SDL_SCANCODE_F},              {"j", SDL_SCANCODE_J},
         {"k", SDL_SCANCODE_K},          {"l", SDL_SCANCODE_L},              {";", SDL_SCANCODE_SEMICOLON},
         {"q", SDL_SCANCODE_Q},          {"p", SDL_SCANCODE_P},              {"home", SDL_SCANCODE_HOME},
-        {"end", SDL_SCANCODE_END},
+        {"end", SDL_SCANCODE_END},      {",", SDL_SCANCODE_COMMA},          {".", SDL_SCANCODE_PERIOD},
     };
     return keys;
 }
@@ -150,8 +150,11 @@ bool Parse(std::string_view script, std::vector<Command>& out, std::string* erro
         if (c.op == "wait" || c.op == "timeout") {
             std::string d, extra;
             if (!(args >> d) || !Duration(d, c.ms) || (args >> extra)) return bad(c.op + " needs a duration like 500ms or 2s");
-        } else if (c.op == "key") {
+        } else if (c.op == "key") {  // key NAME [HOLD]: a tap, or held down for HOLD (e.g. 800ms)
+            std::string d;
+            c.ms = 60;
             if (!(args >> c.what) || !Keys().contains(c.what)) return bad("unknown key '" + c.what + "'");
+            if (args >> d && !Duration(d, c.ms)) return bad("key: bad hold time '" + d + "'");
         } else if (c.op == "press") {
             std::string until, d;
             c.ms = 20000;
@@ -247,7 +250,7 @@ bool Inject(SDL_Event& e) {
             const SDL_Scancode code = Keys().at(c.what);
             KeyEvent(e, code, true, now);
             s.up = code;
-            s.up_at = now + 60'000'000;
+            s.up_at = now + uint64_t(c.ms) * 1'000'000;
             advance();
             return true;
         } else if (c.op == "press") {

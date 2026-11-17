@@ -42,6 +42,9 @@ public:
                 const std::map<std::string, std::array<float, 3>>* uv_offsets = nullptr) const;
     void Release(Renderer& renderer);
     const bmar::Model& Data() const { return model_; }
+    // Where node `name` is after the last Pose, in the model's space (e.g. a member's "Bip001_Head" for a camera that
+    // follows her); false if the model has no such node
+    bool NodePosition(const std::string& name, Vec3& out) const;
     // UI text boxes: the meshes whose material names no texture, in draw order, as (x0, y0, x1, y1) after their node
     // transform (a named texture missing from the dump, or a mask node named "*stencil*", does not make a text box)
     std::vector<std::array<float, 4>> TextBoxes() const;

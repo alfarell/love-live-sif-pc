@@ -497,6 +497,42 @@ std::string FindEntry(const Vfs& vfs, const std::string& folder, const std::stri
     return {};
 }
 
+// View Live Show's own cameras (M12 P4b; shadPS4 work/m12/shad2/v05-v11). Member: an orbit around one member's head
+// (Bip001_Head), close as in the game's Member Camera; View: an orbit around the stage centre from the front. Yaw 0 is
+// in front (the members face -Y in the Z-up world). shortcut: the game's distances, limits and speeds are not traced;
+// these are chosen to look like its shots
+struct CameraRig {
+    int mode = 0;    // 0 MV (the song's camera), 1 Member, 2 View
+    int member = 0;  // Member: index into LiveScene::dancers
+    struct Orbit {
+        float yaw = 0, pitch = 0, dist = 1, height = 0;  // radians, metres; height moves the look-at point up
+    };
+    Orbit member_orbit{0, 0.05f, 1.1f, 0};
+    Orbit view_orbit{0, 0.12f, 9.0f, 0};
+    // held keys: arrows orbit; L1 (Page Up) held moves the camera away (with Up: nearer), L2 (Home) raises it (with
+    // Down: lowers). In the game holding L1 alone zoomed out (shad2/v08); the rest of its key rule is not traced
+    static void Move(Orbit& o, bool member_cam, float dt, bool left, bool right, bool up, bool down, bool l1, bool l2) {
+        const float v = float(up) - float(down), h = float(right) - float(left);
+        if (l1) {
+            o.dist = std::clamp(o.dist + (v != 0 ? -v : 1.0f) * (member_cam ? 1.2f : 5.0f) * dt, member_cam ? 0.5f : 3.0f,
+                                member_cam ? 4.0f : 18.0f);
+        } else if (l2) {
+            o.height = std::clamp(o.height + (v != 0 ? v : 1.0f) * (member_cam ? 0.6f : 1.5f) * dt, -1.0f, member_cam ? 0.4f : 3.0f);
+        } else {
+            o.yaw += h * 1.6f * dt;
+            o.pitch = std::clamp(o.pitch + v * 1.0f * dt, -0.5f, 1.2f);
+        }
+    }
+    // `base`: added to the yaw (the followed member's facing, so yaw 0 is in front of her)
+    static Mat4 Look(const Orbit& o, Vec3 target, float fov, float aspect, float base = 0) {
+        target.z += o.height;
+        const float c = std::cos(o.pitch), yaw = o.yaw + base;
+        const Vec3 eye{target.x + std::sin(yaw) * c * o.dist, target.y - std::cos(yaw) * c * o.dist,
+                       target.z + std::sin(o.pitch) * o.dist};
+        return Perspective(fov, aspect, 0.05f, 500.0f) * LookAt(eye, target, {0, 0, 1});
+    }
+};
+
 // Stage, the members dancing the song, and the song's camera; missing parts are logged and skipped. Each member's
 // dance is authored at that member's spot on the stage (the root moves to the formation), so all are drawn unplaced.
 struct LiveScene {
@@ -556,6 +592,10 @@ struct LiveScene {
         ++screen_updates;
     }
     double screen_ms = 0;  // decode + upload time, logged at the end of the live
+    float facing = 0;        // the Member camera's eased yaw of the followed member
+    int facing_member = -1;
+    float frame_dt = 0;      // seconds since the last Draw (the easing)
+    double last_draw_ms = -1;
     long screen_updates = 0;
 
     void Load(Renderer& renderer, const Vfs& vfs, const LiveOptions& opt, int monitor) {
@@ -636,7 +676,9 @@ struct LiveScene {
     // `now_ms`: audio time. The dance (and camera) clock runs `start_frame` ahead of the music: frames before it are
     // the stage intro, which the port skips (shortcut: the music starts at once; play the intro first when the
     // pre-music flow is built)
-    void Draw(Renderer& renderer, double now_ms, float start_frame) {
+    void Draw(Renderer& renderer, double now_ms, float start_frame, const CameraRig* rig = nullptr) {
+        frame_dt = last_draw_ms < 0 ? 0 : float(std::clamp((now_ms - last_draw_ms) / 1000.0, 0.0, 0.1));
+        last_draw_ms = now_ms;
         const float frame = float(std::max(0.0, now_ms) / 1000.0 * 60.0) + start_frame;  // dance and camera clock, 60 fps
         for (auto& d : dancers) d->model.Pose(renderer, d->has_dance ? &d->dance : nullptr, frame);
         if (has_stage && !stage_loops.empty()) {
@@ -645,7 +687,25 @@ struct LiveScene {
             stage.Pose(renderer, layers);
         }
         const float aspect = float(renderer.Width()) / float(std::max(1, renderer.Height()));
-        if (has_camera) {
+        Vec3 head{}, eye_l{}, eye_r{};
+        if (rig && rig->mode == 1 && size_t(rig->member) < dancers.size() &&
+            dancers[size_t(rig->member)]->model.NodePosition("Bip001_Head", head)) {
+            // her facing from the line between her eyes (left minus right points to her left; the front is that
+            // crossed with up), turned into a yaw and eased so the camera follows her turns without snapping
+            const SceneModel& m = dancers[size_t(rig->member)]->model;
+            if (m.NodePosition("Bip001_eye_L_ctrl", eye_l) && m.NodePosition("Bip001_eye_R_ctrl", eye_r)) {
+                const Vec3 front = Cross(eye_l - eye_r, {0, 0, 1});
+                if (front.x * front.x + front.y * front.y > 1e-8f) {
+                    const float want = std::atan2(front.x, -front.y);
+                    float d = std::remainder(want - facing, 6.2831853f);
+                    if (rig->member != facing_member) d = want - facing, facing_member = rig->member;  // a new member: at once
+                    facing += d * std::min(1.0f, frame_dt * 3.0f);
+                }
+            }
+            renderer.SetCamera(CameraRig::Look(rig->member_orbit, head, 0.55f, aspect, facing));
+        } else if (rig && rig->mode == 2) {
+            renderer.SetCamera(CameraRig::Look(rig->view_orbit, {0, 0, 1.0f}, 0.70f, aspect));
+        } else if (has_camera) {
             const bscm::Pose pose = bscm::Sample(camera, frame);
             renderer.SetCamera(Perspective(pose.fov_deg * 3.14159265f / 180.0f, aspect, 0.1f, 500.0f) * bscm::ViewMatrix(pose));
         } else {  // fixed front view; Z-up world, models face -Y
@@ -676,7 +736,7 @@ const std::string kSkillHud = "uil0005_ActiveSkillLayout00";
 // (uip0015) and up to five thumbnails (uip0016), and the song name (uip0005_Songname_00).
 const std::string kLiveViewHud = "uil0002_LiveView00";
 constexpr const char* kCameraModeNames[3] = {"MV", "Member", "View"};
-void ApplyLiveViewHud(UiScreen& hud, int mode, int photos) {
+void ApplyLiveViewHud(UiScreen& hud, int mode, int photos, const std::vector<int>& members = {}, int focus = 0) {
     const std::string bar = kLiveViewHud + "/uip0010_CameraModeInfo00";
     static constexpr const char* kNodes[3] = {"cam_mv", "cam_member", "cam_view"};
     for (int m = 0; m < 3; ++m) {
@@ -689,6 +749,20 @@ void ApplyLiveViewHud(UiScreen& hud, int mode, int photos) {
     hud.HideInstance(kLiveViewHud + "/uip0013_ViewCameraInfo00", mode != 2);
     hud.HideInstance(kLiveViewHud + "/uip0017_CharaOrder00", mode != 1);
     hud.HideInstance(kLiveViewHud + "/uip0020_Warning00", true);
+    // the Member camera's members, from the left, with the camera icon over the followed one; ui_medley_ch_icon00 has
+    // 5 x 4 cells in member order (µ's 1-9, Aqours 11-19, Saint Snow 21-22)
+    const std::string order = kLiveViewHud + "/uip0017_CharaOrder00";
+    for (int k = 0; k < 11; ++k) {
+        char chara[24], icon[24];
+        std::snprintf(chara, sizeof(chara), "focus_chara%02d", k);
+        std::snprintf(icon, sizeof(icon), "focus_icon%02d", k);
+        const bool on = size_t(k) < members.size();
+        hud.HideNode(order, chara, !on);
+        hud.HideNode(order, icon, !on || k != focus);
+        if (!on) continue;
+        const int m = members[size_t(k)], cell = m <= 9 ? m - 1 : m <= 19 ? m - 2 : m - 3;
+        hud.SetMaterialUv(order, std::string(chara) + "_M", 0.2f * float(cell % 5), 0.25f * float(cell / 5));
+    }
     // shortcut: "Photos" is the English label (message 657) in every language; the counter is the game's "n/5"
     hud.SetInstanceText(kLiveViewHud + "/uip0015_PhotoNamber00", 0, "Photos");
     hud.SetInstanceText(kLiveViewHud + "/uip0015_PhotoNamber00", 1, std::to_string(photos) + "/5");
@@ -853,7 +927,11 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
     uint64_t fade_last = SDL_GetTicksNS();
     SetLiveHome(chart.home, live::IsHomeVariant(opt.variant) && opt.variant >= 12 ? HomeConfig::Hard : HomeConfig::Easy);
     SetPadLayout(opt.view ? PadLayout::View : PadLayout::Live);
-    int camera_mode = 0;     // View Live Show: 0 MV, 1 Member, 2 View (R1 = Page Down cycles)
+    CameraRig rig;           // View Live Show: rig.mode 0 MV, 1 Member, 2 View (R1 = Page Down cycles)
+    std::vector<int> dancing;  // the members in the Member camera's order
+    for (const auto& d : scene.dancers) dancing.push_back(d->member);
+    std::map<SDL_Scancode, bool> held;  // View Live Show: camera keys held down
+    uint64_t camera_last = SDL_GetTicksNS();
     bool show_info = true;   // View Live Show: □ (Q) hides the whole HUD
     bool view_ending = false;
     for (bool running = true; running && !fade.Left() && (opt.max_frames < 0 || frame < opt.max_frames); ++frame) {
@@ -868,15 +946,30 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
             } else if (e.type == SDL_EVENT_KEY_DOWN && e.key.scancode == SDL_SCANCODE_ESCAPE) {
                 fade.Leave(hud);
             } else if (opt.view) {
+                const SDL_Scancode k = e.key.scancode;
+                const bool moves = k == SDL_SCANCODE_LEFT || k == SDL_SCANCODE_RIGHT || k == SDL_SCANCODE_UP ||
+                                   k == SDL_SCANCODE_DOWN || k == SDL_SCANCODE_PAGEUP || k == SDL_SCANCODE_HOME;
+                if (e.type == SDL_EVENT_KEY_UP && held[k] && moves && rig.mode > 0) {  // where a move ended
+                    const CameraRig::Orbit& o = rig.mode == 1 ? rig.member_orbit : rig.view_orbit;
+                    LogInfo("live view: {} camera yaw {:.2f} pitch {:.2f} distance {:.2f} height {:.2f}",
+                            kCameraModeNames[rig.mode], o.yaw, o.pitch, o.dist, o.height);
+                }
+                if (e.type == SDL_EVENT_KEY_UP) held[e.key.scancode] = false;
                 if (e.type != SDL_EVENT_KEY_DOWN || e.key.repeat) continue;
+                held[e.key.scancode] = true;
+                const int n = std::max(1, int(dancing.size()));
                 if (e.key.scancode == SDL_SCANCODE_PAGEDOWN) {
-                    camera_mode = (camera_mode + 1) % 3;
-                    LogInfo("live view: camera mode {}", kCameraModeNames[camera_mode]);
+                    rig.mode = (rig.mode + 1) % 3;
+                    LogInfo("live view: camera mode {}", kCameraModeNames[rig.mode]);
                 } else if (e.key.scancode == SDL_SCANCODE_Q) {
                     show_info = !show_info;
                     LogInfo("live view: info {}", show_info ? "on" : "off");
+                } else if (rig.mode == 1 &&
+                           (e.key.scancode == SDL_SCANCODE_COMMA || e.key.scancode == SDL_SCANCODE_PERIOD)) {
+                    rig.member = (rig.member + (e.key.scancode == SDL_SCANCODE_PERIOD ? 1 : n - 1)) % n;
+                    LogInfo("live view: member camera on member {}", dancing.empty() ? 0 : dancing[size_t(rig.member)]);
                 }
-                if (has_hud) ApplyLiveViewHud(hud, camera_mode, 0);
+                if (has_hud) ApplyLiveViewHud(hud, rig.mode, 0, dancing, rig.member);
             } else if ((e.type == SDL_EVENT_KEY_DOWN || e.type == SDL_EVENT_KEY_UP) && !e.key.repeat && !opt.autoplay) {
                 const int lane = LaneOf(e.key.scancode);
                 if (lane < 0) continue;
@@ -902,6 +995,16 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
             }
         }
         if (!opt.view) judge.Update(now);
+        if (opt.view) {  // the Member and View cameras move while their keys are held
+            const uint64_t t = SDL_GetTicksNS();
+            const float dt = float(double(t - camera_last) / 1e9);
+            camera_last = t;
+            if (rig.mode > 0) {
+                CameraRig::Move(rig.mode == 1 ? rig.member_orbit : rig.view_orbit, rig.mode == 1, dt,
+                                held[SDL_SCANCODE_LEFT], held[SDL_SCANCODE_RIGHT], held[SDL_SCANCODE_UP],
+                                held[SDL_SCANCODE_DOWN], held[SDL_SCANCODE_PAGEUP], held[SDL_SCANCODE_HOME]);
+            }
+        }
         // each judgement plays its sound, each sound at most once per frame (a simultaneous pair judged alike sounds
         // once; shortcut: the game's rule for this and for hold releases is not traced, its caller of 0xB06C0 is a
         // function pointer)
@@ -979,7 +1082,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
         scene.UpdateScreens(renderer, now);
         if (renderer.BeginFrame()) {
             const uint64_t draw_start = SDL_GetTicksNS();
-            scene.Draw(renderer, now, song.dance_start_frame);
+            scene.Draw(renderer, now, song.dance_start_frame, opt.view ? &rig : nullptr);
             if (opt.view) {
                 if (has_hud && show_info) hud.DrawLayout(renderer, kLiveViewHud, 1.0f);
             } else if (field.loaded) {

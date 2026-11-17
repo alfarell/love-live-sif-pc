@@ -1,6 +1,6 @@
 # M12 P4a: Play -> View Live Show (top-menu entry 2): the song select in its view mode (no difficulty step), Prepare
 # with the camera help panel, then the live without notes; R1 (Page Down) changes the camera mode, Square (Q) hides
-# the HUD (shadPS4 work/m12/shad2/v01-v13)
+# the HUD; the Member camera follows a member (comma/period switch), arrows orbit, L1 (Page Up) zooms (shadPS4 work/m12/shad2/v01-v13)
 timeout 120s
 expect screen title 30s
 press enter until menu 30s
@@ -31,6 +31,21 @@ wait 5s
 shot view_live
 key pagedown
 expect log live view: camera mode Member
+wait 500ms
+shot view_member
+key .
+expect log live view: member camera on member 2
+key right 600ms
+expect log live view: Member camera yaw
+key pageup 1500ms
+wait 100ms
+shot view_member_moved
+key pagedown
+expect log live view: camera mode View
+key pageup 900ms
+expect log live view: View camera yaw
+wait 300ms
+shot view_view
 key q
 expect log live view: info off
 wait 500ms

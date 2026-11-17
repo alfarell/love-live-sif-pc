@@ -299,6 +299,15 @@ std::vector<std::array<float, 4>> SceneModel::TextBoxes() const {
     return by_name;
 }
 
+bool SceneModel::NodePosition(const std::string& name, Vec3& out) const {
+    for (size_t i = 0; i < model_.nodes.size() && i < world_.size(); ++i) {
+        if (model_.nodes[i].name != name) continue;
+        out = TransformPoint(world_[i], {0, 0, 0});
+        return true;
+    }
+    return false;
+}
+
 void SceneModel::Release(Renderer& renderer) {
     for (Part& part : parts_) renderer.Release(part.gpu);
     for (Texture& t : textures_) renderer.Release(t);

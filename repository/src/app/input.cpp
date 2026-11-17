@@ -16,6 +16,7 @@ std::array<HomeSlots, 2> g_home_slots = {DefaultHomeSlots(), DefaultHomeSlots()}
 bool g_live_home = false;
 HomeConfig g_live_config = HomeConfig::Easy;
 std::array<bool, 2> g_trigger_down{};  // L2, R2
+std::array<int, 2> g_stick{};          // View: the left stick's last direction per axis (-1, 0, 1)
 
 constexpr std::pair<SDL_GamepadButton, SDL_Scancode> kMenu[] = {
     {SDL_GAMEPAD_BUTTON_DPAD_LEFT, SDL_SCANCODE_LEFT}, {SDL_GAMEPAD_BUTTON_DPAD_RIGHT, SDL_SCANCODE_RIGHT},
@@ -25,8 +26,7 @@ constexpr std::pair<SDL_GamepadButton, SDL_Scancode> kMenu[] = {
     {SDL_GAMEPAD_BUTTON_LEFT_SHOULDER, SDL_SCANCODE_PAGEUP}, {SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER, SDL_SCANCODE_PAGEDOWN},
 };
 constexpr std::pair<SDL_GamepadButton, SDL_Scancode> kView[] = {
-    {SDL_GAMEPAD_BUTTON_DPAD_LEFT, SDL_SCANCODE_LEFT}, {SDL_GAMEPAD_BUTTON_DPAD_RIGHT, SDL_SCANCODE_RIGHT},
-    {SDL_GAMEPAD_BUTTON_DPAD_UP, SDL_SCANCODE_UP},     {SDL_GAMEPAD_BUTTON_DPAD_DOWN, SDL_SCANCODE_DOWN},
+    {SDL_GAMEPAD_BUTTON_DPAD_LEFT, SDL_SCANCODE_COMMA}, {SDL_GAMEPAD_BUTTON_DPAD_RIGHT, SDL_SCANCODE_PERIOD},
     {SDL_GAMEPAD_BUTTON_SOUTH, SDL_SCANCODE_SPACE},    {SDL_GAMEPAD_BUTTON_EAST, SDL_SCANCODE_P},
     {SDL_GAMEPAD_BUTTON_WEST, SDL_SCANCODE_Q},         {SDL_GAMEPAD_BUTTON_START, SDL_SCANCODE_ESCAPE},
     {SDL_GAMEPAD_BUTTON_LEFT_SHOULDER, SDL_SCANCODE_PAGEUP}, {SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER, SDL_SCANCODE_PAGEDOWN},
@@ -147,6 +147,19 @@ bool PollEvent(SDL_Event& e) {
     } else if (e.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN || e.type == SDL_EVENT_GAMEPAD_BUTTON_UP) {
         const SDL_Scancode key = Mapped(e.gbutton.button);
         if (key != SDL_SCANCODE_UNKNOWN) ToKey(e, key, e.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN, e.gbutton.timestamp);
+    } else if (e.type == SDL_EVENT_GAMEPAD_AXIS_MOTION && g_layout == PadLayout::View &&
+               (e.gaxis.axis == SDL_GAMEPAD_AXIS_LEFTX || e.gaxis.axis == SDL_GAMEPAD_AXIS_LEFTY)) {
+        // the left stick as arrow keys, pressed past a third of the way (one key per axis at a time)
+        const int a = e.gaxis.axis == SDL_GAMEPAD_AXIS_LEFTX ? 0 : 1;
+        const int dir = e.gaxis.value > SDL_JOYSTICK_AXIS_MAX / 3 ? 1 : e.gaxis.value < SDL_JOYSTICK_AXIS_MIN / 3 ? -1 : 0;
+        if (dir != g_stick[size_t(a)]) {
+            const SDL_Scancode keys[2][2] = {{SDL_SCANCODE_LEFT, SDL_SCANCODE_RIGHT}, {SDL_SCANCODE_UP, SDL_SCANCODE_DOWN}};
+            const int old = g_stick[size_t(a)];
+            g_stick[size_t(a)] = dir;
+            // release the old direction now; a new one is delivered by the next motion event of this axis
+            if (old) ToKey(e, keys[a][old > 0], false, e.gaxis.timestamp);
+            else ToKey(e, keys[a][dir > 0], true, e.gaxis.timestamp);
+        }
     } else if (e.type == SDL_EVENT_GAMEPAD_AXIS_MOTION && (e.gaxis.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER ||
                                                            e.gaxis.axis == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER)) {
         const int t = e.gaxis.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER ? 0 : 1;
