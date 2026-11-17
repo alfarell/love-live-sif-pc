@@ -10,6 +10,7 @@
 
 #include "app/fade.h"
 #include "app/input.h"
+#include "app/profile_card.h"
 #include "app/route.h"
 #include "engine/core/log.h"
 #include "engine/formats/png.h"
@@ -76,14 +77,7 @@ bool LoadThumb(Renderer& renderer, const std::filesystem::path& file, Texture& o
         LogWarn("photo gallery: {}", error);
         return false;
     }
-    const uint32_t tw = std::max(1u, w / 4), th = std::max(1u, h / 4);
-    std::vector<uint8_t> small(size_t(tw) * th * 4);
-    for (uint32_t y = 0; y < th; ++y) {
-        for (uint32_t x = 0; x < tw; ++x) {
-            std::copy_n(&rgba[(size_t(y) * 4 * w + size_t(x) * 4) * 4], 4, &small[(size_t(y) * tw + x) * 4]);
-        }
-    }
-    return renderer.CreateTexture(tw, th, out, nullptr) && renderer.UpdateTexture(out, small);
+    return MakeThumb(renderer, rgba, w, h, out);
 }
 
 }

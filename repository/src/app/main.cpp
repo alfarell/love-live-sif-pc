@@ -28,6 +28,7 @@
 #include "app/live_screen.h"
 #include "app/mission_screen.h"
 #include "app/options_screen.h"
+#include "app/profile_edit.h"
 #include "app/profile_screen.h"
 #include "app/skill_screen.h"
 #include "app/result_screen.h"
@@ -454,8 +455,18 @@ int main(int argc, char** argv) {
                                         sif::LogWarn("save: {}", save_error);
                                     }
                                 }
-                            } else if (choice == 2) {
-                                sif::LogInfo("profile: Create a New Profile Card (the editor comes in M12 P6b)");
+                            } else if (choice == 2) {  // Create a New Profile Card (M12 P6b)
+                                // shortcut: the game asks "Create a new Profile Card?" first when one exists
+                                loading.Show(renderer);
+                                sif::profile::Data frames;
+                                if (!sif::profile::Load(vfs, frames, &why)) sif::LogWarn("profile: {}", why);
+                                const sif::ProfileEditSetup edit{&save, options.data_dir, &plate, menu.texts,
+                                                                 frames.frames.empty() ? nullptr : &frames,
+                                                                 skills.member, lang};
+                                open = sif::RunProfileEdit(window, renderer, vfs, edit, options.frames);
+                                if (can_save && !sif::save::Write(save_path, save, &save_error)) {
+                                    sif::LogWarn("save: {}", save_error);
+                                }
                             }
                         }
                         continue;

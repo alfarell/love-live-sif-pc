@@ -1,5 +1,6 @@
 # M12 P6a: Collection -> Profile Card's menu with a saved card (seed: Honoka's initial frame, portrait, two skill
 # cards; its photo file is missing, so the card shows without a photo): the card drawn on the left, Create open
+# (it opens the editor on the saved card; Esc leaves without saving)
 #! seed profile_card
 timeout 60s
 expect screen title 30s
@@ -23,7 +24,11 @@ key down
 wait 300ms
 key enter
 expect log profile menu: button 1
-expect log profile: Create a New Profile Card
+expect screen profile_edit 20s
+expect log profile edit: 2 frames, 1 photos, 2 skill cards; editing the card
+wait 1000ms
+key esc
+expect log profile edit: left without saving
 expect screen profile_menu 20s
 key esc
 expect screen menu 20s

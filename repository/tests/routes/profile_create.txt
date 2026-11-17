@@ -1,0 +1,62 @@
+# M12 P6b: Collection -> Profile Card -> Create a New Profile Card with live_view's photo (the same data folder):
+# Card Frame landscape, the photo moved in the position adjustment, Finish Editing; the menu then shows the card
+#! data photos
+#! visible
+timeout 90s
+expect screen title 30s
+press enter until menu 30s
+wait 1500ms
+key right
+wait 400ms
+key right
+wait 400ms
+key right
+wait 400ms
+key right
+wait 400ms
+key enter
+expect log top menu: entry 15
+expect screen profile_menu 20s
+expect log profile menu: no card, create open
+key down
+wait 300ms
+key enter
+expect screen profile_edit 20s
+expect log profile edit: 2 frames, 1 photos
+wait 1500ms
+shot profile_edit
+key down
+wait 300ms
+key right
+wait 300ms
+key enter
+expect log profile edit: tab 0 item 1
+wait 600ms
+shot profile_edit_landscape
+key esc
+wait 300ms
+key right
+wait 300ms
+key q
+wait 300ms
+key down
+key down
+key down
+key down
+key q
+expect log profile edit: photo position
+wait 600ms
+shot profile_edit_photo
+key left
+wait 300ms
+key left
+wait 300ms
+key enter
+expect log profile edit: saved: frame 1001 landscape
+expect screen profile_menu 20s
+expect log profile menu: a card, create open
+wait 1500ms
+shot profile_menu_created
+key esc
+expect screen menu 20s
+expect nolog error

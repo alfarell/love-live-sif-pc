@@ -90,6 +90,17 @@ void ApplyProfileCard(UiScreen& ui, const std::string& inst, const ProfileCardAr
     }
 }
 
+bool MakeThumb(Renderer& renderer, const std::vector<uint8_t>& rgba, uint32_t w, uint32_t h, Texture& out) {
+    const uint32_t tw = std::max(1u, w / 4), th = std::max(1u, h / 4);
+    std::vector<uint8_t> small(size_t(tw) * th * 4);
+    for (uint32_t y = 0; y < th; ++y) {
+        for (uint32_t x = 0; x < tw; ++x) {
+            std::copy_n(&rgba[(size_t(y) * 4 * w + size_t(x) * 4) * 4], 4, &small[(size_t(y) * tw + x) * 4]);
+        }
+    }
+    return renderer.CreateTexture(tw, th, out, nullptr) && renderer.UpdateTexture(out, small);
+}
+
 int MakeCardPhoto(Renderer& renderer, const std::vector<uint8_t>& rgba, uint32_t w, uint32_t h, bool landscape,
                   int crop, Texture& out) {
     // the window in photo pixels, and how far the photo may move along the free axis (x portrait, y landscape)

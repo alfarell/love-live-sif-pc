@@ -54,6 +54,9 @@ ProfileCardArt MakeProfileCardArt(const save::ProfileCard& card, const ProfileCa
 // texture made by MakeCardPhoto for the same orientation.
 void ApplyProfileCard(UiScreen& ui, const std::string& instance, const ProfileCardArt& art, const Texture* photo);
 
+// A photo at a quarter of its size as a texture (every 4th pixel; shortcut: no filtering), for lists
+bool MakeThumb(Renderer& renderer, const std::vector<uint8_t>& rgba, uint32_t width, uint32_t height, Texture& out);
+
 // The card's photo as a texture: the 16:9 photo (rows top first, RGBA) shifted `crop` pixels to the left and made
 // transparent outside the frame's window (the game's photo_stencil00/01; the port draws no stencils). `crop` is
 // clamped so the window stays on the photo; the result says the value used.
