@@ -71,15 +71,15 @@ Your own play is the reference. [PLAY.md](PLAY.md) lists the keys and what is no
 
 ## View Live Show, photos and profile cards (M12; routes `live_view`, `photo_gallery`, `member_card_collection`, `profile`, `profile_menu`, `profile_create`, `live_intro`; Shot: `view_live`, `view_member`, `view_end`, `photo_gallery`, `member_card`, `profile_menu_card`, `profile_edit`, `live_intro`)
 
-- [ ] **View Live Show:** Play → View Live Show has no difficulty step; its Prepare shows the camera help; the live has no notes and the camera bar at the top.
-- [ ] **Cameras:** R1 switches MV / Member / View; the Member camera shows a member's face from the front and follows her (D-pad switches members); arrows, L1 and L2 move the camera.
-- [ ] **Photos:** ○ takes a photo (the picture has no camera info), up to 5; the thumbnails show at the bottom left.
-- [ ] **End the Live Show:** the song, stage and member card, the photos large and small; □ marks favourites; after Enter the photos are in `data/photos`.
-- [ ] **Photo Gallery:** newest first, favourites marked and counted (25 at most), Delete refuses a favourite, Space shows a photo full screen.
-- [ ] **Member Card:** member tabs; owned costumes' cards face up, the others as card backs.
-- [ ] **Profile Card menu:** no photo: Create is not selectable; with a photo: Create opens the editor; the saved card shows on the left.
-- [ ] **Edit Profile Card:** the tabs and lists; a landscape frame turns the card; the photo position moves the photo; up to three skill cards; Finish Editing saves, and the card is still there after a restart.
-- [ ] **Live intro:** before a played live, the member card, the skill cards and "Profile Card Support" with two NPC cards of the song's group (each a whole card picture, e.g. "Umi's fan").
+- [x] **View Live Show:** Play → View Live Show has no difficulty step; its Prepare shows the camera help; the live has no notes and the camera bar at the top.
+- [x] **Cameras:** R1 switches MV / Member / View; the Member camera shows a member's face from the front and follows her (D-pad switches members); arrows, L1 and L2 move the camera.
+- [x] **Photos:** ○ takes a photo (the picture has no camera info), up to 5; the thumbnails show at the bottom left.
+- [x] **End the Live Show:** the song, stage and member card, the photos large and small; □ marks favourites; after Enter the photos are in `data/photos`.
+- [x] **Photo Gallery:** newest first, favourites marked and counted (25 at most), Delete refuses a favourite, Space shows a photo full screen.
+- [x] **Member Card:** member tabs; owned costumes' cards face up, the others as card backs.
+- [x] **Profile Card menu:** no photo: Create is not selectable; with a photo: Create opens the editor; the saved card shows on the left.
+- [x] **Edit Profile Card:** the tabs and lists; a landscape frame turns the card; the photo position moves the photo; up to three skill cards; Finish Editing saves, and the card is still there after a restart.
+- [x] **Live intro:** before a played live, the member card, the skill cards and "Profile Card Support" with two NPC cards of the song's group (each a whole card picture, e.g. "Umi's fan").
 
 ## Profile Card (route `profile`; Shot: `profile`)
 
