@@ -44,6 +44,10 @@ Source: https://github.com/ip7z/7zip (Igor Pavlov's 7-Zip/LZMA SDK mirror) `C/Lz
 
 Source: https://github.com/nothings/stb `stb_truetype.h` v1.26; latest commit touching it is `6e9f34d5429cf16790ec43c9bac3f1ee4ad1f760` (2024-07-15), fetched 2026-11-01 (git blob `90a5c2e2`). Copied unchanged to `third_party/stb/`. The file ends with its dual licence (MIT or Unlicense), Sean Barrett / RAD Game Tools. Rasterizes the game's TrueType UI fonts (`common/common.pac/font.pac`; chosen by the user over FreeType and SDL3_ttf, M6).
 
+## stb_image (public domain or MIT)
+
+Source: https://github.com/nothings/stb `stb_image.h` v2.30, commit `013ac3beddff3dbffafd5177e7972067cd2b5083` (2024-05-31, the last change before the 2026-11 updates), fetched 2026-11-17 (SHA-256 `594c2fe35d49488b4382dbfaec8f98366defca819d916ac95becf3e75f4200b3`). Copied unchanged to `third_party/stb/`. The file ends with its dual licence (MIT or Unlicense), Sean Barrett. Built with `STBI_ONLY_JPEG` and `STBI_NO_STDIO` (`src/engine/formats/stb_image_impl.c`): it decodes the NPC profile cards' pictures (`proca_preset/*.jpg` in the user's dump) from memory (M12 P7; the user approved the download).
+
 ## pl_mpeg (MIT)
 
 Source: https://github.com/phoboslab/pl_mpeg `pl_mpeg.h`, commit `c871f2be022ece7ef4f64230b4fb8e1fb9eb6023` (2025-12-30), fetched 2026-11-09 (upstream file SHA-256 `3a8cb30c…75fc2c9`). Copied to `third_party/pl_mpeg/`, then **patched** (every change is marked `SIF patch`):

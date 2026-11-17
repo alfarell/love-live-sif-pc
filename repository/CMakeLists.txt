@@ -51,6 +51,12 @@ target_include_directories(stb_truetype PUBLIC third_party/stb)
 if(MSVC)
   target_compile_options(stb_truetype PRIVATE /W0)
 endif()
+# stb_image (public domain / MIT, see THIRD_PARTY.md): JPEG only, from memory (the NPC profile cards' pictures)
+add_library(stb_image STATIC src/engine/formats/stb_image_impl.c)
+target_include_directories(stb_image PUBLIC third_party/stb)
+if(MSVC)
+  target_compile_options(stb_image PRIVATE /W0)
+endif()
 
 # pl_mpeg (MIT, see THIRD_PARTY.md): MPEG-1 video decoder for the game's USM movies; upstream warnings are not ours
 add_library(pl_mpeg STATIC src/engine/video/pl_mpeg_impl.c)
@@ -72,6 +78,7 @@ add_library(sif_engine STATIC
   src/engine/formats/bmar.cpp
   src/engine/formats/bscm.cpp
   src/engine/formats/btx.cpp
+  src/engine/formats/jpeg.cpp
   src/engine/formats/png.cpp
   src/engine/formats/fad.cpp
   src/engine/fs/pac.cpp
@@ -85,7 +92,7 @@ add_library(sif_engine STATIC
   src/engine/video/movie.cpp
   ${SHADER_INCS})
 target_include_directories(sif_engine PUBLIC src PRIVATE ${SHADER_OUT})
-target_link_libraries(sif_engine PUBLIC SDL3::SDL3-static zlibstatic lzmadec clhca stb_truetype pl_mpeg)
+target_link_libraries(sif_engine PUBLIC SDL3::SDL3-static zlibstatic lzmadec clhca stb_truetype stb_image pl_mpeg)
 target_compile_definitions(sif_engine PUBLIC NOMINMAX WIN32_LEAN_AND_MEAN _CRT_SECURE_NO_WARNINGS)
 if(WIN32)
   target_link_libraries(sif_engine PUBLIC dbghelp)
