@@ -75,6 +75,9 @@ public:
     // Draws a material in one placed instance only where its mesh U is at most `u_max` (a gauge filled to a fraction).
     void SetMaterialClip(const std::string& instance, const std::string& material, float u_max);
     void HideInstance(const std::string& path, bool hide);
+    // A part whose text boxes go by their "_textNN" names, not the mesh order (e.g. uip0056_UserProc00, whose meshes run
+    // _text01, _text00, _text02: its header is ui_text's box 0, with that box's style)
+    void TextBoxesByName(const std::string& part) { boxes_by_name_.insert(part); }
     // Draws a placed instance moved by (dx, dy) canvas pixels (y up), e.g. a list row the game scrolls; (0, 0) resets.
     void MoveInstance(const std::string& path, float dx, float dy);
     void Update(double seconds);
@@ -135,6 +138,7 @@ private:
     std::map<std::pair<std::string, int>, Held> held_;     // (instance path, layer >= 1) -> clip at a fixed frame
     Playing play_all_;  // "*": this clip on every instance whose part has it (empty clip = none)
     std::set<std::string> hidden_nodes_, hidden_paths_;
+    std::set<std::string> boxes_by_name_;  // parts whose text boxes go by name (TextBoxesByName)
     std::map<std::string, std::array<float, 2>> moved_paths_;  // MoveInstance offsets by instance path
     std::map<std::string, std::set<std::string>> instance_hidden_;                      // instance -> node names
     std::map<std::string, std::map<std::string, const Texture*>> instance_textures_;  // instance -> material -> texture

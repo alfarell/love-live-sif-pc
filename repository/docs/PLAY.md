@@ -40,13 +40,16 @@ To keep several setups apart, start with `--data <folder>`.
 | Leave a song | Esc | Start |
 | Next page / tab (Task List, Profile, Costumes) | PageUp / PageDown | L1 / R1 |
 | Another line from the navigator (top menu) | T | Triangle |
+| Favourite (Photo Gallery, End the Live Show); photo position (profile card editor) | Q | Square |
+| View Live Show: camera mode / take photo / camera info | Page Down / P / Q | R1 / Circle / Square |
+| View Live Show: move the camera / distance / height / switch members | Arrows / Page Up / Home / comma, period | Left stick / L1 / L2 / D-pad Left, Right |
 
 Options → Control Settings changes the controller's lane buttons, separately for BEGINNER/STANDARD, HYPER/ADVENTURE and the arcade charts (Modify on each row).
 
 ## Playing
 
 - **Top menu:** Left/Right turn the wheel, Up/Down pick an entry.
-- **Playing a song:** Play → **Play Live Show** has the home charts (BEGINNER, STANDARD, HYPER, ADVENTURE, on 6 lanes); **Play Live Show (AC)** has the arcade charts (EASY to CHALLENGE, on 9 lanes). Pick a song, a difficulty, a stage and a costume (Left/Right, then Enter at each step). The costume step shows the played member's member card for each costume. Then **Prepare for the Live Show**: Enter (or LIVE START) starts the live. ADVENTURE opens once you get A or better on that song's HYPER. At the end ALL PERFECT or FULL COMBO shows if you earned it, then LIVE CLEAR. The result screen shows your score; a key turns to **Items Obtained** (the skill cards and materials the live gave; Left/Right pick a card), and another key returns to the song select.
+- **Playing a song:** Play → **Play Live Show** has the home charts (BEGINNER, STANDARD, HYPER, ADVENTURE, on 6 lanes); **Play Live Show (AC)** has the arcade charts (EASY to CHALLENGE, on 9 lanes). Pick a song, a difficulty, a stage and a costume (Left/Right, then Enter at each step). The costume step shows the played member's member card for each costume. Then **Prepare for the Live Show**: Enter (or LIVE START) starts the live, after a short screen with your member card, your skill cards and the two NPC profile cards that support the live. ADVENTURE opens once you get A or better on that song's HYPER. At the end ALL PERFECT or FULL COMBO shows if you earned it, then LIVE CLEAR. The result screen shows your score; a key turns to **Items Obtained** (the skill cards and materials the live gave; Left/Right pick a card), and another key returns to the song select.
 - **Lives** show the stage with its screens playing the song's video, and the members dancing to the song's own camera.
 - **Saves:** best scores, ranks and play counts are kept in `save.txt`. The song select shows each chart's best rank; the result screen marks new bests.
 - **Skill cards:**
@@ -60,7 +63,12 @@ Options → Control Settings changes the controller's lane buttons, separately f
   - Costumes → Costume Materials lists them;
   - Create/Change Costumes makes costumes and puts them on members (PageUp/PageDown changes the member).
 - **Missions:** Event → Task List shows the missions and their progress; Enter claims a reward.
-- **Profile:** Collection → Profile Card chooses the accolade, name plate and badge shown in the top menu.
+- **View Live Show and photos:** Play → **View Live Show** plays a song without notes. R1 (Page Down) switches the camera: MV (the song's camera), Member (one member close up; D-pad Left/Right or comma/period switch members) and View (the whole stage). In Member and View the arrows (left stick) move the camera, L1 (Page Up) moves it away (with Up: nearer), L2 (Home) raises it. ○ (P) takes a photo, up to 5 per live; □ (Q) hides the camera info. After the song, **End the Live Show** shows the photos: □ marks favourites, Enter saves them (up to 30; the oldest that is not a favourite makes room). The photos are `photos/NN.png` in the data folder.
+- **Collection:**
+  - **Photo Gallery** shows the photos, newest first: □ (Q) marks a favourite (25 at most), Delete removes one that is not a favourite, Space shows it full screen.
+  - **Member Card** shows each member's member cards: the costumes you own face up (L1/R1 change the member, Tab the group).
+  - **Profile Card** opens a menu: the current card on the left; **Change Accolade or Name Plate** chooses the accolade, name plate and badge shown in the top menu; **Create a New Profile Card** (once you have a photo) opens the editor.
+- **Profile card editor:** Left/Right pick a tab (Card Frame, Photo, Accolade, Name Plate, Badge, Skill Card, Finish Editing), Down enters its list, Enter chooses. Each frame comes portrait and landscape. On the Photo tab □ (Q) adjusts the photo's position. Skill Card sets up to three of the member's cards (Enter again removes one). The Completed Image shows the card; **Finish Editing** saves it (one card in all; its photo is kept as `profile_card.png`).
 - **Options:** Sound (volume) and Game Settings (Rhythm Icon Speed: Slow to Fast, as in the game; harder charts move faster at the same level; timing offset).
 
 **Timing feels late or early?** Start once with `sif.exe --calibrate` and press Space on each of the 24 clicks. The measured offset is saved and used from then on.
@@ -80,12 +88,12 @@ Options → Control Settings changes the controller's lane buttons, separately f
 
 - **Online features:** rankings, the add-on store and its trial movies, network events. There will be no purchasing.
 - **Not built yet:**
-  - profile cards and their support skills, Collection → Member Card;
+  - received profile cards (online), the enlarged member card;
   - the skill voice and 3D skill effects, Shoutout, Member Focus's camera;
   - boosters, Friendship levels and events;
   - "Trying It On" and special costume colours;
   - the 3D navigator (the top menu shows Honoka's voice lines only).
-- **Not built either:** View Live Show and Live Show Medley, Prepare's Game Settings button and booster panel, controller vibration.
+- **Not built either:** Live Show Medley, the "What will you do next?" box after a live, Prepare's Game Settings button and booster panel, Player's Name, controller vibration.
 - **Simplified:** some screen transitions, animations and small icons; a locked difficulty shows its padlock but is not darkened; the arcade CHALLENGE chart is open from the start (the game asks for A on EXTREME first).
 
 The project's roadmap lists the details.

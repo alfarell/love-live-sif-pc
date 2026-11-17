@@ -350,7 +350,7 @@ void UiScreen::DrawNumbers(Renderer& renderer, const std::string& part, const st
     if (model == parts_.end()) return;
     std::vector<std::array<float, 4>> boxes;
     for (auto it = numbers_.lower_bound({part, 0}); it != numbers_.end() && it->first.first == part; ++it) {
-        if (boxes.empty()) boxes = model->second.model->TextBoxes();
+        if (boxes.empty()) boxes = model->second.model->TextBoxes(boxes_by_name_.contains(part));
         const int box = it->first.second;
         const NumberBox& spec = it->second;
         const auto tex = numtex_.find({spec.prefix, spec.numtex});
@@ -435,7 +435,7 @@ void UiScreen::DrawTexts(Renderer& renderer, const std::string& part, const std:
     if (!text_) return;
     const auto model = parts_.find(part);
     if (model == parts_.end()) return;
-    const std::vector<std::array<float, 4>> boxes = model->second.model->TextBoxes();
+    const std::vector<std::array<float, 4>> boxes = model->second.model->TextBoxes(boxes_by_name_.contains(part));
     for (auto it = texts_.lower_bound({part, 0}); it != texts_.end() && it->first.first == part; ++it) {
         const int box = it->first.second;
         const TextStyle* style = text_->Style(it->second.style);

@@ -48,7 +48,8 @@ public:
     bool NodePosition(const std::string& name, Vec3& out) const;
     // UI text boxes: the meshes whose material names no texture, in draw order, as (x0, y0, x1, y1) after their node
     // transform (a named texture missing from the dump, or a mask node named "*stencil*", does not make a text box)
-    std::vector<std::array<float, 4>> TextBoxes() const;
+    // `by_name`: every box at its "_textNN" number (ui_text's numbering) instead of the mesh order
+    std::vector<std::array<float, 4>> TextBoxes(bool by_name = false) const;
 
 private:
     struct Part {

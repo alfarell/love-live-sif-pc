@@ -25,6 +25,7 @@
 #include "app/fade.h"
 #include "app/first_run.h"
 #include "app/input.h"
+#include "app/live_intro.h"
 #include "app/live_screen.h"
 #include "app/mission_screen.h"
 #include "app/options_screen.h"
@@ -403,6 +404,12 @@ int main(int argc, char** argv) {
             const sif::SkillSetup skills{has_cards ? &card_data : nullptr, &save,
                                          options.live_options.member > 0 ? options.live_options.member : 1};
             std::mt19937 drop_random{std::random_device{}()};
+            // the offline support cards (M12 P7): the NPC presets, drawn with the eboot's generator, one per game run
+            sif::profile::Data profile_data;
+            if (!sif::profile::Load(vfs, profile_data, &why)) sif::LogWarn("profile cards: {}", why);
+            sif::profile::XorShift128 support_random;
+            sif::Messages messages;
+            if (!messages.Load(vfs, language, &why)) sif::LogWarn("messages: {}", why);
             // add-on ownership from the user's own add-ons; without the catalog nothing is locked
             sif::dlc::Ownership owned;
             sif::dlc::Catalog catalog;
@@ -551,6 +558,44 @@ int main(int argc, char** argv) {
                 }
                 options.live_options.skills = view_mode ? std::vector<sif::live::Skill>{} : sif::LiveSkills(skills);
                 options.live_options.view = view_mode;  // a viewed live is not judged: no records, drops or result
+                if (!view_mode) {  // the intro before a played live: the player's panel and the two NPC support cards
+                    sif::LiveIntro intro;
+                    for (const auto& s : songs) {
+                        if (s.id == choice.song) intro.song = s.title;
+                    }
+                    const int member = skills.member;
+                    std::string dress = options.live_options.costume;
+                    if (const auto it = options.live_options.wear.find(member); it != options.live_options.wear.end()) {
+                        dress = it->second;
+                    }
+                    const int costume = dress.size() == 4 && dress[0] == 'd' ? std::atoi(dress.c_str() + 1) : 0;
+                    intro.member_card = (member * 1000 + costume) * 10;
+                    if (has_cards) {
+                        const auto slots = sif::card::Slots(card_data, save, member);
+                        for (int k = 0; k < 3; ++k) {
+                            intro.skills[size_t(k)] = slots[size_t(k)];
+                            intro.levels[size_t(k)] = slots[size_t(k)] ? sif::card::Level(card_data, save, slots[size_t(k)]) : 0;
+                        }
+                    }
+                    const sif::Nameplate intro_plate = MakeNameplate(missions, accolades, badges, save);
+                    intro.plate = &intro_plate;
+                    if (!profile_data.presets.empty()) {
+                        const int group = choice.song >= 0 && [&] {
+                            for (const auto& s : songs) {
+                                if (s.id == choice.song) return s.group != 0;
+                            }
+                            return false;
+                        }() ? 1 : 0;
+                        const auto picks = sif::profile::PickSupport(profile_data, group, support_random);
+                        for (int k = 0; k < 2; ++k) {
+                            if (picks[size_t(k)] >= 0) intro.support[size_t(k)] = &profile_data.presets[size_t(picks[size_t(k)])];
+                        }
+                    }
+                    intro.messages = &messages, intro.language = language, intro.lang = lang;
+                    open = sif::RunLiveIntro(window, renderer, vfs, intro, options.frames);
+                    if (!open) break;
+                    loading.Show(renderer);
+                }
                 code = sif::RunLive(window, renderer, audio, vfs, settings, options.live_options, &result);
                 if (view_mode && !result.photos.empty() && !result.closed) {
                     // View Live Show's photos (M12 P4c/P4d): End the Live Show (favourites), then they are saved.

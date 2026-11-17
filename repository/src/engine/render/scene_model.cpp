@@ -277,7 +277,7 @@ void SceneModel::DrawUi(Renderer& renderer, const Mat4& to_clip, float alpha, st
     }
 }
 
-std::vector<std::array<float, 4>> SceneModel::TextBoxes() const {
+std::vector<std::array<float, 4>> SceneModel::TextBoxes(bool by_name) const {
     std::vector<std::array<float, 4>> out;
     std::vector<int> named;  // the NN of a "_textNN" node, else -1
     for (const Part& part : parts_) {
@@ -293,15 +293,17 @@ std::vector<std::array<float, 4>> SceneModel::TextBoxes() const {
         named.push_back(std::sscanf(node.c_str(), "_text%d", &n) == 1 ? n : -1);
     }
     // Boxes go in mesh order. A part whose only box is "_text01" (uip0005_Songname: ui_text names box 1) would lose
-    // it, so when a "_textNN" number does not fit the mesh order the boxes are placed by their numbers instead
-    if (std::none_of(named.begin(), named.end(), [&](int n) { return n >= int(out.size()); })) return out;
-    std::vector<std::array<float, 4>> by_name;
+    // it, so when a "_textNN" number does not fit the mesh order the boxes are placed by their numbers instead.
+    // (Placing every part by number would move the texts of 36 parts the port fills by mesh order, e.g. the song
+    // select panel and the mission plates: work/m12/textbox_scan.py)
+    if (!by_name && std::none_of(named.begin(), named.end(), [&](int n) { return n >= int(out.size()); })) return out;
+    std::vector<std::array<float, 4>> numbered;
     for (size_t i = 0; i < out.size(); ++i) {
         const size_t at = named[i] >= 0 ? size_t(named[i]) : i;
-        if (by_name.size() <= at) by_name.resize(at + 1, {0, 0, 0, 0});
-        by_name[at] = out[i];
+        if (numbered.size() <= at) numbered.resize(at + 1, {0, 0, 0, 0});
+        numbered[at] = out[i];
     }
-    return by_name;
+    return numbered;
 }
 
 bool SceneModel::NodePosition(const std::string& name, Vec3& out) const {

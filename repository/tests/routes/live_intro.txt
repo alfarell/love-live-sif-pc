@@ -1,0 +1,29 @@
+# M12 P7: the screen before a played live (song 0010, a µ's song) with Judge Support and Finale Support set (seed):
+# the player's panel and "Profile Card Support" with two µ's NPC cards (the eboot's pick, analysis
+# 202611162102); it ends by itself and the live starts
+#! seed live_skills
+timeout 90s
+expect screen title 30s
+press enter until menu 30s
+wait 1500ms
+key enter
+expect screen select 20s
+wait 1500ms
+key enter
+wait 1200ms
+key enter
+wait 800ms
+key enter
+wait 800ms
+key enter
+expect screen prepare 20s
+wait 600ms
+key enter
+expect screen live_intro 30s
+expect log live intro: 'Bokura no LIVE Kimi to no LIFE', member card 10310, skills 11000 11003 0, support
+wait 1500ms
+shot live_intro
+expect screen live 20s
+key esc
+expect screen select 30s
+expect nolog error
