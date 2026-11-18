@@ -83,13 +83,13 @@ Your own play is the reference. [PLAY.md](PLAY.md) lists the keys and what is no
 
 ## 3D navigator, member choice and Trying It On (M13; routes `navigator`, `navigator_special`, `member_choice`, `live_member`, `try_on`, `live_special`; Shot: `navigator_honoka`, `navigator_chika`, `member_list`, `member_profile`, `member_umi`, `member_aqours`, `member_list_aqours`, `try_on_worn`, `try_on_next`, `try_on_special`, `try_on_menu`)
 
-- [ ] **Top menu:** your member stands in 3D on the right, in her own room and her costume; she stands, now and then plays a small idle move, and moves while she talks (greeting, T).
-- [ ] **R2 (End): Switch Members:** "Choose a Member." with the faces and names; L1/R1 change between µ's and Aqours (with Saint Snow); Cross opens her profile (school year, birthday, blood type, favourite and hated food, sub-unit) and "Continue with this member?"; OK puts her in the room.
-- [ ] **L2 (Home): Toggle Mode:** µ's ↔ Aqours at once, with that mode's member; the header's logo and plate follow her group.
-- [ ] **Kept:** after a restart the same mode and member are back.
-- [ ] **She plays the lives:** the live intro shows her member card; her skill cards and photos are hers.
-- [ ] **Create/Change Costumes:** she stands on the left in 3D; moving the focus dresses her in that costume ("Trying It On"), also one not made yet; Esc and back: she wears her own costume again.
-- [ ] **Special colours:** L1 on a costume that has one ("Change to special color") shows the other colours, the hint turns to "Default"; Enter keeps it, and the top menu and the next live show her in it.
+- [x] **Top menu:** your member stands in 3D on the right, in her own room and her costume; she stands, now and then plays a small idle move, and moves while she talks (greeting, T).
+- [x] **R2 (End): Switch Members:** "Choose a Member." with the faces and names; L1/R1 change between µ's and Aqours (with Saint Snow); Cross opens her profile (school year, birthday, blood type, favourite and hated food, sub-unit) and "Continue with this member?"; OK puts her in the room.
+- [x] **L2 (Home): Toggle Mode:** µ's ↔ Aqours at once, with that mode's member; the header's logo and plate follow her group.
+- [x] **Kept:** after a restart the same mode and member are back.
+- [x] **She plays the lives:** the live intro shows her member card; her skill cards and photos are hers.
+- [x] **Create/Change Costumes:** she stands on the left in 3D; moving the focus dresses her in that costume ("Trying It On"), also one not made yet; Esc and back: she wears her own costume again.
+- [x] **Special colours:** L1 on a costume that has one ("Change to special color") shows the other colours, the hint turns to "Default"; Enter keeps it, and the top menu and the next live show her in it.
 
 ## Profile Card (route `profile`; Shot: `profile`)
 
