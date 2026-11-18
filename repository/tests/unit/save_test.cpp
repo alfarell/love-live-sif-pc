@@ -45,6 +45,11 @@ int main() {
     s.owned[{7, 31}] = 1;
     s.wear[1] = 31;
     s.wear[11] = 105;
+    s.special.insert(11);
+    Check(Navigator(s, 0) == 1 && Navigator(s, 1) == 11 && Current(s) == 1, "a new game: Honoka and Chika");
+    s.mode = 1;
+    s.navigator[0] = 4;
+    s.navigator[1] = 21;
     s.unknown.push_back("medal 3 gold");  // a line from a newer version
 
     std::string error;
@@ -58,8 +63,14 @@ int main() {
               back.name_plate == 130201 && back.claimed == std::set<int>{1, 2000} && back.owned.size() == 2 &&
               back.owned[{2, 4}] == 35 && back.owned[{7, 31}] == 1 &&
               back.wear.size() == 2 && back.wear[1] == 31 && back.wear[11] == 105 &&
+              back.special == std::set<int>{11} && back.mode == 1 && Current(back) == 21 && Navigator(back, 0) == 4 &&
               back.unknown.size() == 1 && back.unknown[0] == "medal 3 gold",
           "round trip keeps the name (with spaces), the record, the nameplate and unknown lines");
+
+    { std::ofstream(path) << "sif-port save 1\nwear 1 31\n"; }  // a save before M13: no colour, no mode
+    SaveData old;
+    Check(Load(path, old) && old.wear[1] == 31 && old.special.empty() && old.mode == 0 && Current(old) == 1,
+          "an older save reads with the defaults");
 
     { std::ofstream(path) << "not a save\n"; }
     SaveData bad;

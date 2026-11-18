@@ -53,11 +53,19 @@ struct SaveData {
     long long perfects = 0, greats = 0;                  // judged notes over every finished live
     std::map<int, int> costume_plays;                    // costume id (dNNN) -> finished lives wearing it
     std::map<int, int> wear;                             // member (1-9, 11-19, 21-22) -> the costume id they wear
+    std::set<int> special;                               // members whose worn costume is in its special colour (M13)
+    int mode = 0;                                        // the L2 mode: 0 µ's, 1 Aqours (M13; the game's save +0x48)
+    std::map<int, int> navigator;                        // mode -> the member chosen with R2 (M13); see Navigator()
     std::map<int, Photo> photos;                         // slot (0-29) -> photo, M12
     bool has_card = false;
     ProfileCard card;                                    // valid when has_card
     std::vector<std::string> unknown;                    // lines of a newer version, written back unchanged
 };
+
+// The member chosen for `mode` (0 µ's, 1 Aqours): the save's choice, else Honoka / Chika as a new game.
+int Navigator(const SaveData& data, int mode);
+// The current member: the chosen member of the current mode.
+inline int Current(const SaveData& data) { return Navigator(data, data.mode); }
 
 // One finished live (played to its end; a quit live is not recorded).
 struct Play {

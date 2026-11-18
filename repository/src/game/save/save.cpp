@@ -45,9 +45,10 @@ bool Load(const std::filesystem::path& path, SaveData& out, std::string* error) 
                 out.unknown.push_back(line);
             }
         } else if (kind == "wear") {
-            int member = 0, dress = 0;
+            int member = 0, dress = 0, special = 0;
             if (in >> member >> dress) {
                 out.wear[member] = dress;
+                if (in >> special && special) out.special.insert(member);  // optional since M13
             } else {
                 out.unknown.push_back(line);
             }
@@ -75,6 +76,16 @@ bool Load(const std::filesystem::path& path, SaveData& out, std::string* error) 
                 c.skill[0] >> c.skill_level[0] >> c.skill[1] >> c.skill_level[1] >> c.skill[2] >> c.skill_level[2]) {
                 c.landscape = landscape != 0;
                 out.card = c, out.has_card = true;
+            } else {
+                out.unknown.push_back(line);
+            }
+        } else if (kind == "mode") {
+            in >> out.mode;
+            if (out.mode != 1) out.mode = 0;
+        } else if (kind == "navigator") {
+            int mode = 0, member = 0;
+            if (in >> mode >> member) {
+                out.navigator[mode] = member;
             } else {
                 out.unknown.push_back(line);
             }
@@ -123,7 +134,11 @@ bool Write(const std::filesystem::path& path, const SaveData& data, std::string*
             f << "\n";
         }
         for (const auto& [key, count] : data.owned) f << "own " << key.first << " " << key.second << " " << count << "\n";
-        for (const auto& [member, dress] : data.wear) f << "wear " << member << " " << dress << "\n";
+        for (const auto& [member, dress] : data.wear) {
+            f << "wear " << member << " " << dress << (data.special.contains(member) ? " 1" : "") << "\n";
+        }
+        if (data.mode) f << "mode " << data.mode << "\n";
+        for (const auto& [mode, member] : data.navigator) f << "navigator " << mode << " " << member << "\n";
         for (const auto& [member, s] : data.skill_slots) {
             f << "skills " << member << " " << s[0] << " " << s[1] << " " << s[2] << "\n";
         }
@@ -152,6 +167,12 @@ bool Write(const std::filesystem::path& path, const SaveData& data, std::string*
     std::filesystem::rename(tmp, path, ec);  // replaces the old save in one step
     if (ec) return Fail(error, "cannot replace " + path.string() + ": " + ec.message());
     return true;
+}
+
+int Navigator(const SaveData& data, int mode) {
+    const auto it = data.navigator.find(mode);
+    if (it != data.navigator.end()) return it->second;
+    return mode == 1 ? 11 : 1;  // a new game: Honoka and Chika (eboot FUN_00070840)
 }
 
 NewBests Record(SaveData& data, const Play& p) {
