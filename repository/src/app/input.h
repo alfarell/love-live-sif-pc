@@ -9,7 +9,7 @@
 namespace sif {
 
 // Menu: D-pad = arrows, South (Cross) = Space (confirm), East (Circle) = Esc (back), Start = Return, West (Square) =
-// Q (e.g. Favorite in the Photo Gallery).
+// Q (e.g. Favorite in the Photo Gallery), L2/R2 = Home/End (top menu: Toggle Mode, Switch Members; M13).
 // Live: the lane buttons of the Button Controls (below); Start = Esc.
 // View: View Live Show's camera (M12 P4): left stick = arrows (Move Camera), D-pad left/right = comma/period (Switch
 // Members), Circle = P (Take Photo), Square = Q (Info ON/OFF), L1/R1 = Page Up/Down, L2/R2 = Home/End, Cross = Space,

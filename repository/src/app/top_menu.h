@@ -13,6 +13,7 @@ class AudioOutput;
 class Renderer;
 class UiScreen;
 class Vfs;
+namespace save { struct SaveData; }
 
 // The player's nameplate in the header (uil0009_PlayerDataTop00 places 03_card's name plate, badge and accolade plate).
 struct NameplateItem {
@@ -29,13 +30,6 @@ struct Nameplate {
     size_t accolade = 0, badge = 0, name_plate = 0;             // the chosen ones (indices)
 };
 
-// The menu's 3D member (M13): who she is and what she wears.
-struct MenuMember {
-    int member = 1;
-    int costume = -1;  // dNNN; -1 = her group's default
-    bool special = false;
-};
-
 // The plate pictures: accolade plate (row +0x08), name plate id (PPPSSSS -> name_plate_PPP_SSSS), badge category.
 std::string TitlePlatePath(int plate);
 std::string NamePlatePath(int id);
@@ -46,9 +40,10 @@ void ShowNameplate(UiScreen& ui, const Nameplate& p, const std::string& title, c
 // Shows the top menu until the player confirms a submenu entry (returns its entry id) or quits (returns -1).
 // `mode` (optional) gets the wheel mode the entry belongs to (0 Play .. 5 Event; entry ids repeat across modes).
 // With `plate`, the header shows the nameplate. With `audio`, the navigator greets by the time of day on entry and says
-// another line on T (pad Triangle).
+// another line on T (pad Triangle). With `save` (M13), the navigator is its current member in her costume; L2 toggles
+// µ's/Aqours and R2 opens the member popup, and the choice is written into `save` (the caller writes the file).
 int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, long max_frames,
                int* mode = nullptr, AudioOutput* audio = nullptr, const Nameplate* plate = nullptr,
-               const MenuMember* navigator = nullptr);
+               save::SaveData* save = nullptr);
 
 }

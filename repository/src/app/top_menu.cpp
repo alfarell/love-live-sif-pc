@@ -13,6 +13,7 @@
 
 #include "app/fade.h"
 #include "app/input.h"
+#include "app/member_popup.h"
 #include "app/navigator.h"
 #include "app/route.h"
 #include "engine/audio/audio_output.h"
@@ -20,6 +21,8 @@
 #include "engine/core/log.h"
 #include "engine/render/renderer.h"
 #include "engine/ui/ui_screen.h"
+#include "game/member/member.h"
+#include "game/save/save.h"
 #include "game/talk/talk.h"
 
 namespace sif {
@@ -156,7 +159,7 @@ void ShowNameplate(UiScreen& ui, const Nameplate& p, const std::string& title, c
 }
 
 int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, long max_frames,
-               int* chosen_mode, AudioOutput* audio, const Nameplate* plate, const MenuMember* navigator) {
+               int* chosen_mode, AudioOutput* audio, const Nameplate* plate, save::SaveData* save) {
     route::SetScreen("menu");
     UiText text;
     std::string error;
@@ -173,47 +176,66 @@ int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
     int shown_mode = mode, shown_entry = entry;
     if (plate) ApplyNameplate(ui, *plate);
     SDL_SetWindowTitle(window, "SIF port - top menu");
-    const MenuMember who = navigator ? *navigator : MenuMember{};
     // the room (behind her) and the rest of the menu (in front) are drawn in two passes around the 3D member. The game
     // renders her off-screen and shows the picture on the room part's model_character00 quad; the port hides that quad
-    Navigator nav;
     std::map<std::string, float> room_only, without_room;
-    if (nav.Load(renderer, vfs, who.member, who.costume, who.special, &error)) {
-        for (const auto& [node, target] : ui.Placements(kRoot)) {
-            const bool room = target.find(kRoomPart) != std::string::npos;
-            room_only[node] = room ? 1.0f : 0.0f;
-            without_room[node] = room ? 0.0f : 1.0f;
-            if (!room) continue;
-            const std::string instance = std::string(kRoot) + "/" + node;
-            ui.HideNode(instance, "model_character00", true);
-            ui.HideNode(instance, "room_bg001", true);  // shortcut: when the game shows the second room is not traced
-            const std::string folder = std::string("ui2/10_top_menu.pac/") + kRoomPart + ".pac/texture.pac/";
-            if (!ui.SetMaterialTexture(instance, "_charaTex_bg_room00", folder + member::RoomTexture(who.member) + ".btx")) {
-                LogWarn("top menu: no room for member {}", who.member);
-            }
-        }
-        if (room_only.empty() || std::none_of(room_only.begin(), room_only.end(), [](const auto& p) { return p.second > 0; })) {
-            LogWarn("top menu: no {} in {}", kRoomPart, kRoot);
-        }
-    } else {
-        LogWarn("top menu: navigator {}: {}", who.member, error);
+    std::string room_instance;
+    for (const auto& [node, target] : ui.Placements(kRoot)) {
+        const bool room = target.find(kRoomPart) != std::string::npos;
+        room_only[node] = room ? 1.0f : 0.0f;
+        without_room[node] = room ? 0.0f : 1.0f;
+        if (!room) continue;
+        room_instance = std::string(kRoot) + "/" + node;
+        ui.HideNode(room_instance, "model_character00", true);
+        ui.HideNode(room_instance, "room_bg001", true);  // shortcut: when the game shows the second room is not traced
     }
+    if (room_instance.empty()) LogWarn("top menu: no {} in {}", kRoomPart, kRoot);
     cri::CueSheet voice;
-    std::vector<int> plain;  // type-0 talks (any time), for T
+    std::vector<talk::Rule> rules;
     if (audio && cri::LoadCueSheet(vfs, "voice", voice, &error)) {
-        const auto rules = talk::LoadRules(vfs);
-        for (const talk::Rule& r : rules) {
-            if (r.type == 0 && !talk::VoiceCue(vfs, who.member, r.id).empty()) plain.push_back(r.id);
-        }
-        const std::time_t t = std::time(nullptr);
-        std::tm local{};
-        localtime_s(&local, &t);
-        const int greeting = talk::GreetingFor(rules, local.tm_hour);
-        if (greeting >= 0 && Say(vfs, voice, *audio, who.member, greeting)) nav.Talk();
+        rules = talk::LoadRules(vfs);
     } else if (audio) {
         LogWarn("top menu: voice: {}", error);
         audio = nullptr;
     }
+    save::SaveData none;
+    save::SaveData& s = save ? *save : none;
+    Navigator nav;
+    std::vector<int> plain;  // her type-0 talks (any time), for T
+    // the current member (save: mode and the mode's chosen member) in her room and costume, with the header of her
+    // group, greeting by the hour
+    const auto show = [&] {
+        const int who = save::Current(s);
+        nav.Release(renderer);
+        const auto w = s.wear.find(who);
+        if (!nav.Load(renderer, vfs, who, w == s.wear.end() ? -1 : w->second, s.special.contains(who), &error)) {
+            LogWarn("top menu: navigator {}: {}", who, error);
+        }
+        const std::string folder = std::string("ui2/10_top_menu.pac/") + kRoomPart + ".pac/texture.pac/";
+        if (!room_instance.empty() &&
+            !ui.SetMaterialTexture(room_instance, "_charaTex_bg_room00", folder + member::RoomTexture(who) + ".btx")) {
+            LogWarn("top menu: no room for member {}", who);
+        }
+        const int group = member::Group(who);  // the header's logo and plate (eboot 0x1BD2D0: logo_*, player_data_bg00_*)
+        for (int g = 0; g < 3; ++g) {
+            static constexpr const char* kLogo[] = {"logo_ms00", "logo_aq00", "logo_ss00"};
+            static constexpr const char* kPlate[] = {"player_data_bg00_ms", "player_data_bg00_aq", "player_data_bg00_ss"};
+            ui.HideNode(kLogo[g], g != group);
+            ui.HideNode(kPlate[g], g != group);
+        }
+        plain.clear();
+        for (const talk::Rule& r : rules) {
+            if (r.type == 0 && !talk::VoiceCue(vfs, who, r.id).empty()) plain.push_back(r.id);
+        }
+        if (!audio) return;
+        const std::time_t t = std::time(nullptr);
+        std::tm local{};
+        localtime_s(&local, &t);
+        const int greeting = talk::GreetingFor(rules, local.tm_hour);
+        if (greeting >= 0 && Say(vfs, voice, *audio, who, greeting)) nav.Talk();
+    };
+    show();
+    MemberPopup popup;
     std::mt19937 random{std::random_device{}()};
     int chosen = -1;
     bool running = true;
@@ -224,12 +246,29 @@ int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
         while (PollEvent(e)) {
             if (e.type == SDL_EVENT_QUIT) running = false;
             if (e.type != SDL_EVENT_KEY_DOWN || e.key.repeat || fade.leaving) continue;
+            if (popup.IsOpen()) {  // R2's member popup takes the keys while open
+                if (popup.Key(e.key.scancode) == MemberPopup::Result::Chosen) {
+                    const int m = popup.Chosen();
+                    s.mode = member::Mode(m);
+                    s.navigator[s.mode] = m;
+                    show();  // shortcut: the game's loading screen between members is not shown
+                }
+                continue;
+            }
             const std::vector<int>& ids = kEntriesOfMode[size_t(mode)];
             switch (e.key.scancode) {
                 case SDL_SCANCODE_ESCAPE: fade.Leave(ui); break;
+                case SDL_SCANCODE_HOME:  // L2 "Toggle Mode [µ's/Aqours]": the other mode's member at once
+                    s.mode = 1 - s.mode;
+                    LogInfo("top menu: mode {} (L2), member {}", s.mode == 0 ? "µ's" : "Aqours", save::Current(s));
+                    show();
+                    continue;
+                case SDL_SCANCODE_END:  // R2 "Switch Members"
+                    popup.Open(renderer, vfs, lang, s.mode, save::Current(s));
+                    continue;
                 case SDL_SCANCODE_T:
                     LogInfo("top menu: another line (T)");
-                    if (audio && !plain.empty() && Say(vfs, voice, *audio, who.member, plain[random() % plain.size()])) nav.Talk();
+                    if (audio && !plain.empty() && Say(vfs, voice, *audio, nav.Member(), plain[random() % plain.size()])) nav.Talk();
                     continue;
                 case SDL_SCANCODE_LEFT: mode = (mode + kModes - 1) % kModes, entry = 0; break;
                 case SDL_SCANCODE_RIGHT: mode = (mode + 1) % kModes, entry = 0; break;
@@ -248,6 +287,7 @@ int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
         const uint64_t now = SDL_GetTicksNS();
         ui.Update(double(now - last) / 1e9);
         nav.Update(double(now - last) / 1e9);
+        if (popup.IsOpen()) popup.Update(double(now - last) / 1e9);
         fade.Update(double(now - last) / 1e9);
         last = now;
         if (!renderer.BeginFrame()) {
@@ -262,9 +302,11 @@ int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
         } else {
             ui.DrawLayout(renderer, kRoot, 1.0f);
         }
+        popup.Draw(renderer);
         fade.Draw(renderer);
         renderer.EndFrame();
     }
+    popup.Release(renderer);
     nav.Release(renderer);
     ui.Release(renderer);
     LogInfo("top menu: {}", chosen >= 0 ? "entry " + std::to_string(chosen) : std::string("closed"));

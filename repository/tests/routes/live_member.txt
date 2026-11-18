@@ -1,0 +1,27 @@
+# M13 N5: the chosen member plays the lives: a save with Umi chosen (R2) plays song 0010 as Umi, so the intro shows
+# her member card (40310: Umi in the song's costume d031) instead of Honoka's
+#! seed member_umi
+timeout 90s
+expect screen title 30s
+press enter until menu 30s
+expect log navigator: member 4 in
+wait 1500ms
+key enter
+expect screen select 20s
+wait 1500ms
+key enter
+wait 1200ms
+key enter
+wait 800ms
+key enter
+wait 800ms
+key enter
+expect screen prepare 20s
+wait 600ms
+key enter
+expect screen live_intro 30s
+expect log live intro: 'Bokura no LIVE Kimi to no LIFE', member card 40310
+expect screen live 20s
+key esc
+expect screen select 30s
+expect nolog error

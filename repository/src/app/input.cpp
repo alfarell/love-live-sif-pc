@@ -168,8 +168,7 @@ bool PollEvent(SDL_Event& e) {
         if (down != g_trigger_down[size_t(t)]) {
             g_trigger_down[size_t(t)] = down;
             const SDL_Scancode key = g_layout == PadLayout::Live   ? LiveKey(t ? PadButton::R2 : PadButton::L2)
-                                     : g_layout == PadLayout::View ? (t ? SDL_SCANCODE_END : SDL_SCANCODE_HOME)
-                                                                   : SDL_SCANCODE_UNKNOWN;
+                                                                   : (t ? SDL_SCANCODE_END : SDL_SCANCODE_HOME);
             if (key != SDL_SCANCODE_UNKNOWN) ToKey(e, key, down, e.gaxis.timestamp);
         }
     }

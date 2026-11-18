@@ -400,9 +400,9 @@ int main(int argc, char** argv) {
             sif::card::Data card_data;  // skill and member cards (M11)
             const bool has_cards = sif::card::Load(vfs, card_data, &why);
             if (!has_cards) sif::LogWarn("cards: {}", why);
-            // the played member: --member, else the navigator (shortcut: always Honoka, as the top menu)
-            const sif::SkillSetup skills{has_cards ? &card_data : nullptr, &save,
-                                         options.live_options.member > 0 ? options.live_options.member : 1};
+            // the played member: --member, else the save's current member (the navigator; R2/L2 on the top menu, M13)
+            sif::SkillSetup skills{has_cards ? &card_data : nullptr, &save,
+                                   options.live_options.member > 0 ? options.live_options.member : sif::save::Current(save)};
             std::mt19937 drop_random{std::random_device{}()};
             // the offline support cards (M12 P7): the NPC presets, drawn with the eboot's generator, one per game run
             sif::profile::Data profile_data;
@@ -433,12 +433,14 @@ int main(int argc, char** argv) {
                 if (menu) {
                     int mode = -1;
                     sif::Nameplate plate = MakeNameplate(missions, accolades, badges, save);
-                    sif::MenuMember navigator;  // the save's current member in her own costume (M13)
-                    navigator.member = sif::save::Current(save);
-                    if (const auto w = save.wear.find(navigator.member); w != save.wear.end()) navigator.costume = w->second;
-                    navigator.special = save.special.contains(navigator.member);
+                    const auto member_before = std::pair(save.mode, save.navigator);  // R2 / L2 on the menu (M13)
                     const int entry = sif::RunTopMenu(window, renderer, vfs, lang, options.frames, &mode, &audio, &plate,
-                                                      &navigator);
+                                                      &save);
+                    if (std::pair(save.mode, save.navigator) != member_before && can_save &&
+                        !sif::save::Write(save_path, save, &save_error)) {
+                        sif::LogWarn("save: {}", save_error);
+                    }
+                    if (options.live_options.member <= 0) skills.member = sif::save::Current(save);
                     if (entry < 0) break;
                     home_mode = entry == 0;
                     view_mode = entry == 2;
