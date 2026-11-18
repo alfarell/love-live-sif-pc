@@ -1,0 +1,16 @@
+# M13 N4: the top menu's 3D navigator in her room. A plain save shows Honoka (µ's); the seeded save is in Aqours mode
+# with Chika in her School Unity in its special colour (shadPS4 work/m13/shad/s01.png, top2.png)
+#! visible
+timeout 60s
+expect screen title 30s
+press enter until menu 30s
+expect log navigator: member 1 in
+# the greeting plays a talk motion (503-506), then the idle loop: a weighted idle clip (10-15) after 2-5 s standing
+expect log navigator: talk 50
+wait 2500ms
+shot navigator_honoka
+expect log navigator: idle 1
+shot navigator_honoka_idle
+expect nolog navigator: member 1 motion
+expect nolog no room
+expect nolog error

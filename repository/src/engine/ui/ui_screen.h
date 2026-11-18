@@ -51,6 +51,8 @@ public:
     void DrawLayout(Renderer& renderer, const std::string& layout, float alpha,
                     const std::map<std::string, float>& part_alpha = {}) const;
     bool HasPart(const std::string& part) const { return parts_.contains(part); }
+    // A layout's top-level nodes that place something: (node name, placed part or layout).
+    std::vector<std::pair<std::string, std::string>> Placements(const std::string& layout) const;
 
     // Clips: `instance` is the node path "layout/node[/node...]" of a placed part, or "*" for every instance whose part
     // has the clip; `clip` like "a003" (ids: 00_common ui_animation.bin, e.g. 1 in, 3 loop, 20 switch). Each instance

@@ -76,6 +76,9 @@ public:
     // 3D: `view_proj` for the following DrawMesh calls; `texture` null = white. Ignored after the first 2D draw.
     void SetCamera(const Mat4& view_proj) { view_proj_ = view_proj; }
     void DrawMesh(const GpuMesh& mesh, const Texture* texture, const Mat4& model);
+    // Back to a 3D pass after 2D draws, keeping the picture so far (fresh depth): a 3D model over a 2D background,
+    // e.g. the top menu's navigator in front of her room.
+    void Use3D();
     // 2D overlay: a mesh in canvas space, alpha-blended (straight alpha), no depth; `to_clip` maps it to clip space.
     void DrawUiMesh(const GpuMesh& mesh, const Texture* texture, const Mat4& to_clip, float alpha);
     // `tint`: RGBA multiplier (0..1), e.g. a UI clip's material colour; `uv_offset` shifts the texture (label atlases);
@@ -97,7 +100,7 @@ public:
 
 private:
     void PushRect(float x, float y, float w, float h);
-    bool BeginPass(bool clear);
+    bool BeginPass(bool three_d, bool clear = true);
     void Use2D();
     bool UploadBuffer(SDL_GPUBuffer* buffer, SDL_GPUTransferBuffer* staging, const void* data, uint32_t size);
 

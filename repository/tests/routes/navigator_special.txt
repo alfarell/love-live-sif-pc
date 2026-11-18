@@ -1,0 +1,11 @@
+# M13 N4: Aqours mode from the save: Chika in her room, wearing School Unity (d105) in its special colour (_v1)
+#! visible
+#! seed navigator_chika
+timeout 60s
+expect screen title 30s
+press enter until menu 30s
+expect log navigator: member 11 in chr/c11/d105/d105_v1.pac
+wait 2500ms
+shot navigator_chika
+expect nolog no room
+expect nolog error

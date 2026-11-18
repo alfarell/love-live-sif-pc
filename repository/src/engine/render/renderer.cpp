@@ -321,11 +321,11 @@ bool Renderer::BeginFrame() {
     return BeginPass(true);
 }
 
-bool Renderer::BeginPass(bool three_d) {
+bool Renderer::BeginPass(bool three_d, bool clear) {
     SDL_GPUColorTargetInfo target{};
     target.texture = swapchain_;
     target.clear_color = {0.05f, 0.05f, 0.07f, 1.0f};
-    target.load_op = three_d ? SDL_GPU_LOADOP_CLEAR : SDL_GPU_LOADOP_LOAD;
+    target.load_op = three_d && clear ? SDL_GPU_LOADOP_CLEAR : SDL_GPU_LOADOP_LOAD;
     target.store_op = SDL_GPU_STOREOP_STORE;
     SDL_GPUDepthStencilTargetInfo depth{};
     depth.texture = depth_;
@@ -337,6 +337,12 @@ bool Renderer::BeginPass(bool three_d) {
     pass_3d_ = three_d && depth_;
     pass_ = SDL_BeginGPURenderPass(cmd_, &target, 1, pass_3d_ ? &depth : nullptr);
     return pass_ != nullptr;
+}
+
+void Renderer::Use3D() {
+    if (!pass_ || pass_3d_) return;
+    SDL_EndGPURenderPass(pass_);
+    BeginPass(true, false);
 }
 
 void Renderer::Use2D() {

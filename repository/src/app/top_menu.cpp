@@ -6,12 +6,14 @@
 #include <array>
 #include <cstdio>
 #include <ctime>
+#include <map>
 #include <random>
 #include <string>
 #include <vector>
 
 #include "app/fade.h"
 #include "app/input.h"
+#include "app/navigator.h"
 #include "app/route.h"
 #include "engine/audio/audio_output.h"
 #include "engine/audio/sound_bank.h"
@@ -44,12 +46,11 @@ constexpr std::array<const char*, 4> kIdleList = {"uil0003_SubMenuList00", "uil0
 constexpr std::array<const char*, 4> kActiveList = {"uil0006_SubMenuList00_act", "uil0011_SubMenuList03_act",
                                                     "uil0007_SubMenuList01_act", "uil0008_SubMenuList02_act"};
 constexpr const char* kRoot = "uil0001_TopMenu00";
-// shortcut: the navigator is always Honoka (member 1); the game's navigator choice (save / Members screen) is not built
-constexpr int kNavigator = 1;
+constexpr const char* kRoomPart = "uip0001_RoomBG00";  // her room, and a quad for the game's off-screen member picture
 
 // The navigator's voice line for talk `id`; logs and returns false when it has none.
-bool Say(const Vfs& vfs, const cri::CueSheet& voice, AudioOutput& audio, int id) {
-    const std::string cue = talk::VoiceCue(vfs, kNavigator, id);
+bool Say(const Vfs& vfs, const cri::CueSheet& voice, AudioOutput& audio, int member, int id) {
+    const std::string cue = talk::VoiceCue(vfs, member, id);
     cri::Pcm pcm;
     std::string error;
     if (cue.empty() || !cri::LoadCue(vfs, voice, cue, pcm, &error)) {
@@ -155,7 +156,7 @@ void ShowNameplate(UiScreen& ui, const Nameplate& p, const std::string& title, c
 }
 
 int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, long max_frames,
-               int* chosen_mode, AudioOutput* audio, const Nameplate* plate) {
+               int* chosen_mode, AudioOutput* audio, const Nameplate* plate, const MenuMember* navigator) {
     route::SetScreen("menu");
     UiText text;
     std::string error;
@@ -172,18 +173,43 @@ int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
     int shown_mode = mode, shown_entry = entry;
     if (plate) ApplyNameplate(ui, *plate);
     SDL_SetWindowTitle(window, "SIF port - top menu");
+    const MenuMember who = navigator ? *navigator : MenuMember{};
+    // the room (behind her) and the rest of the menu (in front) are drawn in two passes around the 3D member. The game
+    // renders her off-screen and shows the picture on the room part's model_character00 quad; the port hides that quad
+    Navigator nav;
+    std::map<std::string, float> room_only, without_room;
+    if (nav.Load(renderer, vfs, who.member, who.costume, who.special, &error)) {
+        for (const auto& [node, target] : ui.Placements(kRoot)) {
+            const bool room = target.find(kRoomPart) != std::string::npos;
+            room_only[node] = room ? 1.0f : 0.0f;
+            without_room[node] = room ? 0.0f : 1.0f;
+            if (!room) continue;
+            const std::string instance = std::string(kRoot) + "/" + node;
+            ui.HideNode(instance, "model_character00", true);
+            ui.HideNode(instance, "room_bg001", true);  // shortcut: when the game shows the second room is not traced
+            const std::string folder = std::string("ui2/10_top_menu.pac/") + kRoomPart + ".pac/texture.pac/";
+            if (!ui.SetMaterialTexture(instance, "_charaTex_bg_room00", folder + member::RoomTexture(who.member) + ".btx")) {
+                LogWarn("top menu: no room for member {}", who.member);
+            }
+        }
+        if (room_only.empty() || std::none_of(room_only.begin(), room_only.end(), [](const auto& p) { return p.second > 0; })) {
+            LogWarn("top menu: no {} in {}", kRoomPart, kRoot);
+        }
+    } else {
+        LogWarn("top menu: navigator {}: {}", who.member, error);
+    }
     cri::CueSheet voice;
     std::vector<int> plain;  // type-0 talks (any time), for T
     if (audio && cri::LoadCueSheet(vfs, "voice", voice, &error)) {
         const auto rules = talk::LoadRules(vfs);
         for (const talk::Rule& r : rules) {
-            if (r.type == 0 && !talk::VoiceCue(vfs, kNavigator, r.id).empty()) plain.push_back(r.id);
+            if (r.type == 0 && !talk::VoiceCue(vfs, who.member, r.id).empty()) plain.push_back(r.id);
         }
         const std::time_t t = std::time(nullptr);
         std::tm local{};
         localtime_s(&local, &t);
         const int greeting = talk::GreetingFor(rules, local.tm_hour);
-        if (greeting >= 0) Say(vfs, voice, *audio, greeting);
+        if (greeting >= 0 && Say(vfs, voice, *audio, who.member, greeting)) nav.Talk();
     } else if (audio) {
         LogWarn("top menu: voice: {}", error);
         audio = nullptr;
@@ -203,7 +229,7 @@ int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
                 case SDL_SCANCODE_ESCAPE: fade.Leave(ui); break;
                 case SDL_SCANCODE_T:
                     LogInfo("top menu: another line (T)");
-                    if (audio && !plain.empty()) Say(vfs, voice, *audio, plain[random() % plain.size()]);
+                    if (audio && !plain.empty() && Say(vfs, voice, *audio, who.member, plain[random() % plain.size()])) nav.Talk();
                     continue;
                 case SDL_SCANCODE_LEFT: mode = (mode + kModes - 1) % kModes, entry = 0; break;
                 case SDL_SCANCODE_RIGHT: mode = (mode + 1) % kModes, entry = 0; break;
@@ -221,16 +247,25 @@ int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
         }
         const uint64_t now = SDL_GetTicksNS();
         ui.Update(double(now - last) / 1e9);
+        nav.Update(double(now - last) / 1e9);
         fade.Update(double(now - last) / 1e9);
         last = now;
         if (!renderer.BeginFrame()) {
             SDL_Delay(5);
             continue;
         }
-        ui.DrawLayout(renderer, kRoot, 1.0f);
+        if (!room_only.empty()) {
+            ui.DrawLayout(renderer, kRoot, 1.0f, room_only);
+            renderer.Use3D();
+            nav.Draw(renderer, Navigator::MenuCamera(float(renderer.Width()) / float(std::max(1, renderer.Height()))));
+            ui.DrawLayout(renderer, kRoot, 1.0f, without_room);
+        } else {
+            ui.DrawLayout(renderer, kRoot, 1.0f);
+        }
         fade.Draw(renderer);
         renderer.EndFrame();
     }
+    nav.Release(renderer);
     ui.Release(renderer);
     LogInfo("top menu: {}", chosen >= 0 ? "entry " + std::to_string(chosen) : std::string("closed"));
     if (chosen_mode) *chosen_mode = mode;

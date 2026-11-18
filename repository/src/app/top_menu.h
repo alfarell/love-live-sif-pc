@@ -29,6 +29,13 @@ struct Nameplate {
     size_t accolade = 0, badge = 0, name_plate = 0;             // the chosen ones (indices)
 };
 
+// The menu's 3D member (M13): who she is and what she wears.
+struct MenuMember {
+    int member = 1;
+    int costume = -1;  // dNNN; -1 = her group's default
+    bool special = false;
+};
+
 // The plate pictures: accolade plate (row +0x08), name plate id (PPPSSSS -> name_plate_PPP_SSSS), badge category.
 std::string TitlePlatePath(int plate);
 std::string NamePlatePath(int id);
@@ -41,6 +48,7 @@ void ShowNameplate(UiScreen& ui, const Nameplate& p, const std::string& title, c
 // With `plate`, the header shows the nameplate. With `audio`, the navigator greets by the time of day on entry and says
 // another line on T (pad Triangle).
 int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, long max_frames,
-               int* mode = nullptr, AudioOutput* audio = nullptr, const Nameplate* plate = nullptr);
+               int* mode = nullptr, AudioOutput* audio = nullptr, const Nameplate* plate = nullptr,
+               const MenuMember* navigator = nullptr);
 
 }

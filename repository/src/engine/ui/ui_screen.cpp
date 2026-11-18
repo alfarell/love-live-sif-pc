@@ -574,6 +574,16 @@ void UiScreen::DrawPart(Renderer& renderer, const std::string& part, float x, fl
     DrawPartAt(renderer, part, CanvasToClip(renderer.Width(), renderer.Height()) * at, part, alpha);
 }
 
+std::vector<std::pair<std::string, std::string>> UiScreen::Placements(const std::string& layout) const {
+    std::vector<std::pair<std::string, std::string>> out;
+    const auto it = layouts_.find(layout);
+    if (it == layouts_.end()) return out;
+    for (size_t i = 0; i < it->second->model.nodes.size(); ++i) {
+        if (!it->second->targets[i].empty()) out.emplace_back(it->second->model.nodes[i].name, it->second->targets[i]);
+    }
+    return out;
+}
+
 void UiScreen::DrawLayout(Renderer& renderer, const std::string& layout, float alpha,
                           const std::map<std::string, float>& part_alpha) const {
     DrawLayoutAt(renderer, layout, CanvasToClip(renderer.Width(), renderer.Height()), layout, alpha, &part_alpha);

@@ -433,7 +433,12 @@ int main(int argc, char** argv) {
                 if (menu) {
                     int mode = -1;
                     sif::Nameplate plate = MakeNameplate(missions, accolades, badges, save);
-                    const int entry = sif::RunTopMenu(window, renderer, vfs, lang, options.frames, &mode, &audio, &plate);
+                    sif::MenuMember navigator;  // the save's current member in her own costume (M13)
+                    navigator.member = sif::save::Current(save);
+                    if (const auto w = save.wear.find(navigator.member); w != save.wear.end()) navigator.costume = w->second;
+                    navigator.special = save.special.contains(navigator.member);
+                    const int entry = sif::RunTopMenu(window, renderer, vfs, lang, options.frames, &mode, &audio, &plate,
+                                                      &navigator);
                     if (entry < 0) break;
                     home_mode = entry == 0;
                     view_mode = entry == 2;
