@@ -644,7 +644,8 @@ struct LiveScene {
             for (const std::string& costume : {own == opt.wear.end() ? std::string() : own->second, opt.costume}) {
                 if (costume.empty()) continue;
                 char dress[64];
-                std::snprintf(dress, sizeof(dress), "chr/c%02d/%s/%s.pac", m, costume.c_str(), costume.c_str());
+                // "dNNN", or "dNNN_v1" for the special colour (M13), which sits in the dNNN folder
+                std::snprintf(dress, sizeof(dress), "chr/c%02d/%s/%s.pac", m, costume.substr(0, 4).c_str(), costume.c_str());
                 const std::string dressed = FindEntry(vfs, dress, "mod_");
                 if (!dressed.empty()) {
                     model_path = dressed, textures = chr;

@@ -51,6 +51,9 @@ public:
     void DrawLayout(Renderer& renderer, const std::string& layout, float alpha,
                     const std::map<std::string, float>& part_alpha = {}) const;
     bool HasPart(const std::string& part) const { return parts_.contains(part); }
+    // Only one placed instance of a layout ("layout/node[/node...]"), at its place: e.g. a part drawn again over a 3D
+    // model that the rest of the screen is under.
+    void DrawInstance(Renderer& renderer, const std::string& instance, float alpha) const;
     // A layout's top-level nodes that place something: (node name, placed part or layout).
     std::vector<std::pair<std::string, std::string>> Placements(const std::string& layout) const;
 
@@ -67,6 +70,7 @@ public:
     void HideNode(const std::string& node, bool hide);
     // The same for one placed instance only (e.g. the focused plate's highlight).
     void HideNode(const std::string& instance, const std::string& node, bool hide);
+    bool NodeHidden(const std::string& instance, const std::string& node) const;
     // Replaces a material's texture in one placed instance with a btx from the dump (cached), e.g. a song cover:
     // the game's FUN_0024B850(instance, material) + texture assignment. False if the texture cannot be loaded.
     bool SetMaterialTexture(const std::string& instance, const std::string& material, const std::string& vfs_path);
@@ -140,6 +144,7 @@ private:
     std::map<std::pair<std::string, int>, Held> held_;     // (instance path, layer >= 1) -> clip at a fixed frame
     Playing play_all_;  // "*": this clip on every instance whose part has it (empty clip = none)
     std::set<std::string> hidden_nodes_, hidden_paths_;
+    mutable std::string only_;  // DrawInstance: the one instance path drawn ("" = all)
     std::set<std::string> boxes_by_name_;  // parts whose text boxes go by name (TextBoxesByName)
     std::map<std::string, std::array<float, 2>> moved_paths_;  // MoveInstance offsets by instance path
     std::map<std::string, std::set<std::string>> instance_hidden_;                      // instance -> node names

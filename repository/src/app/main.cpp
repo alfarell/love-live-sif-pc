@@ -560,7 +560,7 @@ int main(int argc, char** argv) {
                 options.live_options.wear.clear();  // each member's own costume (Create/Change Costumes)
                 for (const auto& [member, dress] : save.wear) {
                     char folder[16];
-                    std::snprintf(folder, sizeof(folder), "d%03d", dress);
+                    std::snprintf(folder, sizeof(folder), save.special.contains(member) ? "d%03d_v1" : "d%03d", dress);
                     options.live_options.wear[member] = folder;
                 }
                 options.live_options.skills = view_mode ? std::vector<sif::live::Skill>{} : sif::LiveSkills(skills);

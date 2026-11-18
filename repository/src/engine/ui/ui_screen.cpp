@@ -279,6 +279,11 @@ void UiScreen::HideNode(const std::string& node, bool hide) {
     }
 }
 
+bool UiScreen::NodeHidden(const std::string& instance, const std::string& node) const {
+    const auto it = instance_hidden_.find(instance);
+    return it != instance_hidden_.end() && it->second.contains(node);
+}
+
 void UiScreen::HideNode(const std::string& instance, const std::string& node, bool hide) {
     if (hide) {
         instance_hidden_[instance].insert(node);
@@ -551,6 +556,10 @@ void UiScreen::DrawLayoutAt(Renderer& renderer, const std::string& key, const Ma
         if (a <= 0) continue;
         const std::string& target = l.targets[i];
         if (target.empty() || hidden_paths_.contains(path + "/" + name)) continue;
+        if (!only_.empty()) {  // DrawInstance: the nodes on the way to it, and everything under it
+            const std::string full = path + "/" + name;
+            if (full != only_ && !only_.starts_with(full + "/") && !full.starts_with(only_ + "/")) continue;
+        }
         Mat4 node_clip = to_clip * l.world[i];
         if (const auto m = moved_paths_.find(path + "/" + name); m != moved_paths_.end()) {
             Mat4 move;
@@ -582,6 +591,12 @@ std::vector<std::pair<std::string, std::string>> UiScreen::Placements(const std:
         if (!it->second->targets[i].empty()) out.emplace_back(it->second->model.nodes[i].name, it->second->targets[i]);
     }
     return out;
+}
+
+void UiScreen::DrawInstance(Renderer& renderer, const std::string& instance, float alpha) const {
+    only_ = instance;
+    DrawLayout(renderer, instance.substr(0, instance.find('/')), alpha);
+    only_.clear();
 }
 
 void UiScreen::DrawLayout(Renderer& renderer, const std::string& layout, float alpha,

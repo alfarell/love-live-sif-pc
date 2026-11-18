@@ -9,11 +9,15 @@
 
 #include "app/fade.h"
 #include "app/input.h"
+#include "app/member_popup.h"
+#include "app/navigator.h"
 #include "app/route.h"
 #include "engine/core/log.h"
 #include "engine/fs/vfs.h"
 #include "engine/render/renderer.h"
 #include "engine/ui/ui_screen.h"
+#include "game/member/member.h"
+#include "game/text/messages.h"
 
 namespace sif {
 namespace {
@@ -143,10 +147,21 @@ bool RunCostumes(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const s
     const std::string pop = create + "/uil0010_PopCreate00", pop_part = pop + "/uip0030_PopCreate00";
     static constexpr const char* kGrids[3] = {"/uil0003_CosMenu00_Ms", "/uil0004_CosMenu00_Aq", "/uil0005_CosMenu00_Ss"};
     constexpr int kSlots = 33, kColumns = 6;
-    // shortcut: the 3D member behind the curtain, the special colours, the member-card pictures (the grid and preview
-    // show the costume thumbnail instead), the material gauges, the button hints and the song list are not built
+    // shortcut: the member-card pictures (the grid and preview show the costume thumbnail instead), the material
+    // gauges, the button hints, the "Change Costume?" question and the song list are not built
     ui.HideInstance(root + "/uil0020_CosComplete00", true);
-    ui.HideInstance(create + "/common_uip0014_OpeButton00", true);
+    // the member (M13 N6): the game draws her off-screen onto uip0002_CosChara00's model_character00 quad; the port
+    // draws her in 3D instead (Navigator) and keeps the part's "Trying It On" plate (fitting_mark00) in front of her
+    const std::string chara = create + "/uip0002_CosChara00", hint = create + "/common_uip0014_OpeButton00";
+    ui.HideNode(chara, "model_character00", true);
+    // shortcut: the curtain is not on the game's screen while a member stands there (N2); when it closes (likely
+    // between members) is not traced, so it is not drawn
+    ui.HideInstance(create + "/uip0018_CosCurtain00", true);
+    Messages messages;
+    if (!messages.Load(vfs, language, &error)) LogWarn("costumes: messages: {}", error);
+    // its box 0 is _text00 by name (in mesh order the untextured model_character00 quad would be box 0)
+    ui.TextBoxesByName("uip0002_CosChara00");
+    ui.SetInstanceText(chara, 0, messages.Get(534));  // "Trying It On"
     ui.HideInstance(pop + "/uil0007_MusicList00", true);
     ui.HideInstance(pop + "/common_uip0052_ButtonSquare00", true);
     ui.HideNode(root + "/uip0001_CosTop00", "page_title01", true);  // "Costume Complete"; page_title00 is this screen
@@ -168,13 +183,25 @@ bool RunCostumes(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const s
     };
     // the member being dressed (the game's "Switch Members"): µ's 1-9, Aqours 11-19, Saint Snow 21-22; the grid shows
     // the member's group
-    static constexpr int kMembers[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19, 21, 22};
-    constexpr int kMemberCount = int(std::size(kMembers));
-    int member = 0, group = 0, cursor = 0;
-    const auto wears = [&](int m) {
-        const auto it = save.wear.find(m);
+    // it starts on the save's current member (R2 / L2, M13 N5) and her costume
+    int m = save::Current(save), group = member::Group(m), cursor = 0;
+    bool special = false;  // the L1 colour shown on the focused costume
+    const auto wears = [&](int who) {
+        const auto it = save.wear.find(who);
         return it == save.wear.end() ? 0 : it->second;
     };
+    const auto on_member = [&] {  // the grid of her group, focused on what she wears
+        group = member::Group(m);
+        const std::vector<int>& now = lists[size_t(group)];
+        const auto at = std::find(now.begin(), now.end(), wears(m));
+        cursor = at == now.end() ? 0 : int(at - now.begin());
+        special = save.special.contains(m);
+    };
+    on_member();
+    Navigator nav;
+    int dressed_member = -1, dressed = -1;
+    bool dressed_special = false;
+    MemberPopup popup;
     const auto has_model = [&](int m, int dress) {
         char path[64];
         std::snprintf(path, sizeof(path), "chr/c%02d/d%03d/d%03d.pac", m, dress, dress);
@@ -208,9 +235,25 @@ bool RunCostumes(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const s
             ui.HideNode(create + "/uip0006_CosInfo00", Two("status_label%02d", l), l != kLabelOf[state]);
             ui.HideNode(pop_part, Two("status_label_pop%02d", l), l != kLabelOf[state]);
         }
-        // shortcut: member names are not read (no table found yet), so the member is shown by number
-        const int m = kMembers[member], worn = wears(m);
-        const std::string wearing = "Member " + std::to_string(m) + " wears: " + (worn ? name_of(worn) : std::string("own default")) +
+        const int worn = wears(m);
+        const bool has_special = vfs.Exists(member::CostumePack(m, dress, true));
+        if (!has_special) special = false;
+        // L1 "Change to special color" / "Default" above the grid, only for costumes that have one (N2 cs2.png, cs4.png)
+        ui.HideInstance(hint, !has_special);
+        ui.SetInstanceText(hint, 0, messages.Get(special ? 604 : 603));
+        // "Trying It On" while the focused costume is not the one she wears (not for the colour alone: N2 cs4.png)
+        ui.HideNode(chara, "fitting_mark00", dress == worn);
+        if (m != dressed_member || dress != dressed || special != dressed_special) {
+            const bool same_member = m == dressed_member;
+            if (nav.Load(renderer, vfs, m, dress, special, &error)) {
+                if (same_member) nav.Play(518);  // dresschk: she looks at the new costume
+            } else {
+                LogWarn("costumes: member {} in {}: {}", m, dress, error);
+            }
+            dressed_member = m, dressed = dress, dressed_special = special;
+        }
+        const std::string wearing = messages.Get(member::ProfileOf(m).short_name) + " wears: " +
+                                    (worn ? name_of(worn) : std::string("own default")) +
                                     (state == 0 && dress != worn ? (has_model(m, dress) ? "  (Enter: wear this)" : "  (no model)") : "");
         ui.SetInstanceText(create + "/common_uip0009_SelectInfoWin00", 0,
                            (r ? r->text[size_t(language)] : std::string()) + "\n\n" + wearing);
@@ -250,6 +293,15 @@ bool RunCostumes(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const s
             if (e.type != SDL_EVENT_KEY_DOWN || fade.leaving) continue;
             const std::vector<int>& list = lists[size_t(group)];
             const int n = int(list.size());
+            if (popup.IsOpen()) {  // R2: the member popup, as on the top menu
+                if (!e.key.repeat && popup.Key(e.key.scancode) == MemberPopup::Result::Chosen) {
+                    m = popup.Chosen();
+                    save.mode = member::Mode(m), save.navigator[save.mode] = m;
+                    on_member();
+                    show();
+                }
+                continue;
+            }
             if (popped) {
                 if (e.key.repeat) continue;
                 if (e.key.scancode == SDL_SCANCODE_RETURN || e.key.scancode == SDL_SCANCODE_SPACE) {
@@ -267,25 +319,32 @@ bool RunCostumes(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const s
                 case SDL_SCANCODE_RIGHT: cursor = std::min(n - 1, cursor + 1); break;
                 case SDL_SCANCODE_UP: cursor = cursor >= kColumns ? cursor - kColumns : cursor; break;
                 case SDL_SCANCODE_DOWN: cursor = cursor + kColumns < n ? cursor + kColumns : cursor; break;
-                case SDL_SCANCODE_PAGEUP:
-                case SDL_SCANCODE_PAGEDOWN: {
-                    member = (member + (e.key.scancode == SDL_SCANCODE_PAGEUP ? kMemberCount - 1 : 1)) % kMemberCount;
-                    const int m = kMembers[member];
-                    group = m >= 20 ? 2 : m >= 10 ? 1 : 0;
-                    const std::vector<int>& now = lists[size_t(group)];
-                    const auto at = std::find(now.begin(), now.end(), wears(m));
-                    cursor = at == now.end() ? 0 : int(at - now.begin());  // on the costume the member wears
-                    SDL_SetWindowTitle(window, ("SIF port - costumes: member " + std::to_string(m)).c_str());
+                case SDL_SCANCODE_PAGEUP:  // L1: the special colour, where the costume has one
+                    if (!e.key.repeat && n && vfs.Exists(member::CostumePack(m, list[size_t(cursor)], true))) {
+                        special = !special;
+                        LogInfo("costumes: member {} {} in {} colours", m, list[size_t(cursor)], special ? "special" : "default");
+                    }
                     break;
-                }
+                case SDL_SCANCODE_HOME:  // L2: the other mode's member
+                    if (e.key.repeat) break;
+                    save.mode = 1 - save.mode;
+                    m = save::Current(save);
+                    on_member();
+                    LogInfo("costumes: mode {}, member {}", save.mode, m);
+                    break;
+                case SDL_SCANCODE_END:  // R2: Switch Members
+                    if (!e.key.repeat) popup.Open(renderer, vfs, lang, save.mode, m);
+                    continue;
                 case SDL_SCANCODE_RETURN:
                 case SDL_SCANCODE_SPACE: {
                     if (e.key.repeat || !n) break;
-                    const int dress = list[size_t(cursor)], state = StateOf(data, addons, save, dress), m = kMembers[member];
+                    const int dress = list[size_t(cursor)], state = StateOf(data, addons, save, dress);
                     popped = state == 1 || state == 2;  // add-on only: no recipe
-                    if (state == 0 && has_model(m, dress)) {  // owned: the member wears it
+                    if (state == 0 && has_model(m, dress)) {  // owned: "Change Clothes", with the colour shown
                         save.wear[m] = dress;
-                        LogInfo("costumes: member {} wears {} {}", m, dress, name_of(dress));
+                        if (special) save.special.insert(m); else save.special.erase(m);
+                        nav.Play(519);  // dressfix
+                        LogInfo("costumes: member {} wears {} {}{}", m, dress, name_of(dress), special ? " (special colour)" : "");
                     }
                     break;
                 }
@@ -299,16 +358,33 @@ bool RunCostumes(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const s
         }
         const uint64_t now = SDL_GetTicksNS();
         ui.Update(double(now - last) / 1e9);
+        nav.Update(double(now - last) / 1e9);
+        if (popup.IsOpen()) popup.Update(double(now - last) / 1e9);
         fade.Update(double(now - last) / 1e9);
         last = now;
         if (!renderer.BeginFrame()) {
             SDL_Delay(5);
             continue;
         }
+        // the screen, her in 3D over it, then the "Trying It On" plate over her (the chara part drawn again alone)
+        const bool plate = !ui.NodeHidden(chara, "fitting_mark00");
+        ui.HideNode(chara, "fitting_mark00", true);
         ui.DrawLayout(renderer, root, 1.0f);
+        if (!popped) {  // shortcut: she is hidden while the craft question is up, instead of drawn under it
+            renderer.Use3D();
+            nav.Draw(renderer, Navigator::CostumeCamera(float(renderer.Width()) / float(std::max(1, renderer.Height()))));
+            if (plate) {
+                ui.HideNode(chara, "fitting_mark00", false);
+                ui.DrawInstance(renderer, chara, 1.0f);
+            }
+        }
+        ui.HideNode(chara, "fitting_mark00", !plate);
+        popup.Draw(renderer);
         fade.Draw(renderer);
         renderer.EndFrame();
     }
+    popup.Release(renderer);
+    nav.Release(renderer);
     ui.Release(renderer);
     return open;
 }

@@ -25,12 +25,16 @@ public:
     void Update(double seconds);
     // Play one of the member's talk motions (503-506) once, then back to standing.
     void Talk();
+    // Play motion `number` once (e.g. 518 dresschk, 519 dressfix), then back to standing.
+    void Play(int number);
     // `view_proj`: the camera; she is drawn at the origin, facing -Y (Z-up), as in lives.
     void Draw(Renderer& renderer, const Mat4& view_proj);
     void Release(Renderer& renderer);
     int Member() const { return member_; }
     // The top menu's camera: she stands in the right half, head to thighs (fitted to the N2 shots).
     static Mat4 MenuCamera(float aspect);
+    // Create/Change Costumes: her whole figure on the left (fitted to the N2 shots cs2.png-cs6.png).
+    static Mat4 CostumeCamera(float aspect);
 
 private:
     struct Clip {

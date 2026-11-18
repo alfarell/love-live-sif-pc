@@ -23,6 +23,8 @@ constexpr int kTalk[] = {503, 504, 505, 506};  // talk1-4 (shortcut: which talk 
 }
 
 bool Navigator::Load(Renderer& renderer, const Vfs& vfs, int member, int costume, bool special, std::string* error) {
+    if (loaded_) Release(renderer);  // a reload: another member, costume or colour
+    clips_.clear(), playing_ = nullptr;
     vfs_ = &vfs, member_ = member;
     char chr[64], prefix[16];
     std::snprintf(chr, sizeof(chr), "chr/c%02d/c%02d.pac/model.pac", member, member);
@@ -94,6 +96,12 @@ void Navigator::Talk() {
     LogInfo("navigator: talk {}", playing_ ? playing_->number : 0);
 }
 
+void Navigator::Play(int number) {
+    if (!loaded_) return;
+    Start(number);
+    LogInfo("navigator: motion {}", playing_ ? playing_->number : 0);
+}
+
 void Navigator::Draw(Renderer& renderer, const Mat4& view_proj) {
     if (!loaded_) return;
     renderer.SetCamera(view_proj);
@@ -111,6 +119,13 @@ Mat4 Navigator::MenuCamera(float aspect) {
     // the width. shortcut: fitted by eye, the game's menu camera is not traced
     const float fov = 0.55f, x = -0.44f, z = 1.17f;
     return Perspective(fov, aspect, 0.05f, 100.0f) * LookAt({x, -2.2f, z}, {x, 0, z}, {0, 0, 1});
+}
+
+Mat4 Navigator::CostumeCamera(float aspect) {
+    // N2 shots cs2.png-cs6.png: head near y 120 of 720, feet near y 670, her middle at x 0.17 of the width.
+    // shortcut: fitted by eye, as MenuCamera
+    const float fov = 0.55f, x = 1.44f, z = 1.01f;
+    return Perspective(fov, aspect, 0.05f, 100.0f) * LookAt({x, -4.18f, z}, {x, 0, z}, {0, 0, 1});
 }
 
 }
