@@ -38,7 +38,9 @@ To keep several setups apart, start with `--data <folder>`.
 | The 9 lanes of an arcade song (AC), left to right | `A S D F Space J K L ;` | L2, L1, Left, Down, Right or Square (centre), Cross, Circle, R1, R2 |
 | The 6 lanes of a home song, left to right | `S D F J K L` | L1, Left, Down, Cross, Circle, R1 |
 | Leave a song | Esc | Start |
-| Next page / tab (Task List, Profile, Costumes) | PageUp / PageDown | L1 / R1 |
+| Next page / tab (Task List, Profile) | PageUp / PageDown | L1 / R1 |
+| Top menu and Create/Change Costumes: Toggle Mode (µ's / Aqours) / Switch Members | Home / End | L2 / R2 |
+| Create/Change Costumes: special colour | PageUp | L1 |
 | Another line from the navigator (top menu) | T | Triangle |
 | Favourite (Photo Gallery, End the Live Show); photo position (profile card editor) | Q | Square |
 | View Live Show: camera mode / take photo / camera info | Page Down / P / Q | R1 / Circle / Square |
@@ -48,7 +50,8 @@ Options → Control Settings changes the controller's lane buttons, separately f
 
 ## Playing
 
-- **Top menu:** Left/Right turn the wheel, Up/Down pick an entry.
+- **Top menu:** Left/Right turn the wheel, Up/Down pick an entry. Your member stands in her room and talks to you (T: another line).
+- **Your member:** R2 (End) opens "Choose a Member.": pick a member (L1/R1 for the other group), read her profile and confirm. L2 (Home) switches between µ's and Aqours (Saint Snow is with Aqours); each keeps its own member. Your member plays the lives, and her skill cards, photos and costumes are the ones used.
 - **Playing a song:** Play → **Play Live Show** has the home charts (BEGINNER, STANDARD, HYPER, ADVENTURE, on 6 lanes); **Play Live Show (AC)** has the arcade charts (EASY to CHALLENGE, on 9 lanes). Pick a song, a difficulty, a stage and a costume (Left/Right, then Enter at each step). The costume step shows the played member's member card for each costume. Then **Prepare for the Live Show**: Enter (or LIVE START) starts the live, after a short screen with your member card, your skill cards and the two NPC profile cards that support the live. ADVENTURE opens once you get A or better on that song's HYPER. At the end ALL PERFECT or FULL COMBO shows if you earned it, then LIVE CLEAR. The result screen shows your score; a key turns to **Items Obtained** (the skill cards and materials the live gave; Left/Right pick a card), and another key returns to the song select.
 - **Lives** show the stage with its screens playing the song's video, and the members dancing to the song's own camera.
 - **Saves:** best scores, ranks and play counts are kept in `save.txt`. The song select shows each chart's best rank; the result screen marks new bests.
@@ -61,7 +64,7 @@ Options → Control Settings changes the controller's lane buttons, separately f
 - **Costumes:**
   - every finished live gives materials (more at higher ranks; a costume made for the song's materials helps);
   - Costumes → Costume Materials lists them;
-  - Create/Change Costumes makes costumes and puts them on members (PageUp/PageDown changes the member).
+  - Create/Change Costumes makes costumes and puts them on your member (R2 / L2 change her): she stands on the left trying on the focused costume, L1 (PageUp) shows a costume's special colour where it has one, and Enter keeps the costume and colour.
 - **Missions:** Event → Task List shows the missions and their progress; Enter claims a reward.
 - **View Live Show and photos:** Play → **View Live Show** plays a song without notes. R1 (Page Down) switches the camera: MV (the song's camera), Member (one member close up; D-pad Left/Right or comma/period switch members) and View (the whole stage). In Member and View the arrows (left stick) move the camera, L1 (Page Up) moves it away (with Up: nearer), L2 (Home) raises it. ○ (P) takes a photo, up to 5 per live; □ (Q) hides the camera info. After the song, **End the Live Show** shows the photos: □ marks favourites, Enter saves them (up to 30; the oldest that is not a favourite makes room). The photos are `photos/NN.png` in the data folder.
 - **Collection:**
@@ -91,9 +94,10 @@ Options → Control Settings changes the controller's lane buttons, separately f
   - received profile cards (online), the enlarged member card;
   - the skill voice and 3D skill effects, Shoutout, Member Focus's camera;
   - boosters, Friendship levels and events;
-  - "Trying It On" and special costume colours;
-  - the 3D navigator (the top menu shows Honoka's voice lines only).
-- **Not built either:** Live Show Medley, the "What will you do next?" box after a live, Prepare's Game Settings button and booster panel, Player's Name, controller vibration.
+  - the members' faces while they talk (lip sync) and blinking; the loading screen between members;
+  - the "Change Costume?" question, the costume curtain;
+  - the first-start member choice, and "You cannot play … with this member" for songs she does not sing.
+- **Not built either:** the song list per µ's / Aqours mode (all songs are listed in both), Live Show Medley, the "What will you do next?" box after a live, Prepare's Game Settings button and booster panel, Player's Name, controller vibration.
 - **Simplified:** some screen transitions, animations and small icons; a locked difficulty shows its padlock but is not darkened; the arcade CHALLENGE chart is open from the start (the game asks for A on EXTREME first).
 
 The project's roadmap lists the details.
