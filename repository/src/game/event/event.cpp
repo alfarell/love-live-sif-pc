@@ -33,7 +33,12 @@ bool Table(const Vfs& vfs, const char* path, const char* symbol, std::vector<uin
 
 }
 
+Date g_today{};  // set by SetToday; year 0 = the system clock
+
+void SetToday(Date d) { g_today = d; }
+
 Date Today() {
+    if (g_today.year) return g_today;
     const std::time_t t = std::time(nullptr);
     std::tm local{};
     localtime_s(&local, &t);
@@ -113,6 +118,11 @@ bool Active(const Birthday& b, Date today, Date* start, Date* end) {
         }
     }
     return false;
+}
+
+int EventYear(const Birthday& b, Date today) {
+    Date start, end;
+    return Active(b, today, &start, &end) ? end.year : 0;
 }
 
 int LivePoints(const Data& data, int variant, int rank) {

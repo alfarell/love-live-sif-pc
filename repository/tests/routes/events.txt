@@ -1,0 +1,36 @@
+# M14 F6: Event -> Ongoing Events on 2026-07-28 (Chika's event runs Jul 25 - Aug 1): the Aqours plates with their
+# dates and banners, "Now Open!" on Chika's; her page with 1000 points reached and "Receive rewards", which gives her
+# two birthday skill cards (shadPS4 work/m14/shad/e7.png, e8.png)
+#! seed events
+#! args --date 2026-07-28
+#! visible
+timeout 90s
+expect screen title 30s
+press enter until menu 30s
+expect log top menu: birthday event of member 11 running
+wait 1500ms
+shot events_menu
+key left
+wait 800ms
+key down
+wait 600ms
+key enter
+expect log top menu: entry 21
+expect screen events 20s
+expect log events: 11 events of mode 1, today 2026-07-28
+wait 2s
+shot events_list
+key enter
+expect log events: member 11 page
+expect screen event_page 10s
+wait 2500ms
+shot events_page
+key enter
+expect log events: member 11 rewards received: 2 skill cards, 6 key items
+wait 1500ms
+shot events_received
+key esc
+expect screen events 10s
+key esc
+expect screen menu 20s
+expect nolog error

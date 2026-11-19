@@ -14,6 +14,7 @@ class Renderer;
 class UiScreen;
 class Vfs;
 namespace save { struct SaveData; }
+namespace event { struct Data; }
 
 // The player's nameplate in the header (uil0009_PlayerDataTop00 places 03_card's name plate, badge and accolade plate).
 struct NameplateItem {
@@ -44,6 +45,6 @@ void ShowNameplate(UiScreen& ui, const Nameplate& p, const std::string& title, c
 // µ's/Aqours and R2 opens the member popup, and the choice is written into `save` (the caller writes the file).
 int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, long max_frames,
                int* mode = nullptr, AudioOutput* audio = nullptr, const Nameplate* plate = nullptr,
-               save::SaveData* save = nullptr);
+               save::SaveData* save = nullptr, const event::Data* events = nullptr);
 
 }

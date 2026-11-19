@@ -186,7 +186,8 @@ void ShowNameplate(UiScreen& ui, const Nameplate& p, const std::string& title, c
 }
 
 int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, long max_frames,
-               int* chosen_mode, AudioOutput* audio, const Nameplate* plate, save::SaveData* save) {
+               int* chosen_mode, AudioOutput* audio, const Nameplate* plate, save::SaveData* save,
+               const event::Data* events) {
     route::SetScreen("menu");
     UiText text;
     std::string error;
@@ -243,6 +244,18 @@ int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
         if (!room_instance.empty() &&
             !ui.SetMaterialTexture(room_instance, "_charaTex_bg_room00", folder + member::RoomTexture(who) + ".btx")) {
             LogWarn("top menu: no room for member {}", who);
+        }
+        // "Now Open!": a running birthday event of her mode shows its banner (eboot FUN_0000f3d0: top_event_bd00_00_MM;
+        // M14 F6). shortcut: otherwise the panel keeps the layout's own picture (the game shows the monthly ranking)
+        for (const int m : member::kAll) {
+            const event::Birthday* b = events ? event::Find(*events, m) : nullptr;
+            if (!b || member::Mode(m) != member::Mode(who) || !event::Active(*b, event::Today())) continue;
+            char path[96];
+            std::snprintf(path, sizeof(path), "ui/ui_bd_banner_top.pac/texture.pac/top_event_bd00_00_%02d", m);
+            ui.SetMaterialTexture(std::string(kRoot) + "/uip0002_MenuBG00", "event_info00_M1", path);
+            ui.SetMaterialUv(std::string(kRoot) + "/uip0002_MenuBG00", "event_info00_M1", 0, 0);
+            LogInfo("top menu: birthday event of member {} running", m);
+            break;
         }
         const int group = member::Group(who);  // the header's logo and plate (eboot 0x1BD2D0: logo_*, player_data_bg00_*)
         for (int g = 0; g < 3; ++g) {

@@ -2,7 +2,7 @@
 # shown in the header); Prepare shows "Wai-Wai! Booster / You Have 3", Square (Q) uses one ("Used", 2); the autoplay
 # live then spends it and its materials get +10 units (shadPS4 work/m14/shad/b0.png, p2.png, p3.png)
 #! seed boosters
-#! args --autoplay
+#! args --autoplay --date 2026-07-28
 #! visible
 timeout 300s
 expect screen title 30s
@@ -32,6 +32,7 @@ key enter
 expect screen live 30s
 expect screen result 200s
 expect log boosters: one used, 2 left
+expect log birthday: member 1 +20 points (20 of 1000)
 key enter
 expect screen result_items 20s
 wait 1500ms

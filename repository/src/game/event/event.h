@@ -18,7 +18,9 @@ struct Date {
     bool operator==(const Date&) const = default;
     auto operator<=>(const Date&) const = default;
 };
+// The in-game date: the system's, or the one set with SetToday (the --date option, for tests).
 Date Today();
+void SetToday(Date d);
 Date AddDays(Date d, int days);
 // "YYYY-MM-DD" -> date; false if not a date
 bool ParseDate(const std::string& text, Date& out);
@@ -43,6 +45,9 @@ const Birthday* Find(const Data& data, int member);
 bool Active(const Birthday& b, Date today, Date* start = nullptr, Date* end = nullptr);
 // The window of the event in `year` (the year of her birthday).
 void Window(const Birthday& b, int year, Date& start, Date& end);
+// The state of `b`'s event on `today`: the year of the event that holds today (0 = none running).
+int EventYear(const Birthday& b, Date today);
+
 // Points for a played live with her during her event (FUN_0000f850): points[2] + points[3 + d] + points[12 + rank],
 // d = variant 0-4 (arcade) or 5-8 (home variants 10-13).
 int LivePoints(const Data& data, int variant, int rank);

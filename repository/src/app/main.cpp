@@ -23,6 +23,7 @@
 
 #include "app/collection_screen.h"
 #include "app/costume_screen.h"
+#include "app/event_screen.h"
 #include "app/fade.h"
 #include "app/first_run.h"
 #include "app/input.h"
@@ -115,6 +116,10 @@ Options ParseOptions(int argc, char** argv) {
         else if (!std::strcmp(argv[i], "--stage") && i + 1 < argc) o.live_options.stage = argv[++i];
         else if (!std::strcmp(argv[i], "--costume") && i + 1 < argc) o.live_options.costume = argv[++i];
         else if (!std::strcmp(argv[i], "--member") && i + 1 < argc) o.live_options.member = int(std::strtol(argv[++i], nullptr, 10));
+        else if (!std::strcmp(argv[i], "--date") && i + 1 < argc) {  // the in-game date (M14: birthday events in tests)
+            sif::event::Date d;
+            if (sif::event::ParseDate(argv[++i], d)) sif::event::SetToday(d);
+        }
         else if (!std::strcmp(argv[i], "--live") && i + 1 < argc) {
             o.live = true;
             char* rest = nullptr;
@@ -403,6 +408,9 @@ int main(int argc, char** argv) {
             sif::card::Data card_data;  // skill and member cards (M11)
             const bool has_cards = sif::card::Load(vfs, card_data, &why);
             if (!has_cards) sif::LogWarn("cards: {}", why);
+            sif::event::Data event_data;  // birthday events (M14)
+            const bool has_events = sif::event::Load(vfs, event_data, &why);
+            if (!has_events) sif::LogWarn("birthday events: {}", why);
             sif::friendship::Tables friendship_data;  // Friendship levels and gains (M14)
             const bool has_friendship = sif::friendship::Load(vfs, friendship_data, &why);
             if (!has_friendship) sif::LogWarn("friendship: {}", why);
@@ -442,7 +450,7 @@ int main(int argc, char** argv) {
                     // R2 / L2 on the menu (M13), the day's login bonus (M14)
                     const auto member_before = std::tuple(save.mode, save.navigator, save.login_date);
                     const int entry = sif::RunTopMenu(window, renderer, vfs, lang, options.frames, &mode, &audio, &plate,
-                                                      &save);
+                                                      &save, has_events ? &event_data : nullptr);
                     if (std::tuple(save.mode, save.navigator, save.login_date) != member_before && can_save &&
                         !sif::save::Write(save_path, save, &save_error)) {
                         sif::LogWarn("save: {}", save_error);
@@ -544,6 +552,15 @@ int main(int argc, char** argv) {
                         loading.Show(renderer);
                         open = sif::RunMissions(window, renderer, vfs, lang,
                                                 {&missions, &accolades, &songs, &save, &owned}, options.frames);
+                        if (can_save && !sif::save::Write(save_path, save, &save_error)) sif::LogWarn("save: {}", save_error);
+                        continue;
+                    }
+                    if (mode == 5 && entry == 21 && has_events) {  // Event: Ongoing Events, the birthday events (M14 F6)
+                        loading.Show(renderer);
+                        open = sif::RunBirthdayEvents(window, renderer, vfs, lang,
+                                                      {&event_data, &save, has_cards ? &card_data : nullptr,
+                                                       has_costumes ? &costume_data : nullptr},
+                                                      options.frames);
                         if (can_save && !sif::save::Write(save_path, save, &save_error)) sif::LogWarn("save: {}", save_error);
                         continue;
                     }
@@ -691,6 +708,18 @@ int main(int argc, char** argv) {
                                    std::to_string(amount);
                         }
                         sif::LogInfo("materials: {}", got.empty() ? "none" : got);
+                    }
+                    // the played member's birthday event (M14 F6; eboot FUN_0000f850): points while it runs
+                    if (has_events && !view_mode) {
+                        if (const sif::event::Birthday* b = sif::event::Find(event_data, skills.member)) {
+                            if (const int year = sif::event::EventYear(*b, sif::event::Today())) {
+                                sif::save::BirthdayState& st = save.birthdays[skills.member];
+                                if (st.year != year) st = {year, 0, false};  // a new year's event starts from 0
+                                const int add = sif::event::LivePoints(event_data, result.variant, result.rank);
+                                st.points = std::min(st.points + add, 9999);
+                                sif::LogInfo("birthday: member {} +{} points ({} of {})", skills.member, add, st.points, b->goal);
+                            }
+                        }
                     }
                     // Drop Support (kind 23): its % chance of one Wai-Wai! Booster (M11 S6: pool 1; eboot 0x7D637, cap 9)
                     if (has_cards && !view_mode) {
