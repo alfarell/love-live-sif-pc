@@ -21,6 +21,7 @@
 #include "engine/core/log.h"
 #include "engine/render/renderer.h"
 #include "engine/ui/ui_screen.h"
+#include "game/event/event.h"
 #include "game/member/member.h"
 #include "game/save/save.h"
 #include "game/talk/talk.h"
@@ -105,17 +106,43 @@ void Apply(UiScreen& ui, int mode, int entry, bool focus_changed = true, bool mo
     }
 }
 
-void ApplyNameplate(UiScreen& ui, const Nameplate& p) {
+void ApplyNameplate(UiScreen& ui, const Nameplate& p, const save::SaveData* save) {
     const std::string top = std::string(kRoot) + "/uil0009_PlayerDataTop00";
     ShowNameplate(ui, p, top + "/ctg03_uip0004_Title00", top + "/ctg03_uil0005_NameSet00");
-    // the header's date (uip0008_PlayerData00 box 0) and boost items (box 1; shortcut: not built, left empty)
+    // the header's date (uip0008_PlayerData00 box 0) and the Wai-Wai! Boosters held (box 1: "Wai-Wai! Booster 5", at 9
+    // "Wai-Wai! Booster 9 MAX"; messages 698/699, M14 F5. shortcut: in English, as the date; the menu loads no messages)
     const std::time_t t = std::time(nullptr);
     std::tm local{};
     localtime_s(&local, &t);
     char date[64];
     std::strftime(date, sizeof(date), "%Y/%m/%d  %H:%M", &local);
     ui.SetInstanceText(top + "/uip0008_PlayerData00", 0, date);
-    ui.SetInstanceText(top + "/uip0008_PlayerData00", 1, "");
+    std::string boost;
+    if (save) {
+        char s[16];
+        std::snprintf(s, sizeof(s), "%d", save->boosters);
+        boost = save->boosters >= event::kMaxBoosters ? "Wai-Wai! Booster 9 MAX" : "Wai-Wai! Booster " + std::string(s);
+    }
+    ui.SetInstanceText(top + "/uip0008_PlayerData00", 1, boost);
+}
+
+// The day's first visit gives the login bonus (eboot FUN_001b94c0; M14 F1 §3): the next of 12 days, a Wai-Wai!
+// Booster (cap 9) or 10 of a key item by the group mode. shortcut: its pop-up is not shown, only logged
+void LoginBonus(save::SaveData& s) {
+    const event::Date d = event::Today();
+    const int today = d.year * 10000 + d.month * 100 + d.day;
+    if (s.login_date == today) return;
+    const int day = std::clamp(s.login_day, 0, 11);
+    const int item = event::kLoginBonus[size_t(day)][member::Group(save::Current(s)) == 0 ? 0 : 1];
+    if (item == 0) {
+        s.boosters = std::min(s.boosters + 1, event::kMaxBoosters);
+    } else {
+        int& have = s.owned[{2, item}];  // a costume material (mission reward type 2)
+        have = std::min(have + event::kLoginItemAmount, 9999);
+    }
+    s.login_date = today, s.login_day = (day + 1) % 12, ++s.logins;
+    LogInfo("login bonus: day {}: {}, {} boosters held", day + 1,
+            item ? "10 of item " + std::to_string(item) : std::string("a Wai-Wai! Booster"), s.boosters);
 }
 
 }
@@ -174,7 +201,8 @@ int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
     int mode = 0, entry = 0;  // shortcut: start mode not traced; 0 = Play
     Apply(ui, mode, entry);
     int shown_mode = mode, shown_entry = entry;
-    if (plate) ApplyNameplate(ui, *plate);
+    if (save) LoginBonus(*save);
+    if (plate) ApplyNameplate(ui, *plate, save);
     SDL_SetWindowTitle(window, "SIF port - top menu");
     // the room (behind her) and the rest of the menu (in front) are drawn in two passes around the 3D member. The game
     // renders her off-screen and shows the picture on the room part's model_character00 quad; the port hides that quad

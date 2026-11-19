@@ -1,0 +1,41 @@
+# M14 F5: Wai-Wai! Boosters. The day's first visit to the top menu gives the login bonus (day 1: a booster, so 2 -> 3,
+# shown in the header); Prepare shows "Wai-Wai! Booster / You Have 3", Square (Q) uses one ("Used", 2); the autoplay
+# live then spends it and its materials get +10 units (shadPS4 work/m14/shad/b0.png, p2.png, p3.png)
+#! seed boosters
+#! args --autoplay
+#! visible
+timeout 300s
+expect screen title 30s
+press enter until menu 30s
+expect log login bonus: day 1: a Wai-Wai! Booster, 3 boosters held
+wait 1500ms
+shot boosters_menu
+key down
+wait 600ms
+key enter
+expect screen select 20s
+wait 1500ms
+key enter
+wait 800ms
+key enter
+wait 800ms
+key enter
+wait 800ms
+key enter
+expect screen prepare 20s
+wait 600ms
+key q
+expect log song select: Wai-Wai! Booster used (2 left)
+wait 800ms
+shot boosters_prepare
+key enter
+expect screen live 30s
+expect screen result 200s
+expect log boosters: one used, 2 left
+key enter
+expect screen result_items 20s
+wait 1500ms
+shot boosters_items
+key enter
+expect screen select 20s
+expect nolog error

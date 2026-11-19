@@ -283,10 +283,12 @@ void ApplyCostumes(UiScreen& ui, const std::vector<DressInfo>& costumes, int cos
 // Prepare for the Live Show (uil0027_LiveStart00, drawn over the step layout; the game's screen in shadPS4,
 // work/m11/shad/s13 and s18): Profile Card in Use, Skill Card in Use (the played member's three slots), the three
 // sub-buttons (Game Settings, Profile Card Selection, Skill Card Selection) and LIVE START. `focus`: 0-2 a sub-button,
-// 3 LIVE START. shortcut: Wai-Wai! Boosters, profile cards and the material panel are not built (hidden or greyed);
-// Game Settings is shown but opens nothing here (Options -> Game Settings does)
+// 3 LIVE START. Wai-Wai! Booster (M14 F5; shadPS4 work/m14/shad/p2.png, p3.png): uip0065_FavoriteInfo00 with
+// "Wai-Wai! Booster", "You Have" and the count, and its "Used" ribbon (eat_mark00) once Square used one.
+// shortcut: profile cards and the material panel are not built (hidden or greyed); Game Settings is shown but opens
+// nothing here (Options -> Game Settings does)
 constexpr const char* kPrepare = "uil0027_LiveStart00";
-void ApplyPrepare(UiScreen& ui, const SkillSetup* skills, const Messages& messages, int language, int focus) {
+void ApplyPrepare(UiScreen& ui, const SkillSetup* skills, const Messages& messages, int language, int focus, bool booster) {
     const std::string root = kPrepare;
     const auto msg = [&](int id, const char* fallback) {
         const std::string& m = messages.Get(id);
@@ -298,7 +300,13 @@ void ApplyPrepare(UiScreen& ui, const SkillSetup* skills, const Messages& messag
     }
     ui.SetInstanceText(root + "/uip0063_ProfCard00", 1, ""), ui.SetInstanceText(root + "/uip0063_ProfCard00", 2, "");
     ui.SetInstanceText(root + "/uip0068_UserProcRec00", 0, msg(650, "Receive Everyone's Profile Cards"));
-    ui.HideInstance(root + "/uip0065_FavoriteInfo00", true);
+    const std::string boost = root + "/uip0065_FavoriteInfo00";
+    const int held = skills && skills->save ? skills->save->boosters : 0;
+    ui.HideInstance(boost, !skills || !skills->save);
+    ui.SetInstanceText(boost, 0, msg(607, "Wai-Wai! Booster"));
+    ui.SetInstanceText(boost, 1, msg(608, "You Have"));
+    ui.SetInstanceText(boost, 2, std::to_string(held - (booster ? 1 : 0)));  // taken at once, as the game shows it
+    ui.HideNode(boost, "eat_mark00", !booster);
     ui.HideInstance(root + "/uip0066_DropMaterial00", true);
     ui.HideInstance(root + "/ctg80_uip0001_SkillList00", !skills || !skills->cards);
     if (skills && skills->cards) ApplySkillRows(ui, root + "/ctg80_uip0001_SkillList00", *skills, messages, language);
@@ -569,6 +577,13 @@ SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs,
                     else if (step == kCostumeStep) costume = (costume + 1) % nc;
                     else current = (current + 1) % n;
                     break;
+                case SDL_SCANCODE_Q:  // Square: Use Wai-Wai! Booster (Prepare; one per live, M14 F5)
+                    if (step == kPrepareStep && !view && skills && skills->save && !choice.booster &&
+                        skills->save->boosters > 0) {
+                        choice.booster = true;
+                        LogInfo("song select: Wai-Wai! Booster used ({} left)", skills->save->boosters - 1);
+                    }
+                    break;
                 case SDL_SCANCODE_RETURN:
                 case SDL_SCANCODE_SPACE:
                     if (step == kDifficultyStep && Locked(mode, save, songs[size_t(current)].id, difficulty)) {
@@ -602,7 +617,9 @@ SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs,
                     }
                     if (step > last_step) {
                         step = last_step;
+                        const bool booster = choice.booster;  // chosen on Prepare
                         choice = {songs[size_t(current)].id, mode.Variant(difficulty)};
+                        choice.booster = booster;
                         if (!stages.empty()) {
                             char folder[16];
                             std::snprintf(folder, sizeof(folder), "st%03d", stages[size_t(stage)].model);
@@ -629,7 +646,7 @@ SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs,
             }
             Apply(ui, mode, songs, current, step, difficulty, stages, stage, costumes, costume, save, art);
             if (step == kPrepareStep && view) ApplyViewPrepare(ui, songs[size_t(current)].group != 0);
-            else if (step == kPrepareStep) ApplyPrepare(ui, skills, messages, language, prepare);
+            else if (step == kPrepareStep) ApplyPrepare(ui, skills, messages, language, prepare, choice.booster);
             const SongInfo& s = songs[size_t(current)];
             char title[256];
             std::snprintf(title, sizeof(title), "SIF port - %04d %s%s", s.id, s.title.c_str(),

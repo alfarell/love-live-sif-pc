@@ -18,6 +18,7 @@
 #include <filesystem>
 #include <random>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include "app/collection_screen.h"
@@ -52,6 +53,7 @@
 #include "game/card/card.h"
 #include "game/costume/costume.h"
 #include "game/dlc/dlc.h"
+#include "game/event/event.h"
 #include "game/friendship/friendship.h"
 #include "game/live/song.h"
 #include "game/mission/mission.h"
@@ -437,10 +439,11 @@ int main(int argc, char** argv) {
                 if (menu) {
                     int mode = -1;
                     sif::Nameplate plate = MakeNameplate(missions, accolades, badges, save);
-                    const auto member_before = std::pair(save.mode, save.navigator);  // R2 / L2 on the menu (M13)
+                    // R2 / L2 on the menu (M13), the day's login bonus (M14)
+                    const auto member_before = std::tuple(save.mode, save.navigator, save.login_date);
                     const int entry = sif::RunTopMenu(window, renderer, vfs, lang, options.frames, &mode, &audio, &plate,
                                                       &save);
-                    if (std::pair(save.mode, save.navigator) != member_before && can_save &&
+                    if (std::tuple(save.mode, save.navigator, save.login_date) != member_before && can_save &&
                         !sif::save::Write(save_path, save, &save_error)) {
                         sif::LogWarn("save: {}", save_error);
                     }
@@ -671,6 +674,15 @@ int main(int argc, char** argv) {
                         for (int kind = 27; kind <= 35 && has_cards; ++kind) {  // the material skills
                             if (const int v = sif::card::SkillSum(card_data, save, skills.member, kind)) drop.skills[kind] = v;
                         }
+                        // a Wai-Wai! Booster used in Prepare (M14 F5; eboot 0x7DA12): spent now, +10 units (and kind 22)
+                        drop.booster = choice.booster && save.boosters > 0 && !view_mode;
+                        if (drop.booster) {
+                            --save.boosters, ++save.boosters_used;
+                            if (has_cards) {
+                                if (const int v = sif::card::SkillSum(card_data, save, skills.member, 22)) drop.skills[22] = v;
+                            }
+                            sif::LogInfo("boosters: one used, {} left", save.boosters);
+                        }
                         std::string got;
                         for (const auto& [item, amount] : sif::costume::RollDrops(costume_data, drop, drop_random, save)) {
                             result.materials.push_back({item, amount});
@@ -679,6 +691,15 @@ int main(int argc, char** argv) {
                                    std::to_string(amount);
                         }
                         sif::LogInfo("materials: {}", got.empty() ? "none" : got);
+                    }
+                    // Drop Support (kind 23): its % chance of one Wai-Wai! Booster (M11 S6: pool 1; eboot 0x7D637, cap 9)
+                    if (has_cards && !view_mode) {
+                        if (const int v = sif::card::SkillSum(card_data, save, skills.member, 23);
+                            v > 0 && std::uniform_real_distribution<float>(0.0f, 100.0f)(drop_random) <= float(v) &&
+                            save.boosters < sif::event::kMaxBoosters) {
+                            ++save.boosters;
+                            sif::LogInfo("boosters: Drop Support gave one, {} held", save.boosters);
+                        }
                     }
                     if (can_save && !sif::save::Write(save_path, save, &save_error)) sif::LogWarn("save: {}", save_error);
                     if (const auto it = save.records.find({result.song, result.variant}); it != save.records.end()) {

@@ -226,9 +226,12 @@ std::vector<std::pair<int, int>> RollDrops(const Data& data, const DropInput& in
                                   : item->type >= 5 && item->type % 2 ? &group_yarn : item->type >= 5 ? &group_cloth : nullptr;
         if (by_type && std::find(by_type->begin(), by_type->end(), at) == by_type->end()) by_type->push_back(at);
     };
-    // how many units: uniform in the rank's range (shortcut: the Wai-Wai! Booster's +10 is left out, no boosters)
+    // how many units: uniform in the rank's range; a used Wai-Wai! Booster adds s_CommonParam +0x1F0 = 10, and
+    // Wai-Wai! Booster Boost (kind 22) another 10 at its chance (M11 202611161517; shortcut: the Boost is rolled only
+    // with a booster used, not traced)
     const auto [lo, hi] = data.rules.count[size_t(std::clamp(in.rank, 0, 6))];
     int left = lo + int(unit(random) * float(hi - lo + 1));
+    if (in.booster) left += 10 + (chance(skill(22)) ? 10 : 0);
     // pass 1: rounds over the list; each try uses one of the item's cap and gives one unit when the roll is within its
     // weight
     for (bool more = true; left > 0 && more;) {

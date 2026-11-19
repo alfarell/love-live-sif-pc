@@ -87,6 +87,7 @@ struct DropInput {
     int difficulty = 0;  // 0-8 (variants 00-04, then 10-13)
     int dress = 0;       // the costume worn (0 = the uniform / base model)
     std::map<int, int> skills;  // material skill sums by card::Kind (27-35): the played member's set cards
+    bool booster = false;       // a Wai-Wai! Booster was used (M14): +10 units; kind 22 in `skills` may add 10 more
 };
 // The materials one finished live gives (eboot FUN_000679a0): a count from the rank, the song's materials tried in
 // order (keys first, then by weight) up to their caps, the rest drawn among the five most likely; then the material
