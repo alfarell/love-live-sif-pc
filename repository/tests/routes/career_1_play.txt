@@ -36,6 +36,7 @@ key enter
 expect screen result_items 20s
 expect log skill card: 
 expect log result: items obtained: 1 skill cards
+expect log friendship: member 1 +811 (0 -> 811), level 1 -> 4
 wait 1500ms
 shot career_items
 key enter

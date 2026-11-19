@@ -8,6 +8,7 @@
 
 #include "game/card/card.h"
 #include "game/costume/costume.h"
+#include "game/friendship/friendship.h"
 #include "game/save/save.h"
 
 struct SDL_Window;
@@ -33,6 +34,11 @@ struct LiveResult {
     };
     std::vector<Skill> skills;                     // skill card drops (M11 S6)
     std::vector<std::pair<int, int>> materials;    // costume materials: item id, amount
+    // Friendship (M14 F4): the played member's points before the live and the gain (member 0 = none)
+    struct Friendship {
+        int member = 0, before = 0, gained = 0;
+    };
+    Friendship friendship;
     // View Live Show (M12 P4c): the photos taken, RGBA8 at the window's size (saved by the caller)
     struct Photo {
         std::vector<uint8_t> rgba;
@@ -46,6 +52,7 @@ struct ResultItems {
     const card::Data* cards = nullptr;
     const costume::Data* costumes = nullptr;
     const save::SaveData* save = nullptr;  // after the live's gains
+    const friendship::Tables* friendship = nullptr;  // M14: the Friendship panel's levels
 };
 
 // View Live Show's "End the Live Show" (M12 P4d; shadPS4 work/m12/shad2/v12-v13): the song, stage and member card,

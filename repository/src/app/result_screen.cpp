@@ -55,10 +55,28 @@ std::string LevelText(const Messages& m, int level, int max_level) {
 
 // Items Obtained: one icon per skill card (uil0011_RewNomalList00), the materials split into key materials (two
 // slots) and standard ones (16) with "x amount" and the new total (uil0012_RewMaterialList00).
-// shortcut: Friendship Points (uip0010_PlayerLevel00) are not built, so the bar is hidden; profile cards, boosters and
-// badges are never dropped by the port
+// shortcut: profile cards and badges are never dropped by the port
 void FillRewards(UiScreen& ui, const LiveResult& r, const ResultItems& items, const Messages& m) {
-    ui.HideInstance(kReward + "/uip0010_PlayerLevel00", true);
+    // Friendship (M14 F4; shadPS4 work/m14/shad/items): "Friendship Points Obtained 197", "Lv. 1", the bar and
+    // "To Next Level 197/ 250" (the new total and the next level's total)
+    const std::string level = kReward + "/uip0010_PlayerLevel00";
+    const bool bond = items.friendship && r.friendship.member;
+    ui.HideInstance(level, !bond);
+    if (bond) {
+        const int total = r.friendship.before + r.friendship.gained, lv = friendship::LevelOf(*items.friendship, total);
+        const int from = friendship::PointsFor(*items.friendship, lv), to = friendship::PointsFor(*items.friendship, lv + 1);
+        ui.SetInstanceNumber(level, 0, std::to_string(lv));
+        ui.HideNode(level, "lv_text01", true);  // shortcut: a second "Lv." picture; the game shows one (its use is not traced)
+        // the boxes by name (probed): 0 the label, 1 the gain, 2 "To Next Level", 3 the total, 4 the next level's total
+        ui.SetInstanceText(level, 0, m.Get(546));  // Friendship Points Obtained
+        ui.SetInstanceText(level, 1, std::to_string(r.friendship.gained));
+        ui.SetInstanceText(level, 2, m.Get(547));  // To Next Level
+        ui.SetInstanceText(level, 3, std::to_string(total) + "/");
+        ui.SetInstanceText(level, 4, to > from ? std::to_string(to) : std::string());
+        // the meter quad (x -425 .. 599) is wider than its stencil window (-266 .. 440): the fill runs over U 0.155 .. 0.845
+        const float fill = to > from ? std::clamp(float(total - from) / float(to - from), 0.0f, 1.0f) : 1.0f;
+        ui.SetMaterialClip(level, "level_meter00_M", 0.155f + 0.69f * fill);
+    }
     const std::string list = kReward + "/uil0011_RewNomalList00";
     ui.HideInstance(list + "/common_uip0007_ArrowRight00", true);
     ui.HideInstance(list + "/common_uip0006_ArrowLeft00", true);
@@ -269,6 +287,7 @@ bool RunResult(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
     }
     ui.HideNode("new00", true);
     ui.HideNode("complete00", true);
+    ui.TextBoxesByName("uip0010_PlayerLevel00");  // its five boxes go by their _textNN names (M14 F4)
     // the play-score window: number boxes 0 score, 1 max combo, 2 clear rate (its digit row has '.' and '%'; the
     // two-decimal format is a guess)
     const std::string score = std::string(kLayout) + "/uil0005_PlayScoreWin00/uip0003_PlayScore00";

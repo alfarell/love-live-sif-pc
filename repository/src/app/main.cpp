@@ -52,6 +52,7 @@
 #include "game/card/card.h"
 #include "game/costume/costume.h"
 #include "game/dlc/dlc.h"
+#include "game/friendship/friendship.h"
 #include "game/live/song.h"
 #include "game/mission/mission.h"
 #include "game/profile/profile.h"
@@ -400,6 +401,9 @@ int main(int argc, char** argv) {
             sif::card::Data card_data;  // skill and member cards (M11)
             const bool has_cards = sif::card::Load(vfs, card_data, &why);
             if (!has_cards) sif::LogWarn("cards: {}", why);
+            sif::friendship::Tables friendship_data;  // Friendship levels and gains (M14)
+            const bool has_friendship = sif::friendship::Load(vfs, friendship_data, &why);
+            if (!has_friendship) sif::LogWarn("friendship: {}", why);
             // the played member: --member, else the save's current member (the navigator; R2/L2 on the top menu, M13)
             sif::SkillSetup skills{has_cards ? &card_data : nullptr, &save,
                                    options.live_options.member > 0 ? options.live_options.member : sif::save::Current(save)};
@@ -451,7 +455,8 @@ int main(int argc, char** argv) {
                             loading.Show(renderer);
                             sif::ProfileMenuSetup menu{&save, options.data_dir, &plate,
                                                        {&plate, &songs, &dresses, has_cards ? &card_data : nullptr,
-                                                        &card_messages, language},
+                                                        &card_messages, language, &save,
+                                                        has_friendship ? &friendship_data : nullptr},
                                                        skills.member};
                             choice = sif::RunProfileMenu(window, renderer, vfs, lang, menu, options.frames);
                             open = choice >= 0;
@@ -638,6 +643,27 @@ int main(int argc, char** argv) {
                             result.skills.push_back({id, before, level});
                         }
                     }
+                    if (has_friendship && !view_mode) {  // Friendship (M14 F4; eboot FUN_000a68d0): the played member only
+                        sif::friendship::GainSkills gs;
+                        if (has_cards) {  // kinds 18-21
+                            gs.more = sif::card::SkillSum(card_data, save, skills.member, 18);
+                            gs.more_plus = sif::card::SkillSum(card_data, save, skills.member, 19);
+                            gs.expanded = sif::card::SkillSum(card_data, save, skills.member, 20);
+                            gs.perfect = sif::card::SkillSum(card_data, save, skills.member, 21);
+                        }
+                        const int difficulty = result.variant >= 10 ? result.variant - 5 : result.variant;
+                        sif::save::Bond& bond = save.bonds[skills.member];
+                        const int last = sif::friendship::PointsFor(friendship_data, 200);  // level 200: 2,200,000
+                        const int gain = std::min(sif::friendship::Gain(friendship_data, difficulty, result.rank, gs,
+                                                                        result.counts[0]),
+                                                  std::max(0, last - bond.points));
+                        result.friendship = {skills.member, bond.points, gain};
+                        sif::LogInfo("friendship: member {} +{} ({} -> {}), level {} -> {}", skills.member, gain, bond.points,
+                                     bond.points + gain, sif::friendship::LevelOf(friendship_data, bond.points),
+                                     sif::friendship::LevelOf(friendship_data, bond.points + gain));
+                        bond.points += gain;
+                        ++bond.lives;
+                    }
                     if (has_costumes) {  // the song's materials (costume::RollDrops, eboot FUN_000679a0; M11 S6b)
                         sif::costume::DropInput drop{result.song, result.rank,
                                                      result.variant >= 10 ? result.variant - 5 : result.variant,
@@ -662,7 +688,8 @@ int main(int argc, char** argv) {
                     }
                     LogNewMissions(missions, accolades, songs, dresses, language, before, save);
                 }
-                const sif::ResultItems result_items{has_cards ? &card_data : nullptr, has_costumes ? &costume_data : nullptr, &save};
+                const sif::ResultItems result_items{has_cards ? &card_data : nullptr, has_costumes ? &costume_data : nullptr, &save,
+                                                    has_friendship ? &friendship_data : nullptr};
                 open = code == 0 && !result.closed &&
                        (!result.finished || sif::RunResult(window, renderer, vfs, options.live_options.lang, result,
                                                            options.frames, news, &result_items));

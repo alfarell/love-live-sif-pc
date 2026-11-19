@@ -6,6 +6,7 @@
 #include "engine/render/renderer.h"
 #include "engine/ui/ui_screen.h"
 #include "game/card/card.h"
+#include "game/friendship/friendship.h"
 #include "game/live/song.h"
 #include "game/save/save.h"
 #include "game/text/messages.h"
@@ -32,6 +33,10 @@ ProfileCardArt MakeProfileCardArt(const save::ProfileCard& c, const ProfileCardT
     a.landscape = c.landscape;
     const int member = c.member_card / 10000, dress = c.member_card / 10 % 1000;
     a.frame_member = member > 0 ? member : 1;
+    if (t.save && t.friendship) {
+        const auto b = t.save->bonds.find(member);
+        a.level = friendship::LevelOf(*t.friendship, b == t.save->bonds.end() ? 0 : b->second.points);
+    }
     if (t.plate) {
         a.player = t.plate->player;
         for (const NameplateItem& i : t.plate->accolades) {

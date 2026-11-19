@@ -14,6 +14,9 @@ namespace sif {
 class Renderer;
 class UiScreen;
 struct Texture;
+namespace friendship {
+struct Tables;
+}
 namespace card {
 struct Data;
 }
@@ -23,6 +26,7 @@ struct DressInfo;
 }
 namespace save {
 struct ProfileCard;
+struct SaveData;
 }
 class Messages;
 
@@ -33,7 +37,7 @@ struct ProfileCardArt {
     std::string accolade_plate;    // texture paths ("" = the layout's own)
     std::string badge_plate, name_plate;
     std::string song, costume, badge_text, player, member;
-    int level = 1;                 // the Friendship heart
+    int level = 1;                 // the Friendship heart: the card member's Friendship level (M14)
     std::array<std::string, 3> skills;  // "Converting Threads Lv. 1", or "Skill not set."
 };
 
@@ -45,9 +49,12 @@ struct ProfileCardTexts {
     const card::Data* cards = nullptr;
     const Messages* messages = nullptr;
     int language = 1;
+    const save::SaveData* save = nullptr;            // M14: the member's Friendship points ...
+    const friendship::Tables* friendship = nullptr;  // ... and the levels; level 1 without them
 };
 
-// shortcut: the Friendship level is 1 (Friendship is not built); the game showed the player's level (10, 11)
+// The heart shows the card member's Friendship level now (the eboot keeps it in the card's "favorability" when the card is
+// made; shortcut: the port shows the current level)
 ProfileCardArt MakeProfileCardArt(const save::ProfileCard& card, const ProfileCardTexts& texts);
 
 // Fills the placed uip0019_ProfileCardCustom00 at `instance` (its other layout hidden). `photo` (optional) is a
