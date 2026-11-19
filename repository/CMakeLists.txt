@@ -106,6 +106,8 @@ add_library(sif_game STATIC
   src/game/card/card.cpp
   src/game/costume/costume.cpp
   src/game/dlc/dlc.cpp
+  src/game/event/event.cpp
+  src/game/friendship/friendship.cpp
   src/game/live/chart.cpp
   src/game/live/judge.cpp
   src/game/live/song.cpp
@@ -178,6 +180,12 @@ add_executable(sif_talk_test tests/unit/talk_test.cpp)
 target_link_libraries(sif_talk_test PRIVATE sif_game)
 if(MSVC)
   target_compile_options(sif_talk_test PRIVATE /utf-8 /EHsc)
+endif()
+
+add_executable(sif_friendship_test tests/unit/friendship_test.cpp)
+target_link_libraries(sif_friendship_test PRIVATE sif_game)
+if(MSVC)
+  target_compile_options(sif_friendship_test PRIVATE /utf-8 /EHsc)
 endif()
 
 add_executable(sif_member_test tests/unit/member_test.cpp)

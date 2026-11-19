@@ -40,6 +40,16 @@ struct ProfileCard {
     std::array<int, 3> skill{}, skill_level{};  // a snapshot when saved, as the game keeps it
 };
 
+// M14: a member's Friendship (the eboot's member record +0x1C points, +0x10 lives played with her)
+struct Bond {
+    int points = 0, lives = 0;
+};
+// M14: a member's birthday event of `year` (record +0xBC year, +0xB8 points, +0xBA flags)
+struct BirthdayState {
+    int year = 0, points = 0;
+    bool received = false;
+};
+
 struct SaveData {
     std::string player = "Player";
     int accolade = 0, badge = 0, name_plate = 0;  // the nameplate's choices (0 = not chosen)
@@ -56,6 +66,10 @@ struct SaveData {
     std::set<int> special;                               // members whose worn costume is in its special colour (M13)
     int mode = 0;                                        // the L2 mode: 0 µ's, 1 Aqours (M13; the game's save +0x48)
     std::map<int, int> navigator;                        // mode -> the member chosen with R2 (M13); see Navigator()
+    std::map<int, Bond> bonds;                           // member -> Friendship (M14)
+    int boosters = 0, boosters_used = 0;                 // Wai-Wai! Boosters held (0-9) and used in all (M14)
+    int login_date = 0, login_day = 0, logins = 0;       // last login bonus (YYYYMMDD), next day 0-11, bonuses in all
+    std::map<int, BirthdayState> birthdays;              // member -> her latest birthday event (M14)
     std::map<int, Photo> photos;                         // slot (0-29) -> photo, M12
     bool has_card = false;
     ProfileCard card;                                    // valid when has_card

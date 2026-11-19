@@ -79,6 +79,27 @@ bool Load(const std::filesystem::path& path, SaveData& out, std::string* error) 
             } else {
                 out.unknown.push_back(line);
             }
+        } else if (kind == "friendship") {
+            int member = 0;
+            Bond b;
+            if (in >> member >> b.points >> b.lives) {
+                out.bonds[member] = b;
+            } else {
+                out.unknown.push_back(line);
+            }
+        } else if (kind == "boosters") {
+            in >> out.boosters >> out.boosters_used;
+        } else if (kind == "login") {
+            in >> out.login_date >> out.login_day >> out.logins;
+        } else if (kind == "birthday") {
+            int member = 0, received = 0;
+            BirthdayState b;
+            if (in >> member >> b.year >> b.points >> received) {
+                b.received = received != 0;
+                out.birthdays[member] = b;
+            } else {
+                out.unknown.push_back(line);
+            }
         } else if (kind == "mode") {
             in >> out.mode;
             if (out.mode != 1) out.mode = 0;
@@ -139,6 +160,12 @@ bool Write(const std::filesystem::path& path, const SaveData& data, std::string*
         }
         if (data.mode) f << "mode " << data.mode << "\n";
         for (const auto& [mode, member] : data.navigator) f << "navigator " << mode << " " << member << "\n";
+        for (const auto& [member, b] : data.bonds) f << "friendship " << member << " " << b.points << " " << b.lives << "\n";
+        if (data.boosters || data.boosters_used) f << "boosters " << data.boosters << " " << data.boosters_used << "\n";
+        if (data.login_date) f << "login " << data.login_date << " " << data.login_day << " " << data.logins << "\n";
+        for (const auto& [member, b] : data.birthdays) {
+            f << "birthday " << member << " " << b.year << " " << b.points << " " << (b.received ? 1 : 0) << "\n";
+        }
         for (const auto& [member, s] : data.skill_slots) {
             f << "skills " << member << " " << s[0] << " " << s[1] << " " << s[2] << "\n";
         }

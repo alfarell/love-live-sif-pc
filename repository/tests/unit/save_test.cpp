@@ -50,6 +50,10 @@ int main() {
     s.mode = 1;
     s.navigator[0] = 4;
     s.navigator[1] = 21;
+    s.bonds[11] = {197, 1};
+    s.boosters = 4, s.boosters_used = 1;
+    s.login_date = 20261119, s.login_day = 3, s.logins = 2;
+    s.birthdays[11] = {2026, 120, true};
     s.unknown.push_back("medal 3 gold");  // a line from a newer version
 
     std::string error;
@@ -64,6 +68,9 @@ int main() {
               back.owned[{2, 4}] == 35 && back.owned[{7, 31}] == 1 &&
               back.wear.size() == 2 && back.wear[1] == 31 && back.wear[11] == 105 &&
               back.special == std::set<int>{11} && back.mode == 1 && Current(back) == 21 && Navigator(back, 0) == 4 &&
+              back.bonds[11].points == 197 && back.bonds[11].lives == 1 && back.boosters == 4 && back.boosters_used == 1 &&
+              back.login_date == 20261119 && back.login_day == 3 && back.logins == 2 && back.birthdays[11].year == 2026 &&
+              back.birthdays[11].points == 120 && back.birthdays[11].received &&
               back.unknown.size() == 1 && back.unknown[0] == "medal 3 gold",
           "round trip keeps the name (with spaces), the record, the nameplate and unknown lines");
 
