@@ -66,6 +66,9 @@ Options → Control Settings changes the controller's lane buttons, separately f
   - Costumes → Costume Materials lists them;
   - Create/Change Costumes makes costumes and puts them on your member (R2 / L2 change her): she stands on the left trying on the focused costume, L1 (PageUp) shows a costume's special colour where it has one, and Enter keeps the costume and colour.
 - **Missions:** Event → Task List shows the missions and their progress; Enter claims a reward.
+- **Friendship:** every played live gives your member Friendship Points (more on harder charts and higher ranks; the Friendship skill cards add to it). Items Obtained shows them with her level and the bar to the next one; her profile card's heart shows her level.
+- **Wai-Wai! Boosters:** the header shows how many you hold (9 at most). The day's first visit to the top menu gives a login bonus: a booster or 10 key materials, in a 12-day cycle. In Prepare for the Live Show, □ (Q) uses one: the live then gives 10 more material units. Drop Support skill cards and some Task List rewards give boosters too.
+- **Birthday events:** from 7 days before a member's birthday to the end of her birthday (by your computer's date), Event → Ongoing Events shows her event as "Now Open!" and the top menu shows its banner. Lives played with her add birthday points; at 1000 her page offers "Receive rewards": her two birthday skill cards and key materials. Each plate shows the member's event dates.
 - **View Live Show and photos:** Play → **View Live Show** plays a song without notes. R1 (Page Down) switches the camera: MV (the song's camera), Member (one member close up; D-pad Left/Right or comma/period switch members) and View (the whole stage). In Member and View the arrows (left stick) move the camera, L1 (Page Up) moves it away (with Up: nearer), L2 (Home) raises it. ○ (P) takes a photo, up to 5 per live; □ (Q) hides the camera info. After the song, **End the Live Show** shows the photos: □ marks favourites, Enter saves them (up to 30; the oldest that is not a favourite makes room). The photos are `photos/NN.png` in the data folder.
 - **Collection:**
   - **Photo Gallery** shows the photos, newest first: □ (Q) marks a favourite (25 at most), Delete removes one that is not a favourite, Space shows it full screen.
@@ -93,11 +96,11 @@ Options → Control Settings changes the controller's lane buttons, separately f
 - **Not built yet:**
   - received profile cards (online), the enlarged member card;
   - the skill voice and 3D skill effects, Shoutout, Member Focus's camera;
-  - boosters, Friendship levels and events;
+  - online events and rankings; the Friendship emblems on other players' cards;
   - the members' faces while they talk (lip sync) and blinking; the loading screen between members;
   - the "Change Costume?" question, the costume curtain;
   - the first-start member choice, and "You cannot play … with this member" for songs she does not sing.
-- **Not built either:** the song list per µ's / Aqours mode (all songs are listed in both), Live Show Medley, the "What will you do next?" box after a live, Prepare's Game Settings button and booster panel, Player's Name, controller vibration.
+- **Not built either:** the song list per µ's / Aqours mode (all songs are listed in both), Live Show Medley, the "What will you do next?" box after a live, Prepare's Game Settings button and material panel, the login bonus pop-up, Player's Name, controller vibration.
 - **Simplified:** some screen transitions, animations and small icons; a locked difficulty shows its padlock but is not darkened; the arcade CHALLENGE chart is open from the start (the game asks for A on EXTREME first).
 
 The project's roadmap lists the details.
@@ -108,7 +111,7 @@ The project's roadmap lists the details.
 sif.exe [--game DIR] [--data DIR] [--lang en|cn|tw|jp]
         [--title | --menu | --select | --live ID:VARIANT [--autoplay] [--approach MS] [--stage stNNN] [--costume dNNN] [--member N]
          | --calibrate | --result-demo | --ui SCREEN:LAYOUT[:CLIP] | --show VFS_PATH | --movie VFS_PATH | --play SHEET:CUE|none]
-        [--frames N] [--crash] [--route FILE [--shots DIR] [--hidden]]
+        [--date YYYY-MM-DD] [--frames N] [--crash] [--route FILE [--shots DIR] [--hidden]]
 ```
 
 | Option | Effect |
@@ -122,6 +125,7 @@ sif.exe [--game DIR] [--data DIR] [--lang en|cn|tw|jp]
 | `--stage st001`, `--costume d003`, `--member 1` | Choose the stage, the costume, or a single member |
 | `--game DIR` | Use this dump folder (saved like the first-run choice) |
 | `--data DIR` | Use another data folder |
+| `--date 2026-07-28` | Use this date instead of the computer's (birthday events, the login bonus) |
 | `--frames N` | Close after N frames |
 | `--route FILE`, `--shots DIR`, `--hidden` | Play a scripted route from `tests/routes/` (exit code 0 pass, 3 fail; `sif.log` says why), save its shots to DIR, without a visible window (shots then come out black) |
 | `--result-demo`, `--ui …`, `--show …`, `--movie …`, `--play …`, `--crash` | Developer views: a fixed result screen, any UI layout, one texture, one movie, one sound, a crash-report test |

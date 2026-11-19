@@ -48,6 +48,7 @@ struct Bond {
 struct BirthdayState {
     int year = 0, points = 0;
     bool received = false;
+    bool operator==(const BirthdayState&) const = default;
 };
 
 struct SaveData {

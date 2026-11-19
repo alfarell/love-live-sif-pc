@@ -245,6 +245,15 @@ int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
             !ui.SetMaterialTexture(room_instance, "_charaTex_bg_room00", folder + member::RoomTexture(who) + ".btx")) {
             LogWarn("top menu: no room for member {}", who);
         }
+        // mission kind 34 "Log in during this member's BD event and go to the Main Menu": the menu notes every running
+        // event in the save (its year), as a live in the event would
+        for (const int m : member::kAll) {
+            const event::Birthday* b = events ? event::Find(*events, m) : nullptr;
+            const int year = b ? event::EventYear(*b, event::Today()) : 0;
+            if (!year) continue;
+            save::BirthdayState& st = s.birthdays[m];
+            if (st.year != year) st = {year, 0, false};
+        }
         // "Now Open!": a running birthday event of her mode shows its banner (eboot FUN_0000f3d0: top_event_bd00_00_MM;
         // M14 F6). shortcut: otherwise the panel keeps the layout's own picture (the game shows the monthly ranking)
         for (const int m : member::kAll) {

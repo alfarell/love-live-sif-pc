@@ -5,6 +5,7 @@
 
 #include "engine/fs/vfs.h"
 #include "engine/platform/os.h"
+#include "game/friendship/friendship.h"
 #include "game/mission/mission.h"
 #include "game/save/save.h"
 
@@ -84,6 +85,21 @@ int main(int argc, char** argv) {
           "badge 901001: category 901, colour, name");
     const mission::Mission* second = ById(all, 2001);
     Check(second && second->reward_type == 4 && second->reward_id == 1002, "mission 2001 gives accolade 1002");
+
+    // M14: the login, booster, Friendship and birthday kinds, and reward type 3 (Wai-Wai! Boosters)
+    friendship::Tables levels;
+    Check(friendship::Load(vfs, levels), "Friendship tables");
+    save::SaveData m14;
+    m14.logins = 3, m14.boosters_used = 1, m14.boosters = 8;
+    m14.bonds[11] = {811, 2};  // level 4
+    m14.birthdays[11] = {2026, 0, false};
+    const mission::Mission login{1, 18, 0, 3}, boost{2, 30, 11, 2}, bond{3, 32, 11, 4, 3, 5003, 3}, bd{4, 34, 11, 1};
+    Check(mission::ProgressOf(login, m14).Done() && !mission::ProgressOf(boost, m14).Done(), "kinds 18 (3 logins) and 30 (1 of 2)");
+    Check(mission::ProgressOf(bond, m14, &levels).Done() && !mission::ProgressOf(bond, m14).Done() &&
+              mission::ProgressOf(bd, m14).Done() && !mission::ProgressOf({5, 34, 12, 1}, m14).Done(),
+          "kinds 32 (Friendship Lv. 4) and 34 (Chika's event seen)");
+    Check(mission::Claim(bond, m14, &levels) && m14.boosters == 9 && !m14.owned.contains({3, 5003}),
+          "reward type 3 adds boosters, up to 9");
     std::printf("%s\n", failures ? "mission_test FAILED" : "mission_test ok");
     return failures ? 1 : 0;
 }

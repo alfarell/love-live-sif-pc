@@ -8,6 +8,7 @@
 
 #include "engine/formats/blbn.h"
 #include "engine/fs/vfs.h"
+#include "game/friendship/friendship.h"
 #include "game/save/save.h"
 
 namespace sif::mission {
@@ -109,10 +110,14 @@ const Award* FindAward(const std::vector<Award>& awards, int id) {
     return nullptr;
 }
 
-bool Claim(const Mission& m, save::SaveData& save) {
-    if (save.claimed.contains(m.id) || !ProgressOf(m, save).Done()) return false;
+bool Claim(const Mission& m, save::SaveData& save, const friendship::Tables* levels) {
+    if (save.claimed.contains(m.id) || !ProgressOf(m, save, levels).Done()) return false;
     save.claimed.insert(m.id);
-    save.owned[{m.reward_type, m.reward_id}] += std::max(1, m.reward_amount);
+    if (m.reward_type == 3) {
+        save.boosters = std::min(save.boosters + std::max(1, m.reward_amount), 9);
+    } else {
+        save.owned[{m.reward_type, m.reward_id}] += std::max(1, m.reward_amount);
+    }
     return true;
 }
 
@@ -124,7 +129,7 @@ std::vector<int> Owned(const save::SaveData& save, int reward_type) {
     return ids;
 }
 
-Progress ProgressOf(const Mission& m, const save::SaveData& save) {
+Progress ProgressOf(const Mission& m, const save::SaveData& save, const friendship::Tables* levels) {
     Progress p;
     p.need = std::max(1, m.p2);
     const bool per_song = m.Kind() >= 35 && m.Kind() <= 39;
@@ -154,6 +159,18 @@ Progress ProgressOf(const Mission& m, const save::SaveData& save) {
         case 41: {  // play wearing "[p1]" [p2] times
             const auto it = save.costume_plays.find(m.p1);
             p.have = it == save.costume_plays.end() ? 0 : it->second;
+            break;
+        }
+        case 18: p.have = save.logins; break;  // [p2] login bonuses (M14)
+        case 30: p.have = save.boosters_used; break;  // use [p2] boosters (shortcut: counted for every member, not [p1]'s lives)
+        case 32: {  // [p1]'s Friendship to Lv. [p2] (M14)
+            const auto b = save.bonds.find(m.p1);
+            p.have = levels ? friendship::LevelOf(*levels, b == save.bonds.end() ? 0 : b->second.points) : -1;
+            break;
+        }
+        case 34: {  // log in during [p1]'s birthday event and go to the Main Menu (the top menu notes it, M14)
+            const auto b = save.birthdays.find(m.p1);
+            p.need = 1, p.have = b != save.birthdays.end() && b->second.year > 0;
             break;
         }
         // shortcut: costumes obtained, items, viewing mode, medleys, cards, likes and member counters

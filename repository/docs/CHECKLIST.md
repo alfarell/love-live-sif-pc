@@ -81,6 +81,15 @@ Your own play is the reference. [PLAY.md](PLAY.md) lists the keys and what is no
 - [x] **Edit Profile Card:** the tabs and lists; a landscape frame turns the card; the photo position moves the photo; up to three skill cards; Finish Editing saves, and the card is still there after a restart.
 - [x] **Live intro:** before a played live, the member card, the skill cards and "Profile Card Support" with two NPC cards of the song's group (each a whole card picture, e.g. "Umi's fan").
 
+## Friendship, Wai-Wai! Boosters and birthday events (M14; routes `career_1_play`, `profile_menu`, `boosters`, `events`; Shot: `career_items`, `profile_menu_card`, `boosters_menu`, `boosters_prepare`, `boosters_items`, `events_menu`, `events_list`, `events_page`, `events_received`)
+
+- [ ] **Friendship:** after a played live, Items Obtained shows "Friendship Points Obtained", "Lv." and "To Next Level" with the bar; more lives raise the level; the profile card's heart shows her level.
+- [ ] **Login bonus:** the day's first visit to the top menu adds a booster (or 10 key materials on even days); the header shows "Wai-Wai! Booster N".
+- [ ] **Using a booster:** Prepare shows "Wai-Wai! Booster / You Have N"; □ (Q) shows "Used" and N − 1; the live gives about 10 more material units; the header shows the new count.
+- [ ] **Ongoing Events:** Event → Ongoing Events lists the current mode's members with their event dates (e.g. Chika "Jul 25th 0:00 to Aug 1st 23:59") and banners; Enter opens a member's page with her points and two reward cards.
+- [ ] **A running event** (start with `--date` inside a member's window, e.g. `--date 2026-07-28` for Chika in Aqours mode): "Now Open!" on her plate and her banner on the top menu; lives with her add birthday points; at 1000, "Receive rewards" gives her two skill cards.
+- [ ] **Task List:** the login, booster and Friendship missions count, and a booster reward raises the header count.
+
 ## 3D navigator, member choice and Trying It On (M13; routes `navigator`, `navigator_special`, `member_choice`, `live_member`, `try_on`, `live_special`; Shot: `navigator_honoka`, `navigator_chika`, `member_list`, `member_profile`, `member_umi`, `member_aqours`, `member_list_aqours`, `try_on_worn`, `try_on_next`, `try_on_special`, `try_on_menu`)
 
 - [x] **Top menu:** your member stands in 3D on the right, in her own room and her costume; she stands, now and then plays a small idle move, and moves while she talks (greeting, T).

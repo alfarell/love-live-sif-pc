@@ -13,13 +13,17 @@ namespace save {
 struct SaveData;
 }
 
+namespace friendship {
+struct Tables;
+}
+
 namespace mission {
 
 // One row (28 bytes, seven u32). kind = code & 0xFF indexes the conditions; code >> 8 is a flag not decoded
 // (Hypothesis: 1 = counted, 2/3 = first of a series). p1 = song id (kinds 35-39), member (20-34) or costume (40-48).
 struct Mission {
     int id = 0, code = 0, p1 = 0, p2 = 0;
-    int reward_type = 0, reward_id = 0, reward_amount = 0;  // 2 item, 3 badge, 4 accolade (a few badges), 5 frame, 6 name plate, 7 costume; 1 skill card (M11 S1)
+    int reward_type = 0, reward_id = 0, reward_amount = 0;  // 2 item, 3 Wai-Wai! Booster (M14), 4 accolade (a few badges), 5 frame, 6 name plate, 7 costume; 1 skill card (M11 S1)
     int Kind() const { return code & 0xFF; }
 };
 
@@ -52,10 +56,13 @@ struct Progress {
     int have = -1, need = 1;
     bool Done() const { return have >= need; }
 };
-Progress ProgressOf(const Mission& m, const save::SaveData& save);
+// `levels` (optional): the Friendship tables, for kind 32 (Friendship level); without them that kind never completes.
+Progress ProgressOf(const Mission& m, const save::SaveData& save, const friendship::Tables* levels = nullptr);
 // Claims a completed mission: adds its reward to save.owned[(type, id)] (the amount, at least 1) and marks it claimed.
 // False, and nothing changes, if it is not complete or was claimed before.
-bool Claim(const Mission& m, save::SaveData& save);
+// Reward type 3 is the Wai-Wai! Booster (eboot FUN_001c7100 case 3; its id 5003 is the booster picture reward_5003):
+// it adds to save.boosters, capped at 9 (M14 F1).
+bool Claim(const Mission& m, save::SaveData& save, const friendship::Tables* levels = nullptr);
 // The ids the save owns of one reward type (4 accolades and badges, 6 name plates, 7 costumes ...), ascending.
 std::vector<int> Owned(const save::SaveData& save, int reward_type);
 

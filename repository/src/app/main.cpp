@@ -163,7 +163,6 @@ sif::Nameplate MakeNameplate(const sif::mission::Missions& missions, const std::
         add(plate.accolades, accolades, id);
         add(plate.badges, badges, id);
     }
-    for (int id : sif::mission::Owned(save, 3)) add(plate.badges, badges, id);  // type 3: badges (5003 "どさんこ")
     add(plate.accolades, accolades, save.accolade);
     add(plate.badges, badges, save.badge);
     // name plates: the id is the picture (name_plate_PPP_SSSS); shortcut: no names (the plates have none in the table)
@@ -192,10 +191,10 @@ sif::Nameplate MakeNameplate(const sif::mission::Missions& missions, const std::
 void LogNewMissions(const sif::mission::Missions& missions, const std::vector<sif::mission::Award>& accolades,
                     const std::vector<sif::live::SongInfo>& songs, const std::vector<sif::live::DressInfo>& dresses,
                     int language, const sif::save::SaveData& before,
-                    const sif::save::SaveData& after) {
+                    const sif::save::SaveData& after, const sif::friendship::Tables* levels) {
     for (const sif::mission::Mission& m : missions.rows) {
-        if (size_t(m.Kind()) >= missions.conditions.size() || !sif::mission::ProgressOf(m, after).Done() ||
-            sif::mission::ProgressOf(m, before).Done()) {
+        if (size_t(m.Kind()) >= missions.conditions.size() || !sif::mission::ProgressOf(m, after, levels).Done() ||
+            sif::mission::ProgressOf(m, before, levels).Done()) {
             continue;
         }
         std::string p1 = std::to_string(m.p1);
@@ -448,10 +447,10 @@ int main(int argc, char** argv) {
                     int mode = -1;
                     sif::Nameplate plate = MakeNameplate(missions, accolades, badges, save);
                     // R2 / L2 on the menu (M13), the day's login bonus (M14)
-                    const auto member_before = std::tuple(save.mode, save.navigator, save.login_date);
+                    const auto member_before = std::tuple(save.mode, save.navigator, save.login_date, save.birthdays);
                     const int entry = sif::RunTopMenu(window, renderer, vfs, lang, options.frames, &mode, &audio, &plate,
                                                       &save, has_events ? &event_data : nullptr);
-                    if (std::tuple(save.mode, save.navigator, save.login_date) != member_before && can_save &&
+                    if (std::tuple(save.mode, save.navigator, save.login_date, save.birthdays) != member_before && can_save &&
                         !sif::save::Write(save_path, save, &save_error)) {
                         sif::LogWarn("save: {}", save_error);
                     }
@@ -551,7 +550,9 @@ int main(int argc, char** argv) {
                     if (mode == 5 && entry == 20) {  // Event: Task List
                         loading.Show(renderer);
                         open = sif::RunMissions(window, renderer, vfs, lang,
-                                                {&missions, &accolades, &songs, &save, &owned}, options.frames);
+                                                {&missions, &accolades, &songs, &save, &owned,
+                                                 has_friendship ? &friendship_data : nullptr},
+                                                options.frames);
                         if (can_save && !sif::save::Write(save_path, save, &save_error)) sif::LogWarn("save: {}", save_error);
                         continue;
                     }
@@ -736,7 +737,8 @@ int main(int argc, char** argv) {
                         sif::LogInfo("save: {:04d}/{:02d} played {} times, best score {}, rank {}{}", result.song,
                                      result.variant, r.plays, r.best_score, r.best_rank, news.score ? ", new best score" : "");
                     }
-                    LogNewMissions(missions, accolades, songs, dresses, language, before, save);
+                    LogNewMissions(missions, accolades, songs, dresses, language, before, save,
+                                   has_friendship ? &friendship_data : nullptr);
                 }
                 const sif::ResultItems result_items{has_cards ? &card_data : nullptr, has_costumes ? &costume_data : nullptr, &save,
                                                     has_friendship ? &friendship_data : nullptr};
