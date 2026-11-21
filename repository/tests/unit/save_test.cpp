@@ -54,6 +54,14 @@ int main() {
     s.boosters = 4, s.boosters_used = 1;
     s.login_date = 20261119, s.login_day = 3, s.logins = 2;
     s.birthdays[11] = {2026, 120, true};
+    Add(s, GroupKey(1, "plays"), 3);
+    Best(s, GroupKey(1, "best_rank"), 7);
+    Best(s, GroupKey(1, "best_rank"), 4);  // a worse rank keeps the best
+    CountCollected(s, 2, 55, 10);           // an Aqours key item
+    CountCollected(s, 7, 47, 4);            // an Aqours thread
+    CountCollected(s, 4, 5, 2);             // a common cloth
+    Mark(s, "talk.11", 50);
+    Mark(s, "talk.11", 50);
     s.unknown.push_back("medal 3 gold");  // a line from a newer version
 
     std::string error;
@@ -70,7 +78,9 @@ int main() {
               back.special == std::set<int>{11} && back.mode == 1 && Current(back) == 21 && Navigator(back, 0) == 4 &&
               back.bonds[11].points == 197 && back.bonds[11].lives == 1 && back.boosters == 4 && back.boosters_used == 1 &&
               back.login_date == 20261119 && back.login_day == 3 && back.logins == 2 && back.birthdays[11].year == 2026 &&
-              back.birthdays[11].points == 120 && back.birthdays[11].received &&
+              back.birthdays[11].points == 120 && back.birthdays[11].received && Count(back, "g1.plays") == 3 &&
+              Count(back, "g1.best_rank") == 7 && Count(back, "collected.key") == 10 && Marked(back, "keys", 55) &&
+              Count(back, "collected.thread") == 4 && Count(back, "collected.cloth") == 2 && SetSize(back, "talk.11") == 1 &&
               back.unknown.size() == 1 && back.unknown[0] == "medal 3 gold",
           "round trip keeps the name (with spaces), the record, the nameplate and unknown lines");
 

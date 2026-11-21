@@ -100,6 +100,22 @@ bool Load(const std::filesystem::path& path, SaveData& out, std::string* error) 
             } else {
                 out.unknown.push_back(line);
             }
+        } else if (kind == "counter") {
+            std::string key;
+            int n = 0;
+            if (in >> key >> n) {
+                out.counters[key] = n;
+            } else {
+                out.unknown.push_back(line);
+            }
+        } else if (kind == "set") {
+            std::string key;
+            if (in >> key) {
+                std::set<int>& ids = out.sets[key];
+                for (int id; in >> id;) ids.insert(id);
+            } else {
+                out.unknown.push_back(line);
+            }
         } else if (kind == "mode") {
             in >> out.mode;
             if (out.mode != 1) out.mode = 0;
@@ -163,6 +179,15 @@ bool Write(const std::filesystem::path& path, const SaveData& data, std::string*
         for (const auto& [member, b] : data.bonds) f << "friendship " << member << " " << b.points << " " << b.lives << "\n";
         if (data.boosters || data.boosters_used) f << "boosters " << data.boosters << " " << data.boosters_used << "\n";
         if (data.login_date) f << "login " << data.login_date << " " << data.login_day << " " << data.logins << "\n";
+        for (const auto& [key, n] : data.counters) {
+            if (n) f << "counter " << key << " " << n << "\n";
+        }
+        for (const auto& [key, ids] : data.sets) {
+            if (ids.empty()) continue;
+            f << "set " << key;
+            for (const int id : ids) f << " " << id;
+            f << "\n";
+        }
         for (const auto& [member, b] : data.birthdays) {
             f << "birthday " << member << " " << b.year << " " << b.points << " " << (b.received ? 1 : 0) << "\n";
         }

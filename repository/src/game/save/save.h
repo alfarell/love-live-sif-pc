@@ -2,6 +2,7 @@
 // The port's own save (save.txt in the data folder; plan/202611021940-m7-systems-breadth/): the player's name and a
 // record per chart. Plain text, one line per item; lines this version does not know are kept as they are.
 
+#include <algorithm>
 #include <array>
 #include <filesystem>
 #include <map>
@@ -71,6 +72,9 @@ struct SaveData {
     int boosters = 0, boosters_used = 0;                 // Wai-Wai! Boosters held (0-9) and used in all (M14)
     int login_date = 0, login_day = 0, logins = 0;       // last login bonus (YYYYMMDD), next day 0-11, bonuses in all
     std::map<int, BirthdayState> birthdays;              // member -> her latest birthday event (M14)
+    // M15: the mission counters ("counter KEY N") and id sets ("set KEY id id ..."); see Count/Mark below for the keys
+    std::map<std::string, int> counters;
+    std::map<std::string, std::set<int>> sets;
     std::map<int, Photo> photos;                         // slot (0-29) -> photo, M12
     bool has_card = false;
     ProfileCard card;                                    // valid when has_card
@@ -81,6 +85,39 @@ struct SaveData {
 int Navigator(const SaveData& data, int mode);
 // The current member: the chosen member of the current mode.
 inline int Current(const SaveData& data) { return Navigator(data, data.mode); }
+
+// M15 mission counters and sets. Keys (G = the group mode 0 µ's / 1 Aqours of the played member, M a member, D a
+// costume, S a song):
+//   counters: gG.plays gG.greats gG.perfects gG.full_combos gG.best_score gG.best_rank (rank + 1; 0 = none)
+//             collected.key collected.thread collected.cloth (materials gained in all, kinds 8-10)
+//             views (View Live Show plays) view.S, photos (taken), photo.D (photos of members in D), cards.M (profile
+//             cards made of M), camera.M (seconds in the Member camera on M)
+//   sets:     keys (key items ever held, kind 11), talk.M (phrases of M heard), menu.M (costumes M wore on the top
+//             menu), view_costumes, card_costumes, special (costumes played in a special colour), camera_photo
+//             (members photographed in the Member camera)
+inline int Count(const SaveData& s, const std::string& key) {
+    const auto it = s.counters.find(key);
+    return it == s.counters.end() ? 0 : it->second;
+}
+inline void Add(SaveData& s, const std::string& key, int n = 1) { s.counters[key] += n; }
+inline void Best(SaveData& s, const std::string& key, int value) { s.counters[key] = std::max(Count(s, key), value); }
+inline void Mark(SaveData& s, const std::string& key, int id) { s.sets[key].insert(id); }
+inline bool Marked(const SaveData& s, const std::string& key, int id) {
+    const auto it = s.sets.find(key);
+    return it != s.sets.end() && it->second.contains(id);
+}
+inline int SetSize(const SaveData& s, const std::string& key) {
+    const auto it = s.sets.find(key);
+    return it == s.sets.end() ? 0 : int(it->second.size());
+}
+// Materials gained (mission kinds 8-11): by item type, 1/2 key items, 3/5/7 threads, 4/6/8 cloths (costume::Item)
+inline void CountCollected(SaveData& s, int type, int item, int amount) {
+    if (type == 1 || type == 2) Add(s, "collected.key", amount), Mark(s, "keys", item);
+    else if (type >= 3 && type % 2) Add(s, "collected.thread", amount);
+    else if (type >= 4) Add(s, "collected.cloth", amount);
+}
+// "gG." for the group mode `mode` (0 µ's, 1 Aqours and Saint Snow)
+inline std::string GroupKey(int mode, const char* name) { return std::string(mode == 1 ? "g1." : "g0.") + name; }
 
 // One finished live (played to its end; a quit live is not recorded).
 struct Play {

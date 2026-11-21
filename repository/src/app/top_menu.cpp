@@ -139,6 +139,7 @@ void LoginBonus(save::SaveData& s) {
     } else {
         int& have = s.owned[{2, item}];  // a costume material (mission reward type 2)
         have = std::min(have + event::kLoginItemAmount, 9999);
+        save::CountCollected(s, 1, item, event::kLoginItemAmount);  // a key item (mission kinds 8, 11)
     }
     s.login_date = today, s.login_day = (day + 1) % 12, ++s.logins;
     LogInfo("login bonus: day {}: {}, {} boosters held", day + 1,
@@ -237,6 +238,8 @@ int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
         const int who = save::Current(s);
         nav.Release(renderer);
         const auto w = s.wear.find(who);
+        // mission kinds 27, 28, 42: the costumes she has worn on the Main Menu (M15)
+        save::Mark(s, "menu." + std::to_string(who), w == s.wear.end() ? member::DefaultCostume(member::Group(who)) : w->second);
         if (!nav.Load(renderer, vfs, who, w == s.wear.end() ? -1 : w->second, s.special.contains(who), &error)) {
             LogWarn("top menu: navigator {}: {}", who, error);
         }
@@ -282,7 +285,10 @@ int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
         std::tm local{};
         localtime_s(&local, &t);
         const int greeting = talk::GreetingFor(rules, local.tm_hour);
-        if (greeting >= 0 && Say(vfs, voice, *audio, who, greeting)) nav.Talk();
+        if (greeting >= 0 && Say(vfs, voice, *audio, who, greeting)) {
+            nav.Talk();
+            save::Mark(s, "talk." + std::to_string(who), greeting);  // mission kind 21: her phrases heard (M15)
+        }
     };
     show();
     MemberPopup popup;
@@ -318,7 +324,11 @@ int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
                     continue;
                 case SDL_SCANCODE_T:
                     LogInfo("top menu: another line (T)");
-                    if (audio && !plain.empty() && Say(vfs, voice, *audio, nav.Member(), plain[random() % plain.size()])) nav.Talk();
+                    if (const int id = plain.empty() ? -1 : plain[random() % plain.size()];
+                        audio && id >= 0 && Say(vfs, voice, *audio, nav.Member(), id)) {
+                        nav.Talk();
+                        save::Mark(s, "talk." + std::to_string(nav.Member()), id);
+                    }
                     continue;
                 case SDL_SCANCODE_LEFT: mode = (mode + kModes - 1) % kModes, entry = 0; break;
                 case SDL_SCANCODE_RIGHT: mode = (mode + 1) % kModes, entry = 0; break;

@@ -2,6 +2,7 @@
 // The result screen (ui2/95_result, layout uil0001_ResultTop00) for one finished live.
 
 #include <array>
+#include <map>
 #include <string>
 #include <utility>
 #include <vector>
@@ -43,8 +44,10 @@ struct LiveResult {
     struct Photo {
         std::vector<uint8_t> rgba;
         uint32_t width = 0, height = 0;
+        int camera_member = 0;  // the member the Member camera was on (M15: mission kind 33); 0 = another camera
     };
     std::vector<Photo> photos;
+    std::map<int, double> camera_seconds;  // member -> seconds in the Member camera on her (M15: mission kind 26)
 };
 
 // The tables the Items Obtained page needs (card names and pictures, material icons, owned totals); null = not shown.

@@ -57,6 +57,7 @@
 #include "game/event/event.h"
 #include "game/friendship/friendship.h"
 #include "game/live/song.h"
+#include "game/member/member.h"
 #include "game/mission/mission.h"
 #include "game/profile/profile.h"
 #include "game/save/save.h"
@@ -236,6 +237,37 @@ int PhotoMemberCard(const sif::LiveResult& result, int member, const sif::LiveOp
     return (member * 1000 + costume) * 10;
 }
 
+// A save from before M15 has no per-group counts: they start from its records, each song's to its group (Saint Snow
+// with Aqours). shortcut: the GREAT/PERFECT totals were kept for both groups together, so they go to the group with
+// more plays. False when there is nothing to seed (counts already there, or no records).
+bool SeedGroupCounters(sif::save::SaveData& save, const std::vector<sif::live::SongInfo>& songs) {
+    if (save.records.empty() || sif::save::Count(save, "g0.plays") || sif::save::Count(save, "g1.plays")) return false;
+    for (const auto& [chart, r] : save.records) {
+        int g = 0;
+        for (const auto& s : songs) {
+            if (s.id == chart.first) g = s.group == 0 ? 0 : 1;
+        }
+        sif::save::Add(save, sif::save::GroupKey(g, "plays"), r.plays);
+        sif::save::Add(save, sif::save::GroupKey(g, "full_combos"), r.full_combos);
+        sif::save::Best(save, sif::save::GroupKey(g, "best_score"), r.best_score);
+        sif::save::Best(save, sif::save::GroupKey(g, "best_rank"), r.best_rank + 1);
+    }
+    const int g = sif::save::Count(save, "g1.plays") > sif::save::Count(save, "g0.plays") ? 1 : 0;
+    sif::save::Add(save, sif::save::GroupKey(g, "perfects"), int(std::min<long long>(save.perfects, 2000000000)));
+    sif::save::Add(save, sif::save::GroupKey(g, "greats"), int(std::min<long long>(save.greats, 2000000000)));
+    return true;
+}
+
+// The mission counters of the photos taken (M15 Q3: kinds 13, 33, 45), saved or not
+void CountPhotos(const sif::LiveResult& result, int member, const sif::LiveOptions& live, sif::save::SaveData& save) {
+    const int dress = PhotoMemberCard(result, member, live) / 10 % 1000;
+    for (const sif::LiveResult::Photo& p : result.photos) {
+        sif::save::Add(save, "photos");
+        sif::save::Add(save, "photo." + std::to_string(dress));
+        if (p.camera_member) sif::save::Mark(save, "camera_photo", p.camera_member);
+    }
+}
+
 void SavePhotos(const std::filesystem::path& data_dir, sif::LiveResult& result, int member,
                 const sif::LiveOptions& live, const std::vector<bool>& favourites, sif::save::SaveData& save) {
     std::error_code ec;
@@ -399,6 +431,7 @@ int main(int argc, char** argv) {
             std::vector<sif::mission::Award> accolades, badges;
             if (!sif::mission::LoadAwards(vfs, accolades, badges, &why)) sif::LogWarn("awards: {}", why);
             if (!sif::live::LoadSongList(vfs, language, songs, &why)) sif::LogWarn("missions: songs: {}", why);
+            if (SeedGroupCounters(save, songs)) sif::LogInfo("missions: per-group counts seeded from the records (M15)");
             std::vector<sif::live::DressInfo> dresses;
             if (!sif::live::LoadDressList(vfs, language, dresses, &why)) sif::LogWarn("missions: costumes: {}", why);
             sif::costume::Data costume_data;
@@ -641,9 +674,20 @@ int main(int argc, char** argv) {
                                                                                            options.live_options),
                                                options.frames, favourites);
                     loading.Show(renderer);
+                    CountPhotos(result, skills.member, options.live_options, save);
                     SavePhotos(options.data_dir, result, skills.member, options.live_options, favourites, save);
                     if (can_save && !sif::save::Write(save_path, save, &save_error)) sif::LogWarn("save: {}", save_error);
                     if (!open) break;
+                }
+                if (view_mode && code == 0 && !result.closed && result.finished) {  // mission counters (M15 Q3)
+                    sif::save::Add(save, "views");
+                    sif::save::Add(save, "view." + std::to_string(result.song));
+                    if (result.costume.size() == 4) sif::save::Mark(save, "view_costumes", std::atoi(result.costume.c_str() + 1));
+                    for (const auto& [m, seconds] : result.camera_seconds) {
+                        sif::save::Add(save, "camera." + std::to_string(m), int(seconds));
+                    }
+                    if (can_save && !sif::save::Write(save_path, save, &save_error)) sif::LogWarn("save: {}", save_error);
+                    sif::LogInfo("missions: View Live Show {} times", sif::save::Count(save, "views"));
                 }
                 sif::save::NewBests news;
                 if (code == 0 && !result.closed && result.finished) {
@@ -654,6 +698,18 @@ int main(int argc, char** argv) {
                                             ? std::atoi(result.costume.c_str() + 1) : -1;
                     news = sif::save::Record(save, {result.song, result.variant, int(result.score), result.max_combo, result.rank,
                                                     result.clear_rate, full_combo, result.counts[0], result.counts[1], costume});
+                    if (!view_mode) {  // the group missions count per group: the played member's (M15 Q2)
+                        const int g = sif::member::Mode(skills.member);
+                        sif::save::Add(save, sif::save::GroupKey(g, "plays"));
+                        sif::save::Add(save, sif::save::GroupKey(g, "perfects"), result.counts[0]);
+                        sif::save::Add(save, sif::save::GroupKey(g, "greats"), result.counts[1]);
+                        if (full_combo) sif::save::Add(save, sif::save::GroupKey(g, "full_combos"));
+                        sif::save::Best(save, sif::save::GroupKey(g, "best_score"), int(result.score));
+                        sif::save::Best(save, sif::save::GroupKey(g, "best_rank"), result.rank + 1);
+                        if (const auto w = save.wear.find(skills.member); w != save.wear.end() && save.special.contains(skills.member)) {
+                            sif::save::Mark(save, "special", w->second);  // mission kind 48
+                        }
+                    }
                     if (has_cards) {  // skill cards (M11 S6): one draw, a second at rank S with Getting Skills Charge
                         for (const int id : sif::card::RollSkillDrops(card_data, save, skills.member, result.rank, drop_random)) {
                             const int before = sif::card::Level(card_data, save, id);
@@ -705,6 +761,7 @@ int main(int argc, char** argv) {
                         for (const auto& [item, amount] : sif::costume::RollDrops(costume_data, drop, drop_random, save)) {
                             result.materials.push_back({item, amount});
                             const sif::costume::Item* i = sif::costume::FindItem(costume_data, item);
+                            sif::save::CountCollected(save, i ? i->type : 0, item, amount);  // mission kinds 8-11
                             got += (got.empty() ? "" : ", ") + (i ? i->name[size_t(language)] : std::to_string(item)) + " x" +
                                    std::to_string(amount);
                         }

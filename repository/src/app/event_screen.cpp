@@ -205,6 +205,7 @@ bool RunBirthdayEvents(SDL_Window* window, Renderer& renderer, const Vfs& vfs, c
                             for (const int item : b->items) {  // shortcut: one of each key item (the amount is not traced)
                                 int& have = save.owned[{costume::kItemReward, item}];
                                 have = std::min(have + 1, 9999);
+                                save::CountCollected(save, 1, item, 1);  // mission kinds 8, 11
                             }
                             LogInfo("events: member {} rewards received: {} skill cards, {} key items", m, b->skill_cards.size(),
                                     b->items.size());

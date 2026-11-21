@@ -332,6 +332,9 @@ bool RunProfileEdit(SDL_Window* window, Renderer& renderer, const Vfs& vfs, cons
         }
         save.card = card;
         save.has_card = true;
+        // mission kinds 24 (profile cards of the member) and 46 (one with a member in that costume), M15
+        save::Add(save, "cards." + std::to_string(card.member_card / 10000));
+        save::Mark(save, "card_costumes", card.member_card / 10 % 1000);
         saved = true;
         // shortcut: the game asks "Save changes and upload to the server?" and uploads (online); the port saves only
         LogInfo("profile edit: saved: frame {} {}, crop {}, live {}, member card {}, accolade {}, badge {}, name plate {}, "

@@ -937,6 +937,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
     bool view_ending = false;
     bool take_photo = false;         // View Live Show: ○ (P) pressed; the next frame is captured before the HUD
     std::vector<LiveResult::Photo> photos;
+    std::map<int, double> camera_seconds;  // the Member camera's time per member (mission kind 26)
     std::array<Texture, 5> thumbs;   // the photos as HUD thumbnails (a quarter size)
     for (bool running = true; running && !fade.Left() && (opt.max_frames < 0 || frame < opt.max_frames); ++frame) {
         const uint64_t fade_now = SDL_GetTicksNS();
@@ -1005,6 +1006,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
             const uint64_t t = SDL_GetTicksNS();
             const float dt = float(double(t - camera_last) / 1e9);
             camera_last = t;
+            if (rig.mode == 1 && size_t(rig.member) < dancing.size()) camera_seconds[dancing[size_t(rig.member)]] += dt;
             if (rig.mode > 0) {
                 CameraRig::Move(rig.mode == 1 ? rig.member_orbit : rig.view_orbit, rig.mode == 1, dt,
                                 held[SDL_SCANCODE_LEFT], held[SDL_SCANCODE_RIGHT], held[SDL_SCANCODE_UP],
@@ -1218,6 +1220,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                 }
                 LogInfo("live view: photo {} taken ({}x{}, camera {})", k + 1, shot.width, shot.height,
                         kCameraModeNames[rig.mode]);
+                shot.camera_member = rig.mode == 1 && size_t(rig.member) < dancing.size() ? dancing[size_t(rig.member)] : 0;
                 photos.push_back(std::move(shot));
                 if (has_hud) ApplyLiveViewHud(hud, rig.mode, int(photos.size()), dancing, rig.member);
             }
@@ -1294,6 +1297,7 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
         std::copy(judge.counts.begin(), judge.counts.end(), result->counts.begin());
         result->costume = dressed.costume;
         result->photos = std::move(photos);
+        result->camera_seconds = std::move(camera_seconds);
     }
     return 0;
 }
