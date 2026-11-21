@@ -192,10 +192,10 @@ sif::Nameplate MakeNameplate(const sif::mission::Missions& missions, const std::
 void LogNewMissions(const sif::mission::Missions& missions, const std::vector<sif::mission::Award>& accolades,
                     const std::vector<sif::live::SongInfo>& songs, const std::vector<sif::live::DressInfo>& dresses,
                     int language, const sif::save::SaveData& before,
-                    const sif::save::SaveData& after, const sif::friendship::Tables* levels) {
+                    const sif::save::SaveData& after, const sif::mission::Context* context) {
     for (const sif::mission::Mission& m : missions.rows) {
-        if (size_t(m.Kind()) >= missions.conditions.size() || !sif::mission::ProgressOf(m, after, levels).Done() ||
-            sif::mission::ProgressOf(m, before, levels).Done()) {
+        if (size_t(m.Kind()) >= missions.conditions.size() || !sif::mission::ProgressOf(m, after, context).Done() ||
+            sif::mission::ProgressOf(m, before, context).Done()) {
             continue;
         }
         std::string p1 = std::to_string(m.p1);
@@ -474,6 +474,9 @@ int main(int argc, char** argv) {
             } else {
                 sif::LogWarn("add-ons: {}", why);
             }
+            const sif::mission::Context mission_context{has_friendship ? &friendship_data : nullptr,
+                                                        has_cards ? &card_data : nullptr,
+                                                        has_costumes ? &costume_data : nullptr, &owned, &missions};
             for (bool menu = !options.select; open;) {
                 if (menu) loading.Show(renderer);
                 if (menu) {
@@ -583,8 +586,7 @@ int main(int argc, char** argv) {
                     if (mode == 5 && entry == 20) {  // Event: Task List
                         loading.Show(renderer);
                         open = sif::RunMissions(window, renderer, vfs, lang,
-                                                {&missions, &accolades, &songs, &save, &owned,
-                                                 has_friendship ? &friendship_data : nullptr},
+                                                {&missions, &accolades, &songs, &save, &owned, &mission_context},
                                                 options.frames);
                         if (can_save && !sif::save::Write(save_path, save, &save_error)) sif::LogWarn("save: {}", save_error);
                         continue;
@@ -794,8 +796,7 @@ int main(int argc, char** argv) {
                         sif::LogInfo("save: {:04d}/{:02d} played {} times, best score {}, rank {}{}", result.song,
                                      result.variant, r.plays, r.best_score, r.best_rank, news.score ? ", new best score" : "");
                     }
-                    LogNewMissions(missions, accolades, songs, dresses, language, before, save,
-                                   has_friendship ? &friendship_data : nullptr);
+                    LogNewMissions(missions, accolades, songs, dresses, language, before, save, &mission_context);
                 }
                 const sif::ResultItems result_items{has_cards ? &card_data : nullptr, has_costumes ? &costume_data : nullptr, &save,
                                                     has_friendship ? &friendship_data : nullptr};

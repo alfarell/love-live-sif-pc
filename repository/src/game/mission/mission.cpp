@@ -3,12 +3,17 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
+#include <set>
 #include <span>
+#include <string>
 #include <utility>
 
 #include "engine/formats/blbn.h"
 #include "engine/fs/vfs.h"
+#include "game/card/card.h"
+#include "game/costume/costume.h"
 #include "game/friendship/friendship.h"
+#include "game/member/member.h"
 #include "game/save/save.h"
 
 namespace sif::mission {
@@ -110,8 +115,8 @@ const Award* FindAward(const std::vector<Award>& awards, int id) {
     return nullptr;
 }
 
-bool Claim(const Mission& m, save::SaveData& save, const friendship::Tables* levels) {
-    if (save.claimed.contains(m.id) || !ProgressOf(m, save, levels).Done()) return false;
+bool Claim(const Mission& m, save::SaveData& save, const Context* context) {
+    if (save.claimed.contains(m.id) || !ProgressOf(m, save, context).Done()) return false;
     save.claimed.insert(m.id);
     if (m.reward_type == 3) {
         save.boosters = std::min(save.boosters + std::max(1, m.reward_amount), 9);
@@ -129,7 +134,22 @@ std::vector<int> Owned(const save::SaveData& save, int reward_type) {
     return ids;
 }
 
-Progress ProgressOf(const Mission& m, const save::SaveData& save, const friendship::Tables* levels) {
+Progress ProgressOf(const Mission& m, const save::SaveData& save, const Context* context) {
+    const Context none;
+    const Context& c = context ? *context : none;
+    const auto group_of = [](int mode) { return mode == 1 ? 1 : 0; };  // a group row's p1: 0 µ's, 1 Aqours (Q1)
+    const auto key = [&](const char* name) { return save::GroupKey(group_of(m.p1), name); };
+    const auto member_key = [&](const char* name) { return std::string(name) + "." + std::to_string(m.p1); };
+    // the costumes of a mode (a recipe's group: µ's, else Aqours and Saint Snow)
+    const auto costumes_of = [&](int mode, bool owned_only) {
+        int n = 0;
+        if (!c.costumes) return n;
+        for (const costume::Recipe& r : c.costumes->recipes) {
+            if ((r.Group() == 0 ? 0 : 1) != mode) continue;
+            if (!owned_only || costume::Owns(*c.costumes, save, c.addons, r.dress)) ++n;
+        }
+        return n;
+    };
     Progress p;
     p.need = std::max(1, m.p2);
     const bool per_song = m.Kind() >= 35 && m.Kind() <= 39;
@@ -140,22 +160,91 @@ Progress ProgressOf(const Mission& m, const save::SaveData& save, const friendsh
         best_score = std::max(best_score, r.best_score), best_rank = std::max(best_rank, r.best_rank);
     }
     switch (m.Kind()) {
-        case 0:   // play Live Shows [p2] times
+        // the group rows (p1 = the group) count per group (M15 Q2): the played member's group's totals
+        case 0: p.have = save::Count(save, key("plays")); break;                          // [p2] Live Shows
+        case 1: p.need = 1, p.have = save::Count(save, key("full_combos")) > 0; break;    // a FULL COMBO
+        case 2: p.need = 1, p.have = save::Count(save, key("best_rank")) >= 5; break;     // rank S (stored + 1)
+        case 3: p.need = 1, p.have = save::Count(save, key("best_rank")) >= 7; break;     // rank SSS
+        case 4: p.have = save::Count(save, key("best_score")); break;                     // a score of [p2]
+        case 5: p.have = save::Count(save, key("greats")); break;                         // [p2] GREAT notes
+        case 6: p.have = save::Count(save, key("perfects")); break;                       // [p2] PERFECT notes
         case 35:  // play "[p1]" [p2] times
             p.have = plays;
             break;
-        case 1:   // a FULL COMBO on any song
         case 38:  // a FULL COMBO on "[p1]"
             p.need = 1, p.have = full_combos > 0;
             break;
-        case 2: p.need = 1, p.have = best_rank >= 4; break;  // rank S or better (0 D .. 4 S .. 6 SSS)
-        case 3: p.need = 1, p.have = best_rank >= 6; break;  // rank SSS
-        case 4:   // a score of [p2] on any song
         case 39:  // a score of [p2] on "[p1]"
             p.have = best_score;
             break;
-        case 5: p.have = int(std::min<long long>(save.greats, 2000000000)); break;    // [p2] GREAT notes
-        case 6: p.have = int(std::min<long long>(save.perfects, 2000000000)); break;  // [p2] PERFECT notes
+        case 7: p.have = c.costumes ? costumes_of(group_of(m.p1), true) : -1; break;  // [p2] types of costumes
+        // [p2] key items / threads / fabrics collected (shortcut: counted for both groups together)
+        case 8: p.have = save::Count(save, "collected.key"); break;
+        case 9: p.have = save::Count(save, "collected.thread"); break;
+        case 10: p.have = save::Count(save, "collected.cloth"); break;
+        case 11: {  // every key item of the group collected
+            if (!c.costumes) break;
+            p.need = p.have = 0;
+            for (const costume::Item& i : c.costumes->items) {
+                if (i.type != (group_of(m.p1) == 0 ? 1 : 2)) continue;
+                ++p.need;
+                p.have += save::Marked(save, "keys", i.id);
+            }
+            break;
+        }
+        case 12: p.have = save::Count(save, "views"); break;   // [p2] View Live Shows
+        case 13: p.have = save::Count(save, "photos"); break;  // [p2] photos
+        case 20: {  // select [p1] and play [p2] times
+            const auto b = save.bonds.find(m.p1);
+            p.have = b == save.bonds.end() ? 0 : b->second.lives;
+            break;
+        }
+        case 21: p.have = save::SetSize(save, member_key("talk")); break;  // [p2] of [p1]'s phrases
+        case 22:   // [p2] types of [p1]'s skill cards
+        case 23:   // every type of [p1]'s skill cards
+        case 31: { // [p2] of [p1]'s normal skill cards at MAX (shortcut: "normal" = a card that levels, max > 1)
+            if (!c.cards) break;
+            int all = 0, owned = 0, maxed = 0;
+            for (const card::SkillCard& k : c.cards->skills) {
+                if (k.member != m.p1) continue;
+                ++all;
+                const int level = card::Level(*c.cards, save, k.id);
+                owned += level > 0;
+                maxed += k.max_level > 1 && level >= k.max_level;
+            }
+            p.have = m.Kind() == 31 ? maxed : owned;
+            if (m.Kind() == 23) p.need = std::max(1, all);
+            break;
+        }
+        case 24: p.have = save::Count(save, member_key("cards")); break;            // [p2] profile cards of [p1]
+        case 26: p.have = save::Count(save, member_key("camera")) / 60; break;      // [p2] minutes on [p1]
+        case 27: p.have = save::SetSize(save, member_key("menu")); break;           // [p2] costumes shown
+        case 28:                                                                     // every costume shown
+            p.have = save::SetSize(save, member_key("menu"));
+            p.need = std::max(1, costumes_of(member::Mode(m.p1), false));
+            break;
+        case 29: {  // [p2] of [p1]'s accolades: the accolades her member missions give
+            if (!c.missions) break;
+            std::set<int> hers;
+            for (const Mission& r : c.missions->rows) {
+                if (r.reward_type == 4 && r.p1 == m.p1 && r.Kind() >= 20 && r.Kind() <= 34) hers.insert(r.reward_id);
+            }
+            p.have = 0;
+            for (const int id : hers) p.have += save.owned.contains({4, id});
+            break;
+        }
+        case 33: p.need = 1, p.have = save::Marked(save, "camera_photo", m.p1); break;  // a Member camera photo of her
+        case 36: p.have = save::Count(save, "view." + std::to_string(m.p1)); break;   // view "[p1]" [p2] times
+        case 40: p.need = 1, p.have = c.costumes && costume::Owns(*c.costumes, save, c.addons, m.p1); break;
+        case 42: {  // wear "[p1]" on the Main Menu (any member)
+            p.need = 1, p.have = 0;
+            for (const auto& [k, ids] : save.sets) p.have |= k.rfind("menu.", 0) == 0 && ids.contains(m.p1);
+            break;
+        }
+        case 43: p.need = 1, p.have = save::Marked(save, "view_costumes", m.p1); break;  // view with "[p1]"
+        case 45: p.have = save::Count(save, "photo." + std::to_string(m.p1)); break;     // photos in "[p1]"
+        case 46: p.need = 1, p.have = save::Marked(save, "card_costumes", m.p1); break;  // a profile card in it
+        case 48: p.need = 1, p.have = save::Marked(save, "special", m.p1); break;        // its special colour
         case 41: {  // play wearing "[p1]" [p2] times
             const auto it = save.costume_plays.find(m.p1);
             p.have = it == save.costume_plays.end() ? 0 : it->second;
@@ -165,7 +254,7 @@ Progress ProgressOf(const Mission& m, const save::SaveData& save, const friendsh
         case 30: p.have = save.boosters_used; break;  // use [p2] boosters (shortcut: counted for every member, not [p1]'s lives)
         case 32: {  // [p1]'s Friendship to Lv. [p2] (M14)
             const auto b = save.bonds.find(m.p1);
-            p.have = levels ? friendship::LevelOf(*levels, b == save.bonds.end() ? 0 : b->second.points) : -1;
+            p.have = c.levels ? friendship::LevelOf(*c.levels, b == save.bonds.end() ? 0 : b->second.points) : -1;
             break;
         }
         case 34: {  // log in during [p1]'s birthday event and go to the Main Menu (the top menu notes it, M14)
@@ -173,8 +262,8 @@ Progress ProgressOf(const Mission& m, const save::SaveData& save, const friendsh
             p.need = 1, p.have = b != save.birthdays.end() && b->second.year > 0;
             break;
         }
-        // shortcut: costumes obtained, items, viewing mode, medleys, cards, likes and member counters
-        // are not in the save yet; add them with the screens that count them
+        // not counted: 14, 15, 37, 47 (Live Show Medley), 25 (Finale Focus), 16, 19 (online), 44 (profile-card
+        // matching), 17 (HR member cards: shortcut, their source is not traced)
         default: break;
     }
     return p;

@@ -123,7 +123,7 @@ bool RunMissions(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const s
             const int tab = TabOf(m.Kind());
             if (tab == 2 && data.owned && !data.owned->Song(m.p1)) continue;     // no add-on for the song
             if (tab == 3 && data.owned && !data.owned->Costume(m.p1)) continue;  // or the costume
-            Row row{&m, {}, {}, mission::ProgressOf(m, *data.save, data.levels)};
+            Row row{&m, {}, {}, mission::ProgressOf(m, *data.save, data.context)};
             // [p1]: song title, costume name; members by number (shortcut: member names are not read yet)
             std::string p1 = std::to_string(m.p1);
             if (tab == 2 && data.songs) {
@@ -176,7 +176,7 @@ bool RunMissions(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const s
                 case SDL_SCANCODE_SPACE:
                     if (cursor < n && data.save && !e.key.repeat) {
                         const mission::Mission& m = *tabs[size_t(tab)][size_t(cursor)].m;
-                        if (mission::Claim(m, *data.save, data.levels)) {
+                        if (mission::Claim(m, *data.save, data.context)) {
                             LogInfo("missions: claimed {}: reward type {} id {} x{}", m.id, m.reward_type, m.reward_id,
                                     std::max(1, m.reward_amount));
                             ApplyTabs(ui, tab, claimable());
