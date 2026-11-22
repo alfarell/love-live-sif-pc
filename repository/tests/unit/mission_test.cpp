@@ -43,6 +43,13 @@ int main(int argc, char** argv) {
     if (all.conditions.size() == 49) {
         Check(all.conditions[0].title[1] == "Play a Live Show!", "condition 0 English title");
         Check(all.conditions[38].text[1] == "Achieve a FULL COMBO or better on \"[p1]\".", "condition 38 English text");
+        // the parameter types (Q1): 0 a group and a count, 20 a member and a count, 35 a song and a count, 40 a costume
+        const auto& k = all.conditions;
+        Check(k[0].p1_type == 2 && k[0].p2_type == 1 && k[20].p1_type == 3 && k[35].p1_type == 4 &&
+                  k[35].p2_type == 1 && k[40].p1_type == 5,
+              "parameter types: " + std::to_string(k[0].p1_type) + std::to_string(k[0].p2_type) +
+                  std::to_string(k[20].p1_type) + std::to_string(k[35].p1_type) + std::to_string(k[35].p2_type) +
+                  std::to_string(k[40].p1_type));
     }
     const mission::Mission* song = ById(all, 2000);
     const mission::Mission* ten = ById(all, 1);
@@ -157,6 +164,28 @@ int main(int argc, char** argv) {
               done(43, 31) && have(45, 31) == 3 && done(46, 32) && done(48, 105),
           "kinds 33, 36, 40, 42, 43, 45, 46, 48");
     Check(!mission::ProgressOf({1, 22, 1, 1}, q4).Done(), "without the tables a kind that needs them stays open");
+
+    // M15 Q5: the Task List's filter and show rule
+    mission::Condition group_c, member_c, song_c, dress_c;
+    group_c.p1_type = 2, member_c.p1_type = 3, song_c.p1_type = 4, dress_c.p1_type = 5;
+    Check(mission::Fits({1, 0, 1, 10}, group_c, 11, -1) && !mission::Fits({1, 0, 0, 10}, group_c, 11, -1) &&
+              mission::Fits({1, 0, 1, 10}, group_c, 21, -1),
+          "a group row: her mode (Saint Snow in Aqours mode)");
+    Check(mission::Fits({1, 20, 11, 1}, member_c, 11, -1) && !mission::Fits({1, 20, 12, 1}, member_c, 11, -1), "a member row: only her");
+    Check(mission::Fits({1, 35, 10, 1}, song_c, 1, 0) && !mission::Fits({1, 35, 10, 1}, song_c, 11, 0), "a song row: her mode's songs");
+    Check(mission::Fits({1, 40, 31, 1}, dress_c, 1, -1) && !mission::Fits({1, 40, 105, 1}, dress_c, 1, -1) &&
+              mission::Fits({1, 40, 201, 1}, dress_c, 21, -1) && !mission::Fits({1, 40, 201, 1}, dress_c, 11, -1),
+          "a costume row: her group's costumes");
+    mission::Missions series;
+    series.rows = {{1, 0, 0, 10}, {2, 0 | 1 << 8, 0, 30}, {3, 0 | 1 << 8, 0, 50}, {4, 41 | 3 << 8, 31, 1}};
+    save::SaveData steps;
+    const auto shown = [&](int i, bool owned = true) { return mission::Shown(series.rows[size_t(i)], series, steps, owned); };
+    Check(shown(0) && !shown(1) && !shown(2), "a series: the first step only");
+    steps.claimed = {1};
+    Check(!shown(0) && shown(1) && !shown(2), "step 1 claimed: step 2 instead");
+    steps.claimed = {1, 2, 3};
+    Check(!shown(0) && !shown(1) && shown(2), "the last step stays once claimed");
+    Check(!shown(3, false) && shown(3, true), "rule 3: only with the costume");
     std::printf("%s\n", failures ? "mission_test FAILED" : "mission_test ok");
     return failures ? 1 : 0;
 }

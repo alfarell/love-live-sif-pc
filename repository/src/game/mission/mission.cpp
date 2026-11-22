@@ -67,6 +67,7 @@ bool Load(const Vfs& vfs, Missions& out, std::string* error) {
         std::memcpy(q, &d[o], 72);
         Condition c;
         for (int l = 0; l < 4; ++l) c.title[size_t(l)] = Str(f, q[l]), c.text[size_t(l)] = Str(f, q[4 + l]);
+        c.p1_type = d[o + 0x41], c.p2_type = d[o + 0x42];
         out.conditions.push_back(std::move(c));
     }
     return true;
@@ -113,6 +114,40 @@ const Award* FindAward(const std::vector<Award>& awards, int id) {
         if (a.id == id) return &a;
     }
     return nullptr;
+}
+
+bool Fits(const Mission& m, const Condition& c, int member, int song_mode) {
+    const auto fits = [&](int type, int p) {
+        switch (type) {
+            case 2: return p == member::Mode(member);
+            case 3: return p == member;
+            case 4: return song_mode < 0 || song_mode == member::Mode(member);
+            case 5: return (p >= 200 ? 2 : p >= 100 ? 1 : 0) == member::Group(member);
+            default: return true;
+        }
+    };
+    return fits(c.p1_type, m.p1) && fits(c.p2_type, m.p2);
+}
+
+bool Shown(const Mission& m, const Missions& all, const save::SaveData& save, bool owned) {
+    const auto row = [&](int id) -> const Mission* {
+        for (const Mission& r : all.rows) {
+            if (r.id == id) return &r;
+        }
+        return nullptr;
+    };
+    switch (m.Rule()) {
+        case 1:
+            if (!save.claimed.contains(m.id - 1)) return false;
+            [[fallthrough]];
+        case 0: {
+            const Mission* next = save.claimed.contains(m.id) ? row(m.id + 1) : nullptr;
+            return !(next && next->Rule() == 1);
+        }
+        case 2:
+        case 3: return owned;
+        default: return true;
+    }
 }
 
 bool Claim(const Mission& m, save::SaveData& save, const Context* context) {

@@ -10,9 +10,15 @@
 #include "app/fade.h"
 #include "app/input.h"
 #include "app/route.h"
+#include "app/skill_screen.h"
+#include "app/top_menu.h"
 #include "engine/core/log.h"
 #include "engine/render/renderer.h"
 #include "engine/ui/ui_screen.h"
+#include "game/costume/costume.h"
+#include "game/member/member.h"
+#include "game/profile/profile.h"
+#include "game/text/messages.h"
 
 namespace sif {
 namespace {
@@ -63,7 +69,57 @@ struct Row {
     std::string title, text;
     mission::Progress progress;
     const mission::Award* accolade = nullptr;
+    const char* node = nullptr;  // the reward picture's node and material, "" path = none (Q1 §3, eboot FUN_00112270)
+    const char* material = nullptr;
+    std::string picture;
+    bool item_frame = false;     // reward_icon_frame00 behind an item or booster
 };
+
+// The reward picture of a row, by reward type (Q1 §3). shortcut: the item frame keeps the layout's own
+// (material_iconframe00_00; the eboot picks one per item, FUN_0028d7a0, not traced); frames show portrait.
+void RewardPicture(Row& row, const MissionData& data, const std::string& lang, int member) {
+    const mission::Mission& m = *row.m;
+    const mission::Context* c = data.context;
+    char s[128];
+    switch (m.reward_type) {
+        case 1: row.node = "reward_iconB00", row.material = "M_reward_iconB00", row.picture = SkillThumbPath(m.reward_id, lang, true); break;
+        case 2:
+            if (const costume::Item* i = c && c->costumes ? costume::FindItem(*c->costumes, m.reward_id) : nullptr) {
+                row.node = "reward_iconA00", row.material = "M_reward_icon00", row.picture = costume::IconPath(*i);
+                row.item_frame = true;
+            }
+            break;
+        case 3:
+            std::snprintf(s, sizeof(s), "ui/ui_reward_icon.pac/texture.pac/reward_%d", m.reward_id);
+            row.node = "reward_iconA00", row.material = "M_reward_icon00", row.picture = s, row.item_frame = true;
+            break;
+        case 4:
+            if (row.accolade) {
+                std::snprintf(s, sizeof(s), "ui/ui_honorific_title_s.pac/texture.pac/title_plate_s_%04d", row.accolade->group);
+                row.node = "reward_icon_title00", row.material = "reward_icon_title00_M", row.picture = s;
+            }
+            break;
+        case 5:
+            if (data.frames) {
+                for (const profile::Frame& f : data.frames->frames) {
+                    if (f.id != m.reward_id) continue;
+                    std::snprintf(s, sizeof(s), "ui/ui_profile_card.pac/texture.pac/pfc_frame_000_%03d", f.member);
+                    row.node = "reward_iconB00", row.material = "M_reward_iconB00", row.picture = s;
+                }
+            }
+            break;
+        case 6: row.node = "reward_icon_name00", row.material = "reward_icon_name00_M", row.picture = NamePlatePath(m.reward_id); break;
+        case 7: {  // her member card in that costume (mbc_<(member x 1000 + costume) x 10>, as the live intro); 117/217 by group
+            int dress = m.reward_id;
+            if (dress == 117 && member::Group(member) == 2) dress = 217;
+            if (dress == 217 && member::Group(member) != 2) dress = 117;
+            row.node = "reward_iconB00", row.material = "M_reward_iconB00";
+            row.picture = "ui/ui_member_card_thumbnail.pac/texture.pac/mbc_" + std::to_string((member * 1000 + dress) * 10);
+            break;
+        }
+        default: break;
+    }
+}
 
 void Apply(UiScreen& ui, const std::vector<Row>& rows, int top, int cursor, const std::set<int>& claimed) {
     for (int i : {0, 6}) ui.HideInstance(Holder(i), true);
@@ -81,20 +137,22 @@ void Apply(UiScreen& ui, const std::vector<Row>& rows, int top, int cursor, cons
         // not tracked by the port yet: "-" and an empty gauge
         ui.SetInstanceText(plate, 3,
                            (row.progress.have < 0 ? std::string("-") : std::to_string(have)) + "/" + std::to_string(need));
-        ui.SetInstanceText(plate, 4, row.accolade ? "" : "x" + std::to_string(row.m->reward_amount));
-        for (int b : {1, 5, 6, 7}) ui.SetInstanceText(plate, b, "");
+        ui.SetInstanceText(plate, 4, "x" + std::to_string(std::max(1, row.m->reward_amount)));
+        for (int b : {1, 5, 6}) ui.SetInstanceText(plate, b, "");
+        ui.SetInstanceText(plate, 7, row.accolade ? row.accolade->name : "");  // the accolade's name on its plate
         ui.SetMaterialClip(plate, "M_misgauge00", kGaugeU0 + (kGaugeU1 - kGaugeU0) * float(have) / float(need));
         ui.HideNode(plate, "status_icon00", !taken);          // COMPLETED: claimed
         ui.HideNode(plate, "status_icon01", !done || taken);  // GET!: ready to claim
         ui.HideNode(plate, "mission_plate00_ON", !focused);
         ui.HideNode(plate, "mission_plate00_OFF", focused);
         ui.HideNode(plate, "mission_plate00_ef", !focused);
-        // shortcut: no reward picture (accolade plates, item, card and costume icons come from other packages, e.g.
-        // 03_card title_plate_NNNN, not loaded here)
+        const bool picture = row.node && ui.SetMaterialTexture(plate, row.material, row.picture);
+        if (row.node && !picture) LogWarn("missions: no reward picture {}", row.picture);
         for (const char* node : {"reward_iconA00", "reward_iconB00", "reward_iconC00", "reward_icon_name00",
-                                 "reward_icon_title00", "reward_icon_frame00"}) {
-            ui.HideNode(plate, node, true);
+                                 "reward_icon_title00"}) {
+            ui.HideNode(plate, node, !picture || std::string(node) != row.node);
         }
+        ui.HideNode(plate, "reward_icon_frame00", !picture || !row.item_frame);
         ui.HideInstance(holder + "/common_uip0017_New00", true);
         ui.HideInstance(holder + "/common_uip0051_ButtonCircle00", true);
     }
@@ -116,33 +174,51 @@ bool RunMissions(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const s
     const int language = lang == "en" ? 1 : lang == "cn" ? 2 : lang == "tw" ? 3 : 0;
     std::vector<live::DressInfo> dresses;
     if (!live::LoadDressList(vfs, language, dresses, &error)) LogWarn("missions: costumes: {}", error);
+    Messages messages;
+    if (!messages.Load(vfs, language, &error)) LogWarn("missions: messages: {}", error);
     std::array<std::vector<Row>, kTabs> tabs;
+    const int member = data.save ? save::Current(*data.save) : 1;
     if (data.missions && data.save) {
+        const mission::Context* ctx = data.context;
         for (const mission::Mission& m : data.missions->rows) {
             if (size_t(m.Kind()) >= data.missions->conditions.size()) continue;
+            const auto& c = data.missions->conditions[size_t(m.Kind())];
             const int tab = TabOf(m.Kind());
             if (tab == 2 && data.owned && !data.owned->Song(m.p1)) continue;     // no add-on for the song
             if (tab == 3 && data.owned && !data.owned->Costume(m.p1)) continue;  // or the costume
-            Row row{&m, {}, {}, mission::ProgressOf(m, *data.save, data.context)};
-            // [p1]: song title, costume name; members by number (shortcut: member names are not read yet)
-            std::string p1 = std::to_string(m.p1);
-            if (tab == 2 && data.songs) {
+            const live::SongInfo* song = nullptr;
+            if (data.songs && c.p1_type == 4) {
                 for (const auto& s : *data.songs) {
-                    if (s.id == m.p1) p1 = s.title;
+                    if (s.id == m.p1) song = &s;
                 }
             }
-            for (const auto& d : dresses) {
-                if (tab == 3 && d.id == m.p1) p1 = d.name;
+            // her group's rows, her own, her group's songs, her costumes; then the show rule (series one step at a time)
+            if (!mission::Fits(m, c, member, song ? (song->group == 0 ? 0 : 1) : -1)) continue;
+            bool owned = true;
+            if (m.Rule() == 2) owned = !data.owned || data.owned->Song(m.p1);
+            if (m.Rule() == 3 && ctx && ctx->costumes) {  // costume 217 is checked as 117 (Q1)
+                owned = costume::Owns(*ctx->costumes, *data.save, ctx->addons, m.p1 == 217 ? 117 : m.p1);
             }
-            const auto& c = data.missions->conditions[size_t(m.Kind())];
+            if (!mission::Shown(m, *data.missions, *data.save, owned)) continue;
+            Row row{&m, {}, {}, mission::ProgressOf(m, *data.save, data.context)};
+            // [p1]: the song's title, the costume's name, the member's short name
+            std::string p1 = std::to_string(m.p1);
+            if (song) p1 = song->title;
+            for (const auto& d : dresses) {
+                if (c.p1_type == 5 && d.id == m.p1) p1 = d.name;
+            }
+            if (c.p1_type == 3 && !messages.Get(member::ProfileOf(m.p1).short_name).empty()) {
+                p1 = messages.Get(member::ProfileOf(m.p1).short_name);
+            }
             row.title = mission::Fill(c.title[size_t(language)], m, p1);
             row.text = mission::Fill(c.text[size_t(language)], m, p1);
             if (m.reward_type == 4 && data.accolades) row.accolade = mission::FindAward(*data.accolades, m.reward_id);
+            RewardPicture(row, data, lang, member);
             tabs[size_t(tab)].push_back(std::move(row));
         }
     }
-    LogInfo("missions: {} member, {} group, {} song, {} costume", tabs[0].size(), tabs[1].size(), tabs[2].size(),
-            tabs[3].size());
+    LogInfo("missions: member {}: {} member, {} group, {} song, {} costume", member, tabs[0].size(), tabs[1].size(),
+            tabs[2].size(), tabs[3].size());
     int tab = 1, cursor = 0, top = 0;  // start on Group (the general missions)
     static const std::set<int> kNone;
     const std::set<int>& claimed = data.save ? data.save->claimed : kNone;

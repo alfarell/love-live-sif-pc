@@ -586,7 +586,8 @@ int main(int argc, char** argv) {
                     if (mode == 5 && entry == 20) {  // Event: Task List
                         loading.Show(renderer);
                         open = sif::RunMissions(window, renderer, vfs, lang,
-                                                {&missions, &accolades, &songs, &save, &owned, &mission_context},
+                                                {&missions, &accolades, &songs, &save, &owned, &mission_context,
+                                                 &profile_data},
                                                 options.frames);
                         if (can_save && !sif::save::Write(save_path, save, &save_error)) sif::LogWarn("save: {}", save_error);
                         continue;

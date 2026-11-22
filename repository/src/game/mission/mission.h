@@ -34,12 +34,16 @@ struct Mission {
     int id = 0, code = 0, p1 = 0, p2 = 0;
     int reward_type = 0, reward_id = 0, reward_amount = 0;  // 2 item, 3 Wai-Wai! Booster (M14), 4 accolade (a few badges), 5 frame, 6 name plate, 7 costume; 1 skill card (M11 S1)
     int Kind() const { return code & 0xFF; }
+    int Rule() const { return (code >> 8) & 0xFF; }  // row byte +5, the show rule (see Shown)
 };
 
 // One condition kind (s_mission_condition: 9 u64 per kind): title and description per language (0 Japanese,
 // 1 English, 2 simplified, 3 traditional Chinese), with "[p1]" and "[p2]" for the row's parameters.
 struct Condition {
     std::array<std::string, 4> title, text;
+    // +0x41 / +0x42: what p1 / p2 are (Q1): 1 the count needed, 2 a group (0 µ's, 1 Aqours), 3 a member, 4 a song,
+    // 5 a costume; 0 unused
+    int p1_type = 0, p2_type = 0;
 };
 
 struct Missions {
@@ -59,6 +63,15 @@ struct Award {
 // (32-byte rows, 229). Reward type 4 names an accolade id.
 bool LoadAwards(const Vfs& vfs, std::vector<Award>& accolades, std::vector<Award>& badges, std::string* error = nullptr);
 const Award* FindAward(const std::vector<Award>& awards, int id);
+
+// Whether the Task List lists a row for the current member (eboot FUN_001c6bd0): each parameter by its type, a group
+// = her mode, a member = her, a song of her mode (`song_mode`: the song's mode, -1 unknown), a costume of her group
+// (by id range: µ's 0-99, Aqours 100-199, Saint Snow 200-; shortcut: the eboot reads the costume's group mask +0x54).
+bool Fits(const Mission& m, const Condition& c, int member, int song_mode);
+// The show rule (row byte +5, eboot FUN_001c6ea0): 0 shown, but once claimed hidden when the next row (id + 1) is its
+// next step; 1 a series step, shown once the previous row (id - 1) is claimed, then as 0; 2 / 3 shown when the song /
+// costume is owned (`owned`). So a series shows one step at a time.
+bool Shown(const Mission& m, const Missions& all, const save::SaveData& save, bool owned);
 
 // How far the save is: have / need; have = -1 when the port does not track the condition yet.
 struct Progress {

@@ -1,4 +1,4 @@
-# career 3 (same save, two finished lives): Event -> Task List; claim, tabs, paging
+# career 3 (same save, two finished lives): Event -> Task List; claim, tabs, paging; then L2 and the Aqours list (M15 Q5)
 #! data career
 timeout 120s
 expect screen title 30s
@@ -18,7 +18,7 @@ wait 400ms
 key enter
 expect log top menu: entry 20
 expect screen missions 20s
-expect log missions:
+expect log missions: member 1:
 wait 1500ms
 shot missions
 key enter
@@ -31,4 +31,32 @@ key left
 wait 800ms
 key esc
 expect screen menu 20s
+wait 1500ms
+key home
+expect log top menu: mode Aqours (L2), member 11
+wait 1500ms
+key right
+wait 400ms
+key right
+wait 400ms
+key right
+wait 400ms
+key right
+wait 400ms
+key right
+wait 400ms
+wait 400ms
+key enter
+expect log top menu: entry 20
+expect screen missions 20s
+expect log missions: member 11:
+wait 1500ms
+shot missions_aqours
+key left
+wait 800ms
+shot missions_aqours_member
+key esc
+expect screen menu 20s
+key home
+expect log top menu: mode µ's (L2), member 1
 expect nolog error

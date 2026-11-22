@@ -16,8 +16,8 @@ namespace sif {
 class Renderer;
 class Vfs;
 
-namespace friendship {
-struct Tables;
+namespace profile {
+struct Data;
 }
 
 struct MissionData {
@@ -26,7 +26,8 @@ struct MissionData {
     const std::vector<live::SongInfo>* songs = nullptr;  // titles for [p1], in the UI language
     save::SaveData* save = nullptr;  // claims change it; the caller writes it afterwards
     const dlc::Ownership* owned = nullptr;  // songs the user has no add-on for are left out
-    const mission::Context* context = nullptr;  // the tables some mission kinds read (M15)
+    const mission::Context* context = nullptr;  // the tables some mission kinds read, and the reward pictures (M15)
+    const profile::Data* frames = nullptr;      // frame reward pictures (M15 Q5)
 };
 
 // Shows the Task List until Esc; Enter (pad Cross) claims a completed mission's reward. False if the window was closed.
