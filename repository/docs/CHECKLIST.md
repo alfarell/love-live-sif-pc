@@ -83,13 +83,13 @@ Your own play is the reference. [PLAY.md](PLAY.md) lists the keys and what is no
 
 ## Missions complete (M15; routes `career_3_missions`, `career_1_play`, `live_view`, `talk`; Shot: `missions`, `missions_aqours`, `missions_aqours_member`)
 
-- [ ] **Member tab:** only your current member's missions, with her name in them ("Go Chika!", "Chatting with Chika").
-- [ ] **Group tab:** the current mode's missions; the µ's and Aqours lists keep their own progress (play a µ's live, then check that Aqours' "Play a Live Show!" did not move).
-- [ ] **A series** shows one step: after claiming "play 1 time", the next step appears in its place.
-- [ ] **Songs and Costumes tabs:** only the current group's songs and the costumes its members wear.
-- [ ] **Reward pictures** with "x N": skill cards, items, boosters, accolade plates, name plates, and the member's card in a costume reward.
-- [ ] **Counting:** a finished View Live Show, photos, the Member camera's minutes on a member, the top menu's phrases and costumes, a made profile card and collected materials move their missions.
-- [ ] **Rewards N** on the tabs matches the plates showing GET!.
+- [x] **Member tab:** only your current member's missions, with her name in them ("Go Chika!", "Chatting with Chika").
+- [x] **Group tab:** the current mode's missions; the µ's and Aqours lists keep their own progress (play a µ's live, then check that Aqours' "Play a Live Show!" did not move).
+- [x] **A series** shows one step: after claiming "play 1 time", the next step appears in its place.
+- [x] **Songs and Costumes tabs:** only the current group's songs and the costumes its members wear.
+- [x] **Reward pictures** with "x N": skill cards, items, boosters, accolade plates, name plates, and the member's card in a costume reward.
+- [x] **Counting:** a finished View Live Show, photos, the Member camera's minutes on a member, the top menu's phrases and costumes, a made profile card and collected materials move their missions.
+- [x] **Rewards N** on the tabs matches the plates showing GET!.
 
 ## Friendship, Wai-Wai! Boosters and birthday events (M14; routes `career_1_play`, `profile_menu`, `boosters`, `events`; Shot: `career_items`, `profile_menu_card`, `boosters_menu`, `boosters_prepare`, `boosters_items`, `events_menu`, `events_list`, `events_page`, `events_received`)
 
