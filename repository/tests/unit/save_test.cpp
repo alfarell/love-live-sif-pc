@@ -84,6 +84,30 @@ int main() {
               back.unknown.size() == 1 && back.unknown[0] == "medal 3 gold",
           "round trip keeps the name (with spaces), the record, the nameplate and unknown lines");
 
+    // M16: your own Set Lists and the medley counters
+    SaveData m;
+    MedleyList& mine = m.medleys[{1, 3}];
+    mine.name = "My  Aqours set";
+    mine.stage = 112;
+    mine.entries[0] = {1120, 105, 0};
+    mine.entries[2] = {1910, 200, 1};  // a gap stays a gap
+    m.medleys[{0, 0}].entries[0] = {10, 3, 0};  // no name, no stage
+    CountMedley(m, 1, 245, {{1120, 105, 0}, {1460, 217, 0}});
+    CountMedley(m, 1, 30, {{1120, 105, 0}});
+    Check(Write(path, m, &error), "write medleys: " + error);
+    SaveData mb;
+    Check(Load(path, mb, &error) && mb.medleys.size() == 2 && mb.medleys[{1, 3}] == mine &&
+              mb.medleys[{0, 0}].name.empty() && mb.medleys[{0, 0}].stage == 0 && mb.medleys[{0, 0}].entries[0].song == 10 &&
+              Count(mb, "g1.medley_seconds") == 275 && Count(mb, "g0.medley_seconds") == 0 &&
+              mb.sets["medley_songs"] == std::set<int>{1120, 1460} && mb.sets["medley_costumes"] == std::set<int>{105, 117} &&
+              mb.unknown.empty(),
+          "medley lists round trip (name with spaces, a gap, the stage) and the medley counters (217 as 117)");
+    { std::ofstream(path) << "sif-port save 1\nmedley_name 0 2 Later\nmedley 0 2 5 10 3 0\nmedley 0 12 1\n"; }
+    SaveData bad_medley;
+    Check(Load(path, bad_medley) && bad_medley.medleys.size() == 1 && bad_medley.medleys[{0, 2}].name == "Later" &&
+              bad_medley.medleys[{0, 2}].entries[0].song == 0 && bad_medley.unknown.size() == 2,
+          "a short or out-of-range medley line is kept as unknown, not read");
+
     { std::ofstream(path) << "sif-port save 1\nwear 1 31\n"; }  // a save before M13: no colour, no mode
     SaveData old;
     Check(Load(path, old) && old.wear[1] == 31 && old.special.empty() && old.mode == 0 && Current(old) == 1,

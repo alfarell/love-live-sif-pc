@@ -69,6 +69,26 @@ bool Load(const std::filesystem::path& path, SaveData& out, std::string* error) 
             } else {
                 out.unknown.push_back(line);
             }
+        } else if (kind == "medley") {
+            int group = 0, slot = 0;
+            MedleyList l;
+            bool ok = bool(in >> group >> slot >> l.stage);
+            for (medley::Entry& e : l.entries) ok = ok && bool(in >> e.song >> e.costume >> e.colour);
+            if (ok && slot >= 0 && slot < medley::kOwnLists) {
+                MedleyList& kept = out.medleys[{group, slot}];
+                l.name = kept.name;  // a medley_name line may come first
+                kept = l;
+            } else {
+                out.unknown.push_back(line);
+            }
+        } else if (kind == "medley_name") {
+            int group = 0, slot = 0;
+            std::string name;
+            if (in >> group >> slot && slot >= 0 && slot < medley::kOwnLists && std::getline(in >> std::ws, name)) {
+                out.medleys[{group, slot}].name = name;
+            } else {
+                out.unknown.push_back(line);
+            }
         } else if (kind == "profile_card") {
             ProfileCard c;
             int landscape = 0;
@@ -197,6 +217,12 @@ bool Write(const std::filesystem::path& path, const SaveData& data, std::string*
         for (const auto& [slot, p] : data.photos) {
             f << "photo " << slot << " " << p.time << " " << p.stage << " " << p.member_card << " " << p.live << " "
               << (p.favourite ? 1 : 0) << "\n";
+        }
+        for (const auto& [key, l] : data.medleys) {
+            f << "medley " << key.first << " " << key.second << " " << l.stage;
+            for (const medley::Entry& e : l.entries) f << " " << e.song << " " << e.costume << " " << e.colour;
+            f << "\n";
+            if (!l.name.empty()) f << "medley_name " << key.first << " " << key.second << " " << l.name << "\n";
         }
         if (data.has_card) {
             const ProfileCard& c = data.card;

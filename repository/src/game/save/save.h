@@ -11,6 +11,8 @@
 #include <utility>
 #include <vector>
 
+#include "game/medley/medley.h"
+
 namespace sif::save {
 
 struct ChartRecord {
@@ -52,6 +54,15 @@ struct BirthdayState {
     bool operator==(const BirthdayState&) const = default;
 };
 
+// M16: one of your own Set Lists (the game's save +0x531d8: 10 per group, 20 entries, a stage and a name). Lines:
+// "medley G SLOT STAGE" + 20 x "song costume colour", and "medley_name G SLOT text" when it has a name.
+struct MedleyList {
+    std::string name;  // "" = "Original Set List<slot + 1>" (message 626)
+    int stage = 0;     // 0 = the group's default (medley::DefaultStage)
+    std::array<medley::Entry, medley::kEntries> entries{};
+    bool operator==(const MedleyList&) const = default;
+};
+
 struct SaveData {
     std::string player = "Player";
     int accolade = 0, badge = 0, name_plate = 0;  // the nameplate's choices (0 = not chosen)
@@ -75,6 +86,7 @@ struct SaveData {
     // M15: the mission counters ("counter KEY N") and id sets ("set KEY id id ..."); see Count/Mark below for the keys
     std::map<std::string, int> counters;
     std::map<std::string, std::set<int>> sets;
+    std::map<std::pair<int, int>, MedleyList> medleys;   // (group 0/1, slot 0-9) -> your Set List, M16
     std::map<int, Photo> photos;                         // slot (0-29) -> photo, M12
     bool has_card = false;
     ProfileCard card;                                    // valid when has_card
@@ -91,10 +103,12 @@ inline int Current(const SaveData& data) { return Navigator(data, data.mode); }
 //   counters: gG.plays gG.greats gG.perfects gG.full_combos gG.best_score gG.best_rank (rank + 1; 0 = none)
 //             collected.key collected.thread collected.cloth (materials gained in all, kinds 8-10)
 //             views (View Live Show plays) view.S, photos (taken), photo.D (photos of members in D), cards.M (profile
-//             cards made of M), camera.M (seconds in the Member camera on M)
+//             cards made of M), camera.M (seconds in the Member camera on M), gG.medley_seconds (seconds of finished
+//             medleys, kinds 14/15; M16)
 //   sets:     keys (key items ever held, kind 11), talk.M (phrases of M heard), menu.M (costumes M wore on the top
 //             menu), view_costumes, card_costumes, special (costumes played in a special colour), camera_photo
-//             (members photographed in the Member camera)
+//             (members photographed in the Member camera), medley_songs / medley_costumes (songs and costumes of
+//             finished medleys, kinds 37/47; costumes as medley::MissionCostume; M16)
 inline int Count(const SaveData& s, const std::string& key) {
     const auto it = s.counters.find(key);
     return it == s.counters.end() ? 0 : it->second;
@@ -118,6 +132,16 @@ inline void CountCollected(SaveData& s, int type, int item, int amount) {
 }
 // "gG." for the group mode `mode` (0 µ's, 1 Aqours and Saint Snow)
 inline std::string GroupKey(int mode, const char* name) { return std::string(mode == 1 ? "g1." : "g0.") + name; }
+
+// M16: a medley played to its end (eboot FUN_0007cf30, FUN_001c6030, FUN_001c6780): its seconds go to the group's
+// total, and the songs and costumes watched are marked for the medley missions. `mode` 0 µ's, 1 Aqours.
+inline void CountMedley(SaveData& s, int mode, int seconds, const std::vector<medley::Entry>& watched) {
+    Add(s, GroupKey(mode, "medley_seconds"), seconds);
+    for (const medley::Entry& e : watched) {
+        if (e.song) Mark(s, "medley_songs", e.song);
+        if (e.costume >= 0) Mark(s, "medley_costumes", medley::MissionCostume(e.costume));
+    }
+}
 
 // One finished live (played to its end; a quit live is not recorded).
 struct Play {
