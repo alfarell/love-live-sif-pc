@@ -502,7 +502,7 @@ std::string FindEntry(const Vfs& vfs, const std::string& folder, const std::stri
 // in front (the members face -Y in the Z-up world). shortcut: the game's distances, limits and speeds are not traced;
 // these are chosen to look like its shots
 struct CameraRig {
-    int mode = 0;    // 0 MV (the song's camera), 1 Member, 2 View
+    int mode = 0;    // 0 MV (the song's camera), 1 Member, 2 View, 3 the medley's interval camera
     int member = 0;  // Member: index into LiveScene::dancers
     struct Orbit {
         float yaw = 0, pitch = 0, dist = 1, height = 0;  // radians, metres; height moves the look-at point up
@@ -706,6 +706,13 @@ struct LiveScene {
             renderer.SetCamera(CameraRig::Look(rig->member_orbit, head, 0.55f, aspect, facing));
         } else if (rig && rig->mode == 2) {
             renderer.SetCamera(CameraRig::Look(rig->view_orbit, {0, 0, 1.0f}, 0.70f, aspect));
+        } else if (rig && rig->mode == 3) {
+            // Live Show Medley's interval camera: in the game a shot of the stage's grounds away from the stage (st102:
+            // the red beach ball bg_beachBall001 at x -45.7 on the sand, the sea and the town; shadPS4
+            // work/m16/shad/next). shortcut: this one shot, chosen to look like it, on every stage; the game's base
+            // shot per stage is not traced and s_medleyIntervalCameraAnimParams (10 small drifts) is not used
+            renderer.SetCamera(Perspective(0.55f, aspect, 0.1f, 500.0f) *
+                               LookAt({-40.5f, 2.6f, 0.6f}, {-46.5f, 2.6f, -0.05f}, {0, 0, 1}));
         } else if (has_camera) {
             const bscm::Pose pose = bscm::Sample(camera, frame);
             renderer.SetCamera(Perspective(pose.fov_deg * 3.14159265f / 180.0f, aspect, 0.1f, 500.0f) * bscm::ViewMatrix(pose));
@@ -737,6 +744,12 @@ const std::string kSkillHud = "uil0005_ActiveSkillLayout00";
 // (uip0015) and up to five thumbnails (uip0016), and the song name (uip0005_Songname_00).
 const std::string kLiveViewHud = "uil0002_LiveView00";
 constexpr const char* kCameraModeNames[3] = {"MV", "Member", "View"};
+// Live Show Medley's HUD (M16 R4; shadPS4 work/m16/shad/c0): L1/R1 Previous/Next song (uip0047), Info ON/OFF
+// (uip0046) and the song name (uip0005_Songname); the title band between songs is uil0003_LiveTitle00 (uip0030: a plate
+// per group, the title and the credits)
+const std::string kMedleyHud = "uil0004_MedleyMode00";
+const std::string kMedleyTitle = "uil0003_LiveTitle00/uip0030_LiveTitle00";
+constexpr double kMedleyTitleS = 5.0;  // the eboot's 300 frames (FUN_000bab10, analysis 202611231426)
 void ApplyLiveViewHud(UiScreen& hud, int mode, int photos, const std::vector<int>& members = {}, int focus = 0) {
     const std::string bar = kLiveViewHud + "/uip0010_CameraModeInfo00";
     static constexpr const char* kNodes[3] = {"cam_mv", "cam_member", "cam_view"};
@@ -866,7 +879,14 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
             break;
         }
     }
-    audio.Play(std::move(music));
+    const bool medley_title = opt.view && opt.medley && opt.medley_title;
+    if (!medley_title) {
+        audio.Play(std::move(music));
+    } else {  // a medley title first: the previous song stops (L1/R1), the music starts when the title ends
+        cri::Pcm silence;
+        silence.rate = music.rate, silence.channels = music.channels;
+        audio.Play(std::move(silence));
+    }
 
     Layout layout;
     Playfield field;
@@ -895,9 +915,26 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                 if (s.id != opt.song) continue;
                 hud.SetInstanceText("uil0001_Ingame00/uip0005_Songname", 1, s.title);
                 hud.SetInstanceText(kLiveViewHud + "/uip0005_Songname_00", 1, s.title);
+                hud.SetInstanceText(kMedleyHud + "/uip0005_Songname", 1, s.title);
+                for (const char* g : {"ms", "aq", "ss"}) {  // the band's colours: the song's group
+                    const bool off = g != std::string(s.group == 1 ? "aq" : s.group == 2 ? "ss" : "ms");
+                    hud.HideNode(kMedleyTitle, std::string("plate00_") + g, off);
+                    hud.HideNode(kMedleyTitle, std::string("plate01_") + g, off);
+                }
             }
         }
         if (opt.view) ApplyLiveViewHud(hud, 0, 0);
+        if (medley_title) {
+            // the band's title and credits are one picture per song (1600 x 48): ui/ui_medley_title(_<lang>).pac
+            // medley_title_T_<song>; the language packages hold only the titles that differ (en: 125 of 1000)
+            char tex[48];
+            std::snprintf(tex, sizeof(tex), "/texture.pac/medley_title_T_%04d", opt.song);
+            const std::string own = "ui/ui_medley_title" + (opt.lang.empty() ? "" : "_" + opt.lang) + ".pac" + tex,
+                              base = std::string("ui/ui_medley_title.pac") + tex;
+            hud.SetMaterialTexture(kMedleyTitle, "music_title00_M", vfs.Exists(own) ? own : base);
+            hud.Play(kMedleyTitle, UiScreen::ClipName(1), false);
+        }
+
     } else {
         LogWarn("live: HUD: {}", error);
     }
@@ -929,6 +966,10 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
     SetLiveHome(chart.home, live::IsHomeVariant(opt.variant) && opt.variant >= 12 ? HomeConfig::Hard : HomeConfig::Easy);
     SetPadLayout(opt.view ? PadLayout::View : PadLayout::Live);
     CameraRig rig;           // View Live Show: rig.mode 0 MV, 1 Member, 2 View (R1 = Page Down cycles)
+    double title_left = medley_title ? kMedleyTitleS : 0;  // Live Show Medley: the title band's time left (s)
+    if (title_left > 0) rig.mode = 3;
+    int skip = 0;            // Live Show Medley: L1 -1, R1 +1 (LiveResult::skip)
+    double played_ms = 0;
     std::vector<int> dancing;  // the members in the Member camera's order
     for (const auto& d : scene.dancers) dancing.push_back(d->member);
     std::map<SDL_Scancode, bool> held;  // View Live Show: camera keys held down
@@ -941,7 +982,9 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
     std::array<Texture, 5> thumbs;   // the photos as HUD thumbnails (a quarter size)
     for (bool running = true; running && !fade.Left() && (opt.max_frames < 0 || frame < opt.max_frames); ++frame) {
         const uint64_t fade_now = SDL_GetTicksNS();
-        fade.Update(double(fade_now - fade_last) / 1e9);
+        const double frame_s = double(fade_now - fade_last) / 1e9;
+        fade.Update(frame_s);
+        if (has_hud && opt.medley) hud.Update(frame_s);  // the medley title band's clip
         fade_last = fade_now;
         SDL_Event e;
         while (PollEvent(e)) {
@@ -950,6 +993,17 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                 closed = true;
             } else if (e.type == SDL_EVENT_KEY_DOWN && e.key.scancode == SDL_SCANCODE_ESCAPE) {
                 fade.Leave(hud);
+            } else if (opt.view && opt.medley) {  // Live Show Medley: L1 / R1 the previous / next song, Square Info
+                if (e.type != SDL_EVENT_KEY_DOWN || e.key.repeat || fade.leaving) continue;
+                const SDL_Scancode k = e.key.scancode;
+                if ((k == SDL_SCANCODE_PAGEUP && opt.medley_prev) || (k == SDL_SCANCODE_PAGEDOWN && opt.medley_next)) {
+                    skip = k == SDL_SCANCODE_PAGEUP ? -1 : 1;
+                    LogInfo("live medley: {} song", skip < 0 ? "previous" : "next");
+                    fade.Leave(hud);
+                } else if (k == SDL_SCANCODE_Q) {
+                    show_info = !show_info;
+                    LogInfo("live medley: info {}", show_info ? "on" : "off");
+                }
             } else if (opt.view) {
                 const SDL_Scancode k = e.key.scancode;
                 const bool moves = k == SDL_SCANCODE_LEFT || k == SDL_SCANCODE_RIGHT || k == SDL_SCANCODE_UP ||
@@ -985,7 +1039,15 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
                 e.type == SDL_EVENT_KEY_DOWN ? judge.Press(lane, t) : judge.Release(lane, t);
             }
         }
-        const double now = audio.PlayheadMs(SDL_GetTicksNS()) - offset;
+        if (title_left > 0) {  // the medley title: the dance waits at its start; then the music and the song's camera
+            title_left -= frame_s;
+            if (title_left <= 0) {
+                rig.mode = 0;
+                audio.Play(std::move(music));
+                LogInfo("live medley: title ended, music starts");
+            }
+        }
+        const double now = title_left > 0 ? 0.0 : audio.PlayheadMs(SDL_GetTicksNS()) - offset;
         if (opt.autoplay) {
             for (; auto_next < chart.notes.size() && chart.notes[auto_next].time_ms <= now; ++auto_next) {
                 const live::Note& n = chart.notes[auto_next];
@@ -1092,7 +1154,10 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
             const uint64_t draw_start = SDL_GetTicksNS();
             scene.Draw(renderer, now, song.dance_start_frame, opt.view ? &rig : nullptr);
             if (take_photo) renderer.CaptureFrame();  // the 3D view only: the HUD is drawn after the copy
-            if (opt.view) {
+            if (opt.view && opt.medley) {
+                if (has_hud && title_left > 0) hud.DrawLayout(renderer, "uil0003_LiveTitle00", 1.0f);
+                else if (has_hud && show_info) hud.DrawLayout(renderer, kMedleyHud, 1.0f);
+            } else if (opt.view) {
                 if (has_hud && show_info) hud.DrawLayout(renderer, kLiveViewHud, 1.0f);
             } else if (field.loaded) {
                 for (int l = 0; l < kLanes; ++l) {
@@ -1240,7 +1305,8 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
         }
         // after the last judgement the ending plays (wall clock: the audio clock stops with the music), then the
         // screen fades out
-        if (opt.view && !view_ending && !audio.Playing()) {  // the song is over: back to the song select (P4d: End screen)
+        if (opt.view && title_left <= 0) played_ms = std::max(played_ms, now);
+        if (opt.view && !view_ending && title_left <= 0 && !audio.Playing()) {  // the song is over: back to the song select (P4d: End screen)
             view_ending = true;
             LogInfo("live view end");
             fade.Leave(hud);
@@ -1292,8 +1358,11 @@ int RunLive(SDL_Window* window, Renderer& renderer, AudioOutput& audio, const Vf
             judge.counts[0], judge.counts[1], judge.counts[2], judge.counts[3], judge.counts[4], judge.max_combo,
             judge.score, mean, sd, n);
     if (result) {
-        *result = {opt.song, opt.variant, {}, judge.max_combo, judge.score, judge.Finished(), closed, judge.ClearRate(),
-                   judge.Rank()};
+        // a viewed live has no judging: it is finished when its music ended (M16 R4; before, never)
+        *result = {opt.song, opt.variant, {}, judge.max_combo, judge.score, opt.view ? view_ending : judge.Finished(),
+                   closed, judge.ClearRate(), judge.Rank()};
+        result->skip = skip;
+        result->played_ms = std::max(0.0, played_ms);
         std::copy(judge.counts.begin(), judge.counts.end(), result->counts.begin());
         result->costume = dressed.costume;
         result->photos = std::move(photos);

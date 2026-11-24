@@ -1,0 +1,79 @@
+# M16 R4: Play -> Live Show Medley (top-menu entry 3) plays recommended Set List 11 (Aqours "Wai-Wai! Live", four songs
+# on Sunshine Arena, st102): the medley HUD; R1 (Page Down) to the next song, with the 5 s title band between songs;
+# L1 (Page Up) back; R1 to the last song, which plays to its end; the end screen lists the songs; Enter (OPTIONS:
+# Watch the Same Medley List) plays it again, Esc leaves it, and Esc (Return to Main Menu) goes back to the top menu.
+# shadPS4 work/m16/shad (R2)
+#! visible
+#! args --medley 11
+#! data medley
+timeout 360s
+expect screen title 30s
+press enter until menu 30s
+wait 1500ms
+key down
+wait 400ms
+key down
+wait 400ms
+key down
+wait 400ms
+key enter
+expect log top menu: entry 3
+expect log medley: 'Wai-Wai! Live', 4 songs on st102
+expect log medley: song 1 of 4: 1120, costume d105
+expect screen live 30s
+expect log live 1120/11
+wait 5s
+shot medley_live
+key q
+expect log live medley: info off
+wait 300ms
+shot medley_live_noinfo
+key q
+expect log live medley: info on
+key pagedown
+expect log live medley: next song
+expect log medley: song 2 of 4: 1320
+expect log live 1320/11
+wait 1500ms
+shot medley_title
+expect log live medley: title ended, music starts
+wait 3s
+shot medley_second
+key pageup
+expect log live medley: previous song
+wait 1s
+expect screen live 30s
+expect log medley: song 1 of 4: 1120
+wait 6s
+key pagedown
+wait 1s
+expect screen live 30s
+wait 6s
+key pagedown
+expect log medley: song 3 of 4: 1370
+wait 1s
+expect screen live 30s
+wait 6s
+key pagedown
+expect log medley: song 4 of 4: 1460
+wait 1s
+expect screen live 30s
+wait 6s
+key pagedown
+expect screen medley_end 200s
+expect log medley end: finished
+expect log missions: medley
+expect log medley end: row 02.Kimetayo Hand in Hand /
+wait 1500ms
+shot medley_end
+key enter
+expect log medley end: choice 0
+expect screen live 30s
+wait 3s
+key esc
+expect screen medley_end 30s
+expect log medley end: left
+key esc
+expect log medley end: choice 2
+expect screen menu 30s
+expect nolog error

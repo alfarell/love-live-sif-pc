@@ -8,7 +8,8 @@
 //   - the M3 check: one game texture (--show PATH) and one cue (--play SHEET:CUE, or "none"); --movie PATH plays a
 //     USM movie there instead of the texture, looping (M8).
 // Other options: --frames N (close after N frames), --crash (forced access violation), --data DIR (log, settings and
-// dump folder; default <exe>/data), --game DIR (the CUSA24620 dump; saved to settings).
+// dump folder; default <exe>/data), --game DIR (the CUSA24620 dump; saved to settings), --medley ID (the recommended
+// Set List that Play > Live Show Medley plays until the Set List screens exist, M16 R4).
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 
@@ -28,6 +29,7 @@
 #include "app/first_run.h"
 #include "app/input.h"
 #include "app/live_intro.h"
+#include "app/medley_live.h"
 #include "app/live_screen.h"
 #include "app/mission_screen.h"
 #include "app/options_screen.h"
@@ -57,6 +59,7 @@
 #include "game/event/event.h"
 #include "game/friendship/friendship.h"
 #include "game/live/song.h"
+#include "game/medley/medley.h"
 #include "game/member/member.h"
 #include "game/mission/mission.h"
 #include "game/profile/profile.h"
@@ -88,6 +91,7 @@ struct Options {
     std::string ui, ui_hide, ui_hide_path;
     std::string lang = "en";
     sif::LiveOptions live_options;
+    int medley = 0;  // --medley ID: the recommended Set List the top menu's Live Show Medley plays (M16 R4)
 };
 
 Options ParseOptions(int argc, char** argv) {
@@ -116,6 +120,7 @@ Options ParseOptions(int argc, char** argv) {
         else if (!std::strcmp(argv[i], "--lang") && i + 1 < argc) o.lang = argv[++i];
         else if (!std::strcmp(argv[i], "--stage") && i + 1 < argc) o.live_options.stage = argv[++i];
         else if (!std::strcmp(argv[i], "--costume") && i + 1 < argc) o.live_options.costume = argv[++i];
+        else if (!std::strcmp(argv[i], "--medley") && i + 1 < argc) o.medley = int(std::strtol(argv[++i], nullptr, 10));
         else if (!std::strcmp(argv[i], "--member") && i + 1 < argc) o.live_options.member = int(std::strtol(argv[++i], nullptr, 10));
         else if (!std::strcmp(argv[i], "--date") && i + 1 < argc) {  // the in-game date (M14: birthday events in tests)
             sif::event::Date d;
@@ -494,6 +499,39 @@ int main(int argc, char** argv) {
                     if (entry < 0) break;
                     home_mode = entry == 0;
                     view_mode = entry == 2;
+                    if (mode == 0 && entry == 3) {  // Live Show Medley (M16 R4)
+                        // shortcut: the Set List screens are R5; until then the --medley list plays, else the first
+                        // recommended list of the current group (µ's or Aqours)
+                        sif::medley::Data medley_data;
+                        if (!sif::medley::Load(vfs, medley_data, &why)) {
+                            sif::LogWarn("medley: {}", why);
+                            continue;
+                        }
+                        const sif::medley::SetList* list = nullptr;
+                        for (const auto& l : medley_data.lists) {
+                            if (options.medley > 0 ? l.id == options.medley : !list && l.group == save.mode) list = &l;
+                        }
+                        if (!list) {
+                            sif::LogWarn("medley: no Set List {}", options.medley);
+                            continue;
+                        }
+                        const sif::MedleyRun run{list->name[size_t(language)], list->group, list->stage, list->entries};
+                        for (int again = 0; open && again == 0;) {
+                            sif::MedleyOutcome out = sif::RunMedley(window, renderer, audio, vfs, settings,
+                                                                    options.live_options, run, options.frames);
+                            if (out.finished && !out.closed) {  // missions 14, 15, 37 and 47 (M16 R3 counters)
+                                sif::save::CountMedley(save, list->group, int(out.seconds), out.watched);
+                                sif::LogInfo("missions: medley {} s, group {} total {} s", int(out.seconds), list->group,
+                                             sif::save::Count(save, sif::save::GroupKey(list->group, "medley_seconds")));
+                                if (can_save && !sif::save::Write(save_path, save, &save_error)) sif::LogWarn("save: {}", save_error);
+                            }
+                            loading.Show(renderer);
+                            open = !out.closed && sif::RunMedleyEnd(window, renderer, vfs, options.live_options.lang, run,
+                                                                    options.frames, out);
+                            again = out.choice;
+                        }
+                        continue;
+                    }
                     if (mode == 4 && entry == 15) {  // Collection: Profile Card: its menu (M12 P6a), then the screens
                         sif::Messages card_messages;
                         if (!card_messages.Load(vfs, language, &why)) sif::LogWarn("profile: messages: {}", why);

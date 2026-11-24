@@ -37,6 +37,13 @@ struct LiveOptions {
     // View Live Show (M12 P4): the stage, members and camera only; no notes, judging or score. The HUD is the camera's
     // (ui2/90_ingame uil0002_LiveView00); the live ends with the music
     bool view = false;
+    // Live Show Medley (M16 R4), with `view`: the medley HUD (uil0004_MedleyMode00: L1/R1 Previous/Next song, Info
+    // ON/OFF, the song name); no camera modes or photos. L1 / R1 (Page Up / Down) end the song for the previous / next
+    // one where `medley_prev` / `medley_next` allow it (LiveResult::skip). `medley_title`: the 5 s title band between
+    // songs (uil0003_LiveTitle00) over the interval camera before the music starts
+    bool medley = false;
+    bool medley_prev = false, medley_next = false;
+    bool medley_title = false;
 };
 
 struct LiveResult;
