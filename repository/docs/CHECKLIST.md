@@ -81,6 +81,17 @@ Your own play is the reference. [PLAY.md](PLAY.md) lists the keys and what is no
 - [x] **Edit Profile Card:** the tabs and lists; a landscape frame turns the card; the photo position moves the photo; up to three skill cards; Finish Editing saves, and the card is still there after a restart.
 - [x] **Live intro:** before a played live, the member card, the skill cards and "Profile Card Support" with two NPC cards of the song's group (each a whole card picture, e.g. "Umi's fan").
 
+## Live Show Medley (M16; routes `medley_live`, `medley_edit`; Shot: `medley_start`, `medley_live`, `medley_live_noinfo`, `medley_title`, `medley_second`, `medley_end`, `medley_end_menu`, `edit_cannot_start`, `edit_list`, `edit_slot`, `edit_stage`, `edit_saved`, `edit_discard`)
+
+- [x] **Set List Selection:** the Your and Recommended! tabs (L1/R1), ten lists per group (L2 switches µ's / Aqours), the list's 20 lines "NN.Song / Singers" with the costume, its stage picture and name, and the group logo. The Recommended! tab shows "You cannot edit the recommended set list."
+- [x] **Starting:** Enter asks "Confirmation of medley start" ("name" Let's start..., Back / OK). An empty list says it cannot start.
+- [x] **The medley:** the songs play one after another on the list's stage, each with its own members in the list's costume. The HUD shows L1/R1 Previous/Next song, Info ON/OFF (□ hides it) and the song name.
+- [x] **Between songs:** about 5 s of the beach beside the stage (on Sunshine Arena) with the blue or red band showing the next song's title and credits; then the song starts. A song left with L1/R1 stops at once.
+- [x] **End the Live Show:** the list's name and its songs; OPTIONS (Enter) opens "What will you do next?" (Watch the Same Medley List, Return to Medley Selection, Return to Main Menu); Cross (Space) returns to the Set List screen.
+- [x] **Editing your list:** Cross Edit List; the line cursor; R1 Clear, R2 Insert, L2 Delete; □ Change Stage; Cross opens Edit Slot NN (Left/Right change the song or costume); Enter (touchpad) Finish Editing keeps the list after a restart; Esc asks "Discard edits and return to list?".
+- [x] **Rename:** □ on your list, type up to 16 characters on the keyboard, Enter keeps it.
+- [x] **Missions:** after a medley played to its end, its group's medley minutes, "Watch a Live Show Medley that includes …" and "… with the … set" move on the Task List.
+
 ## Missions complete (M15; routes `career_3_missions`, `career_1_play`, `live_view`, `talk`; Shot: `missions`, `missions_aqours`, `missions_aqours_member`)
 
 - [x] **Member tab:** only your current member's missions, with her name in them ("Go Chika!", "Chatting with Chika").

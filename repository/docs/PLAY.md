@@ -45,6 +45,9 @@ To keep several setups apart, start with `--data <folder>`.
 | Favourite (Photo Gallery, End the Live Show); photo position (profile card editor) | Q | Square |
 | View Live Show: camera mode / take photo / camera info | Page Down / P / Q | R1 / Circle / Square |
 | View Live Show: move the camera / distance / height / switch members | Arrows / Page Up / Home / comma, period | Left stick / L1 / L2 / D-pad Left, Right |
+| Live Show Medley: previous / next song / info | Page Up / Page Down / Q | L1 / R1 / Square |
+| Live Show Medley Set Lists: start / edit / rename | Enter / Space / Q | Start (the game: touchpad) / Cross / Square |
+| Set list editing: clear / insert / delete / change stage | Page Down / End / Home / Q | R1 / R2 / L2 / Square |
 
 Options → Control Settings changes the controller's lane buttons, separately for BEGINNER/STANDARD, HYPER/ADVENTURE and the arcade charts (Modify on each row).
 
@@ -70,6 +73,7 @@ Options → Control Settings changes the controller's lane buttons, separately f
 - **Wai-Wai! Boosters:** the header shows how many you hold (9 at most). The day's first visit to the top menu gives a login bonus: a booster or 10 key materials, in a 12-day cycle. In Prepare for the Live Show, □ (Q) uses one: the live then gives 10 more material units. Drop Support skill cards and some Task List rewards give boosters too.
 - **Birthday events:** from 7 days before a member's birthday to the end of her birthday (by your computer's date), Event → Ongoing Events shows her event as "Now Open!" and the top menu shows its banner. Lives played with her add birthday points; at 1000 her page offers "Receive rewards": her two birthday skill cards and key materials. Each plate shows the member's event dates.
 - **View Live Show and photos:** Play → **View Live Show** plays a song without notes. R1 (Page Down) switches the camera: MV (the song's camera), Member (one member close up; D-pad Left/Right or comma/period switch members) and View (the whole stage). In Member and View the arrows (left stick) move the camera, L1 (Page Up) moves it away (with Up: nearer), L2 (Home) raises it. ○ (P) takes a photo, up to 5 per live; □ (Q) hides the camera info. After the song, **End the Live Show** shows the photos: □ marks favourites, Enter saves them (up to 30; the oldest that is not a favourite makes room). The photos are `photos/NN.png` in the data folder.
+- **Live Show Medley:** Play → **Live Show Medley** opens the Set Lists: L1/R1 switch between Your lists and the ten Recommended! ones, L2 between µ's and Aqours. Enter starts the chosen list after a confirmation. The songs play one after another on the list's stage, each with its own members in the list's costume; L1/R1 skip to the previous or next song, □ hides the info, and a 5-second title with the song's credits comes between songs. At the end, OPTIONS (Enter) offers to watch the list again, go back to the Set Lists or the top menu. On Your tab, Cross edits a list: Up/Down pick a line, Cross opens its slot (Up/Down pick Songs or Costumes, Left/Right change them, Enter keeps), R1 clears, R2 inserts and L2 deletes a line, □ changes the stage, Enter finishes and saves; □ outside editing renames the list with the keyboard. Medleys played to their end count for their missions.
 - **Collection:**
   - **Photo Gallery** shows the photos, newest first: □ (Q) marks a favourite (25 at most), Delete removes one that is not a favourite, Space shows it full screen.
   - **Member Card** shows each member's member cards: the costumes you own face up (L1/R1 change the member, Tab the group).
@@ -100,8 +104,9 @@ Options → Control Settings changes the controller's lane buttons, separately f
   - the members' faces while they talk (lip sync) and blinking; the loading screen between members;
   - the "Change Costume?" question, the costume curtain;
   - the first-start member choice, and "You cannot play … with this member" for songs she does not sing.
-- **Task List:** the "NEW" marks, the "Display by" order (□), the 3D member beside the list, and L2 / R2 inside the list (change the mode and member on the top menu). The Medley, Finale Focus, online and matching missions, and the HR member card missions, do not count yet. Missions that count from history (photos taken, phrases heard, costumes shown) start counting with this version; older lives are counted once from the save's records.
-- **Not built either:** the song list per µ's / Aqours mode (all songs are listed in both), Live Show Medley, the "What will you do next?" box after a live, Prepare's Game Settings button and material panel, the login bonus pop-up, Player's Name, controller vibration.
+- **Task List:** the "NEW" marks, the "Display by" order (□), the 3D member beside the list, and L2 / R2 inside the list (change the mode and member on the top menu). The Finale Focus, online and matching missions, and the HR member card missions, do not count yet. Missions that count from history (photos taken, phrases heard, costumes shown) start counting with this version; older lives are counted once from the save's records.
+- **Not built either:** the song list per µ's / Aqours mode (all songs are listed in both), the "What will you do next?" box after a normal live, Prepare's Game Settings button and material panel, the login bonus pop-up, Player's Name, controller vibration.
+- **Live Show Medley:** others' Set Lists (online); the card strip for picking a song, costume or stage (Left/Right step through them instead); the special colours in your lists; the 3D member on the end screen; the interval view is Sunshine Arena's beach shot on every stage.
 - **Simplified:** some screen transitions, animations and small icons; a locked difficulty shows its padlock but is not darkened; the arcade CHALLENGE chart is open from the start (the game asks for A on EXTREME first).
 
 The project's roadmap lists the details.

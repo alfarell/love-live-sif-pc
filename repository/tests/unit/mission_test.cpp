@@ -83,6 +83,18 @@ int main(int argc, char** argv) {
                 Check(mission::ProgressOf(m, data).have == (m.p1 == 31 ? 1 : 0), "kind 41: plays wearing the costume");
             }
         }
+        // Live Show Medley (M16 R6): an Aqours medley of 75 minutes with song 1120 in costume 217 (counted as 117)
+        save::SaveData med;
+        save::CountMedley(med, 1, 75 * 60, {{1120, 217, 0}});
+        int seen = 0;
+        for (const mission::Mission& m : all.rows) {
+            const mission::Progress p = mission::ProgressOf(m, med);
+            if (m.Kind() == 14) Check(p.have == (m.p1 == 1 ? 75 : 0), "kind 14: the group's medley minutes"), ++seen;
+            if (m.Kind() == 15) Check(p.have == (m.p1 == 1 ? 1 : 0), "kind 15: the group's medley hours"), ++seen;
+            if (m.Kind() == 37) Check(p.Done() == (m.p1 == 1120), "kind 37: a medley with the song"), ++seen;
+            if (m.Kind() == 47) Check(p.Done() == (m.p1 == 117 || m.p1 == 217), "kind 47: a medley with the costume"), ++seen;
+        }
+        Check(seen == 6 + 6 + 125 + 69, "the medley rows: 6, 6, 125 and 69");
     }
     std::vector<mission::Award> accolades, badges;
     Check(mission::LoadAwards(vfs, accolades, badges, &error), "awards: " + error);

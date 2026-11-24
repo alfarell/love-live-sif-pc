@@ -228,6 +228,9 @@ Progress ProgressOf(const Mission& m, const save::SaveData& save, const Context*
             break;
         }
         case 12: p.have = save::Count(save, "views"); break;   // [p2] View Live Shows
+        // Live Show Medley (M16; eboot FUN_0007cf30): the group's medley time, counted when a medley ends
+        case 14: p.have = save::Count(save, key("medley_seconds")) / 60; break;    // [p2] minutes
+        case 15: p.have = save::Count(save, key("medley_seconds")) / 3600; break;  // [p2] hours
         case 13: p.have = save::Count(save, "photos"); break;  // [p2] photos
         case 20: {  // select [p1] and play [p2] times
             const auto b = save.bonds.find(m.p1);
@@ -277,6 +280,10 @@ Progress ProgressOf(const Mission& m, const save::SaveData& save, const Context*
             break;
         }
         case 43: p.need = 1, p.have = save::Marked(save, "view_costumes", m.p1); break;  // view with "[p1]"
+        // a medley played to its end with the song / the costume set (eboot FUN_001c6030 / FUN_001c6780: the game
+        // checks the medley just finished; the port keeps every one, save::CountMedley)
+        case 37: p.need = 1, p.have = save::Marked(save, "medley_songs", m.p1); break;
+        case 47: p.need = 1, p.have = save::Marked(save, "medley_costumes", medley::MissionCostume(m.p1)); break;
         case 45: p.have = save::Count(save, "photo." + std::to_string(m.p1)); break;     // photos in "[p1]"
         case 46: p.need = 1, p.have = save::Marked(save, "card_costumes", m.p1); break;  // a profile card in it
         case 48: p.need = 1, p.have = save::Marked(save, "special", m.p1); break;        // its special colour
@@ -297,7 +304,7 @@ Progress ProgressOf(const Mission& m, const save::SaveData& save, const Context*
             p.need = 1, p.have = b != save.birthdays.end() && b->second.year > 0;
             break;
         }
-        // not counted: 14, 15, 37, 47 (Live Show Medley), 25 (Finale Focus), 16, 19 (online), 44 (profile-card
+        // not counted: 25 (Finale Focus), 16, 19 (online), 44 (profile-card
         // matching), 17 (HR member cards: shortcut, their source is not traced)
         default: break;
     }
