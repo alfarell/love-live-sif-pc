@@ -38,5 +38,13 @@ expect screen result_items 20s
 wait 1500ms
 shot boosters_items
 key enter
+expect log what next: open
+wait 800ms
+key down
+wait 200ms
+key down
+wait 200ms
+key enter
+expect log what next: Return to Song Selection
 expect screen select 20s
 expect nolog error

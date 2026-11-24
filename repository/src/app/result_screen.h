@@ -64,13 +64,19 @@ struct ResultItems {
 // "Photos taken this time: n", the focused photo large and the five as thumbnails. Left/Right pick a photo, Square (Q)
 // marks it as a favourite, Enter or Space ends. `favourites` gets one flag per photo; false if the window was closed.
 // `stage`: the stage folder ("st017"); `member_card`: the played member's card id (its R picture is shown).
+// With `next`, Enter or Space opens "What will you do next?" (see RunResult) instead of ending.
 bool RunLiveViewEnd(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, const LiveResult& r,
-                    const std::string& stage, int member_card, long max_frames, std::vector<bool>& favourites);
+                    const std::string& stage, int member_card, long max_frames, std::vector<bool>& favourites,
+                    int* next = nullptr);
 
 // Shows the result until a key or pad button (or `max_frames`); false if the window was closed. `news`: which
 // bests this play improved (the "NEW" marks). With `items`, a key first turns to the Items Obtained page (the skill
 // cards and materials the live gave); Left/Right pick the card shown there, any other key ends.
+// With `next` (M17 T4; shadPS4 work/m12/shad/v19), the last key opens "What will you do next?": Close the Window (574)
+// closes the box (the next key opens it again), Play Live Show Again (564), Return to Song Selection (565), Return to
+// Main Menu (566); `next` gets 1, 2 or 3.
+enum Next { kNextAgain = 1, kNextSelect = 2, kNextMenu = 3 };
 bool RunResult(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, const LiveResult& result,
-               long max_frames, const save::NewBests& news = {}, const ResultItems* items = nullptr);
+               long max_frames, const save::NewBests& news = {}, const ResultItems* items = nullptr, int* next = nullptr);
 
 }

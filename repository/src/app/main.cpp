@@ -493,6 +493,7 @@ int main(int argc, char** argv) {
             const sif::mission::Context mission_context{has_friendship ? &friendship_data : nullptr,
                                                         has_cards ? &card_data : nullptr,
                                                         has_costumes ? &costume_data : nullptr, &owned, &missions};
+            bool again = false;  // "Play Live Show Again" (M17 T4): the last song without the song select
             for (bool menu = !options.select; open;) {
                 if (menu) loading.Show(renderer);
                 if (menu) {
@@ -655,9 +656,13 @@ int main(int argc, char** argv) {
                     }
                 }
                 loading.Show(renderer);
-                const sif::SongChoice choice = sif::RunSongSelect(window, renderer, vfs, lang, options.frames, last, &save, &owned,
-                                                                  has_costumes ? &costume_data : nullptr, home_mode,
-                                                                  has_cards && !view_mode ? &skills : nullptr, view_mode);
+                // shortcut: playing again does not use a Wai-Wai! Booster (the game's Prepare is skipped, not traced)
+                const sif::SongChoice choice =
+                    again ? [&] { sif::SongChoice c = last; c.booster = false; return c; }()
+                          : sif::RunSongSelect(window, renderer, vfs, lang, options.frames, last, &save, &owned,
+                                               has_costumes ? &costume_data : nullptr, home_mode,
+                                               has_cards && !view_mode ? &skills : nullptr, view_mode);
+                again = false;
                 if (has_cards && can_save && !sif::save::Write(save_path, save, &save_error)) {  // the skill slots (M11)
                     sif::LogWarn("save: {}", save_error);
                 }
@@ -718,16 +723,16 @@ int main(int argc, char** argv) {
                     loading.Show(renderer);
                 }
                 code = sif::RunLive(window, renderer, audio, vfs, settings, options.live_options, &result);
+                int next = sif::kNextSelect;  // "What will you do next?" (M17 T4)
                 if (view_mode && !result.photos.empty() && !result.closed) {
-                    // View Live Show's photos (M12 P4c/P4d): End the Live Show (favourites), then they are saved.
-                    // shortcut: the game's "What will you do next?" box is not built (not for Play Live Show either);
-                    // the song select comes back, as after a played live
+                    // View Live Show's photos (M12 P4c/P4d): End the Live Show (favourites), then "What will you do
+                    // next?", then they are saved. shortcut: without photos the song select comes back at once
                     loading.Show(renderer);
                     std::vector<bool> favourites;
                     open = sif::RunLiveViewEnd(window, renderer, vfs, options.live_options.lang, result,
                                                options.live_options.stage, PhotoMemberCard(result, skills.member,
                                                                                            options.live_options),
-                                               options.frames, favourites);
+                                               options.frames, favourites, &next);
                     loading.Show(renderer);
                     CountPhotos(result, skills.member, options.live_options, save);
                     SavePhotos(options.data_dir, result, skills.member, options.live_options, favourites, save);
@@ -854,8 +859,11 @@ int main(int argc, char** argv) {
                 const sif::ResultItems result_items{has_cards ? &card_data : nullptr, has_costumes ? &costume_data : nullptr, &save,
                                                     has_friendship ? &friendship_data : nullptr};
                 open = code == 0 && !result.closed &&
-                       (!result.finished || sif::RunResult(window, renderer, vfs, options.live_options.lang, result,
-                                                           options.frames, news, &result_items));
+                       (!result.finished || view_mode ||
+                        sif::RunResult(window, renderer, vfs, options.live_options.lang, result, options.frames, news,
+                                       &result_items, &next));
+                again = next == sif::kNextAgain;
+                menu = next == sif::kNextMenu;
             }
             loading.Release(renderer);
         } else if (boot) {

@@ -10,6 +10,7 @@
 
 #include "app/fade.h"
 #include "app/input.h"
+#include "app/popup.h"
 #include "app/route.h"
 #include "app/skill_screen.h"
 #include "engine/core/log.h"
@@ -135,8 +136,27 @@ void ShowCard(UiScreen& ui, const LiveResult& r, const ResultItems& items, const
 
 }
 
+// "What will you do next?" after a live (M17 T4): the M16 popup's four-row form
+struct WhatNext {
+    Popup popup;
+    const Messages* messages = nullptr;
+    void Open() {
+        popup.OpenChoices(Popup::kWhatNext, {messages->Get(574), messages->Get(564), messages->Get(565), messages->Get(566)});
+        LogInfo("what next: open");
+    }
+    // A key while it is open: 1-3 a choice, 0 none yet (Close the Window and Esc close it; Hypothesis: the game's
+    // key to open it again is not seen, the port's is any key)
+    int Key(SDL_Scancode key) {
+        const int r = popup.Key(key);
+        if (r == Popup::kOpen) return 0;
+        LogInfo("what next: {}", r > 0 ? messages->Get(564 + r - 1) : std::string("closed"));
+        return r > 0 ? r : 0;
+    }
+};
+
 bool RunLiveViewEnd(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, const LiveResult& r,
-                    const std::string& stage, int member_card, long max_frames, std::vector<bool>& favourites) {
+                    const std::string& stage, int member_card, long max_frames, std::vector<bool>& favourites,
+                    int* next) {
     route::SetScreen("live_end");
     favourites.assign(r.photos.size(), false);
     UiText text;
@@ -209,6 +229,8 @@ bool RunLiveViewEnd(SDL_Window* window, Renderer& renderer, const Vfs& vfs, cons
     };
     ui.SetInstanceText(list, 0, msg(575, "Photos taken this time: ") + std::to_string(r.photos.size()));
     ui.SetInstanceText(plate, 1, msg(567, "Stage / Costume:"));
+    WhatNext box{{}, &messages};
+    if (next) box.popup.Load(renderer, vfs, lang);
     int focus = 0;
     const auto apply = [&] {
         for (int k = 0; k < 5; ++k) {
@@ -237,6 +259,10 @@ bool RunLiveViewEnd(SDL_Window* window, Renderer& renderer, const Vfs& vfs, cons
         while (PollEvent(e)) {
             if (e.type == SDL_EVENT_QUIT) open = false;
             if (e.type != SDL_EVENT_KEY_DOWN || e.key.repeat || fade.leaving) continue;
+            if (box.popup.IsOpen()) {
+                if (const int c = box.Key(e.key.scancode)) *next = c, fade.Leave(ui);
+                continue;
+            }
             const int n = std::max(1, int(r.photos.size()));
             switch (e.key.scancode) {
                 case SDL_SCANCODE_LEFT: focus = (focus + n - 1) % n; break;
@@ -248,13 +274,20 @@ bool RunLiveViewEnd(SDL_Window* window, Renderer& renderer, const Vfs& vfs, cons
                     }
                     break;
                 case SDL_SCANCODE_RETURN:
-                case SDL_SCANCODE_SPACE: fade.Leave(ui); break;
+                case SDL_SCANCODE_SPACE:
+                    if (next) {
+                        box.Open();
+                    } else {
+                        fade.Leave(ui);
+                    }
+                    break;
                 default: break;
             }
             apply();
         }
         const uint64_t now = SDL_GetTicksNS();
         ui.Update(double(now - last) / 1e9);
+        box.popup.Update(double(now - last) / 1e9);
         fade.Update(double(now - last) / 1e9);
         last = now;
         if (!renderer.BeginFrame()) {
@@ -263,9 +296,11 @@ bool RunLiveViewEnd(SDL_Window* window, Renderer& renderer, const Vfs& vfs, cons
         }
         ui.DrawLayout(renderer, kRoot, 1.0f);
         ui.DrawLayout(renderer, end, 1.0f);
+        box.popup.Draw(renderer);
         fade.Draw(renderer);
         renderer.EndFrame();
     }
+    box.popup.Release(renderer);
     ui.Release(renderer);
     for (Texture& t : textures) renderer.Release(t);
     return open;
@@ -275,7 +310,7 @@ bool RunLiveViewEnd(SDL_Window* window, Renderer& renderer, const Vfs& vfs, cons
 // show their parts' defaults; the values the port knows are filled in (score, counts, max combo, clear rate, rank,
 // title, cover)
 bool RunResult(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, const LiveResult& r,
-               long max_frames, const save::NewBests& news, const ResultItems* items) {
+               long max_frames, const save::NewBests& news, const ResultItems* items, int* next) {
     route::SetScreen("result");
     UiText text;
     std::string error;
@@ -357,7 +392,9 @@ bool RunResult(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
     LogInfo("result: song {:04d}/{:02d}, score {:.0f}, max combo {}, clear rate {}, rank {}", r.song, r.variant, r.score,
             r.max_combo, rate, r.rank);
     Messages messages;
-    if (items && !messages.Load(vfs, language, &error)) LogWarn("result: messages: {}", error);
+    if ((items || next) && !messages.Load(vfs, language, &error)) LogWarn("result: messages: {}", error);
+    WhatNext box{{}, &messages};
+    if (next) box.popup.Load(renderer, vfs, lang);
     bool rewards = false;  // the Items Obtained page is showing
     int focus = 0;
     const auto turn_page = [&] {
@@ -380,6 +417,13 @@ bool RunResult(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
         while (PollEvent(e)) {
             if (e.type == SDL_EVENT_QUIT) open = false;
             if (!((e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat) || e.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN)) continue;
+            if (fade.leaving) continue;
+            if (box.popup.IsOpen()) {
+                if (e.type == SDL_EVENT_KEY_DOWN) {
+                    if (const int c = box.Key(e.key.scancode)) *next = c, fade.Leave(ui);
+                }
+                continue;
+            }
             const bool left = e.type == SDL_EVENT_KEY_DOWN && e.key.scancode == SDL_SCANCODE_LEFT;
             const bool right = e.type == SDL_EVENT_KEY_DOWN && e.key.scancode == SDL_SCANCODE_RIGHT;
             if (items && !rewards) {
@@ -389,12 +433,15 @@ bool RunResult(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
                 focus = (focus + (right ? 1 : n - 1)) % n;
                 ShowCard(ui, r, *items, messages, language, lang, focus);
                 if (focus < int(r.skills.size())) LogInfo("result: skill card {}", r.skills[size_t(focus)].card);
+            } else if (next) {
+                box.Open();
             } else {
                 fade.Leave(ui);
             }
         }
         const uint64_t now = SDL_GetTicksNS();
         ui.Update(double(now - last) / 1e9);
+        box.popup.Update(double(now - last) / 1e9);
         fade.Update(double(now - last) / 1e9);
         last = now;
         if (!renderer.BeginFrame()) {
@@ -403,9 +450,11 @@ bool RunResult(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
         }
         ui.DrawLayout(renderer, kRoot, 1.0f);
         if (rewards) ui.DrawLayout(renderer, kReward, 1.0f);
+        box.popup.Draw(renderer);
         fade.Draw(renderer);
         renderer.EndFrame();
     }
+    box.popup.Release(renderer);
     ui.Release(renderer);
     return open;
 }

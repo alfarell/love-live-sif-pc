@@ -1,0 +1,59 @@
+# M17 T4: after a played live, "What will you do next?" (shadPS4 work/m12/shad/v19): Close the Window closes the box
+# and a key opens it again; Play Live Show Again starts the same song at once; after it, Return to Main Menu (Up from
+# the first row wraps to the last)
+#! visible
+#! args --autoplay
+timeout 420s
+expect screen title 30s
+press enter until menu 30s
+wait 1500ms
+key down
+wait 600ms
+key enter
+expect screen select 20s
+wait 1500ms
+key enter
+wait 800ms
+key enter
+wait 800ms
+key enter
+wait 800ms
+key enter
+expect screen prepare 20s
+wait 600ms
+key enter
+expect screen live 30s
+expect screen result 200s
+wait 1500ms
+key enter
+expect screen result_items 20s
+wait 1000ms
+key enter
+expect log what next: open
+wait 1000ms
+shot what_next
+key enter
+expect log what next: closed
+wait 600ms
+key enter
+wait 600ms
+key down
+wait 200ms
+key enter
+expect log what next: Play Live Show Again
+expect screen live 30s
+expect screen result 200s
+expect log played 2 times
+wait 1500ms
+key enter
+expect screen result_items 20s
+wait 1000ms
+key enter
+expect log what next: open
+wait 800ms
+key up
+wait 200ms
+key enter
+expect log what next: Return to Main Menu
+expect screen menu 30s
+expect nolog error

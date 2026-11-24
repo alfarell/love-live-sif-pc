@@ -1,5 +1,5 @@
 # career 1: menu -> Play -> song select -> song, difficulty, stage, costume -> a full live (autoplay) -> result -> Items Obtained (one skill card) ->
-# back to the song select; the save records the play
+# "What will you do next?" Return to Song Selection (M17 T4); back to the song select; the save records the play
 #! data career
 #! args --autoplay
 timeout 300s
@@ -40,5 +40,14 @@ expect log friendship: member 1 +811 (0 -> 811), level 1 -> 4
 wait 1500ms
 shot career_items
 key enter
+expect log what next: open
+wait 800ms
+shot career_what_next
+key down
+wait 200ms
+key down
+wait 200ms
+key enter
+expect log what next: Return to Song Selection
 expect screen select 20s
 expect nolog error

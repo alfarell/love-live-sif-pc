@@ -1,6 +1,6 @@
 # M12 P4a: Play -> View Live Show (top-menu entry 2): the song select in its view mode (no difficulty step), Prepare
 # with the camera help panel, then the live without notes; R1 (Page Down) changes the camera mode, Square (Q) hides
-# the HUD; the Member camera follows a member (comma/period switch), arrows orbit, L1 (Page Up) zooms; Circle (P) takes a photo; End the Live Show marks favourites (Square), then the photos are saved (shadPS4 work/m12/shad2/v01-v13)
+# the HUD; the Member camera follows a member (comma/period switch), arrows orbit, L1 (Page Up) zooms; Circle (P) takes a photo; End the Live Show marks favourites (Square), "What will you do next?" (M17 T4), then the photos are saved (shadPS4 work/m12/shad2/v01-v13)
 #! visible
 #! data photos
 timeout 120s
@@ -67,6 +67,15 @@ expect log live end: photo 2 favourite on
 wait 500ms
 shot view_end_favourite
 key enter
+expect log what next: open
+wait 800ms
+shot view_what_next
+key down
+wait 200ms
+key down
+wait 200ms
+key enter
+expect log what next: Return to Song Selection
 expect log photos: slot 0 = photos/00.png (1280x720, member card 10310, live 10011)
 expect log photos: slot 1 = photos/01.png (1280x720, member card 10310, live 10011, favourite)
 expect screen select 30s
