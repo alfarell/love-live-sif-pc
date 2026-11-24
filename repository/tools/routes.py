@@ -12,6 +12,8 @@ Usage: py -3.14 -I tools/routes.py --exe <sif.exe> --game <your CUSA24620 dump> 
 Route header directives (comment lines the port ignores):
   #! seed NAME          copy tests/routes/seeds/NAME.txt to the data folder as save.txt before the run
   #! args ARG ...       extra sif.exe arguments, e.g. `#! args --lang cn`
+  #! fresh              no save.txt: the port's first start (name and first member, M17); without it and without a
+                        seed, a route starts from an empty port save (save.txt with only its header line)
   #! visible            always run with a visible window (a hidden one draws no frames, so nothing is captured)
   #! data NAME          routes with the same NAME share one data folder, run in name order (e.g. a save kept from
                         one route to the next); the first one starts it empty
@@ -30,7 +32,7 @@ ROUTES = REPO / "tests" / "routes"
 
 
 def directives(route: Path) -> dict:
-    out = {"seed": None, "args": [], "data": None, "visible": None}
+    out = {"seed": None, "args": [], "data": None, "visible": None, "fresh": None}
     for line in route.read_text(encoding="utf-8").splitlines():
         m = re.match(r"\s*#!\s*(\w+)\s*(.*)$", line)
         if not m:
@@ -96,6 +98,8 @@ def main() -> int:
                 started_shared.add(d["data"])
         if d["seed"]:
             shutil.copyfile(ROUTES / "seeds" / f"{d['seed']}.txt", data / "save.txt")
+        elif d["fresh"] is None and not (data / "save.txt").exists():
+            (data / "save.txt").write_text("sif-port save 1\n", encoding="utf-8")
         (data / "sif.log").unlink(missing_ok=True)
         cmd = [str(exe), "--data", str(data), "--route", str(route), "--shots", str(data / "shots" / route.stem)]
         if not args.shots and d["visible"] is None:  # a visible route needs drawn frames (e.g. photos)

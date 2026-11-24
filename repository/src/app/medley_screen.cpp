@@ -69,10 +69,6 @@ std::string Num(int n, bool two) {
     return s;
 }
 
-size_t Utf8Length(const std::string& s) {
-    return size_t(std::count_if(s.begin(), s.end(), [](char c) { return (static_cast<unsigned char>(c) & 0xC0) != 0x80; }));
-}
-
 struct Screen {
     const Vfs& vfs;
     const medley::Data& data;

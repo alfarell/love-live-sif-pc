@@ -10,6 +10,7 @@
 //                                 missions profile options controls calibrate), else fail
 //   expect log TEXT               wait until a log line contains TEXT (since the route started), else fail
 //   expect nolog TEXT             fail if a log line so far contains TEXT
+//   type TEXT                     the text as typed on the PC keyboard (one text-input event; e.g. a player name)
 //   shot NAME                     save the window's picture as <shots>/NAME.bmp
 //   timeout 120s                  the whole route's limit (default 180 s)
 //   quit                          end here (pass)

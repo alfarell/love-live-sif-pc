@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "app/fade.h"
+#include "app/first_start.h"
 #include "app/input.h"
 #include "app/route.h"
 #include "engine/core/log.h"
@@ -75,7 +76,8 @@ bool RunProfile(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const st
     ui.SetInstanceText(preview + "/uip0084_PlatePreviewText00", 0, "The chosen Nameplate, Badge and Accolade show in the top menu.");
     ui.SetInstanceText(preview + "/uip0083_PlatePreview00_00", 0, "Nameplate / Badge");
     ui.SetInstanceText(preview + "/uip0083_PlatePreview00_01", 0, "Accolade");
-    // shortcut: Player's Name (text entry) is not built; its tab is shown but not selectable
+    // Player's Name (tab 3, M17 T3) has no list: moving onto it opens the name entry (first_start.h), and the tab after
+    // it is shown when it closes. shortcut: the game's own way into it (and its keyboard over this screen) is not seen
     int tab = 0, cursor = 0;
     const auto list_of = [&](int t) -> const std::vector<NameplateItem>& {
         return t == 0 ? plate.accolades : t == 1 ? plate.name_plates : plate.badges;
@@ -149,6 +151,16 @@ bool RunProfile(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const st
                 case SDL_SCANCODE_DOWN: cursor = cursor + columns < n ? cursor + columns : cursor; break;
                 case SDL_SCANCODE_PAGEUP:
                 case SDL_SCANCODE_PAGEDOWN:
+                    if (!e.key.repeat && tab == (e.key.scancode == SDL_SCANCODE_PAGEUP ? 0 : kTabs - 1)) {
+                        std::string name = plate.player;
+                        const int r = RunNameEntry(window, renderer, vfs, lang, name, true, max_frames);
+                        route::SetScreen("profile");
+                        if (r < 0) {
+                            open = false;
+                            break;
+                        }
+                        if (r == 1) plate.player = name;
+                    }
                     tab = (tab + (e.key.scancode == SDL_SCANCODE_PAGEUP ? kTabs - 1 : 1)) % kTabs;
                     cursor = int(chosen_of(tab));
                     break;

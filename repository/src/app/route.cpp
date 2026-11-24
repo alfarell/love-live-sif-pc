@@ -27,7 +27,7 @@ const std::map<std::string, SDL_Scancode>& Keys() {
         {"k", SDL_SCANCODE_K},          {"l", SDL_SCANCODE_L},              {";", SDL_SCANCODE_SEMICOLON},
         {"q", SDL_SCANCODE_Q},          {"p", SDL_SCANCODE_P},              {"home", SDL_SCANCODE_HOME},
         {"end", SDL_SCANCODE_END},      {",", SDL_SCANCODE_COMMA},          {".", SDL_SCANCODE_PERIOD},
-        {"delete", SDL_SCANCODE_DELETE}, {"tab", SDL_SCANCODE_TAB},
+        {"delete", SDL_SCANCODE_DELETE}, {"tab", SDL_SCANCODE_TAB},    {"backspace", SDL_SCANCODE_BACKSPACE},
     };
     return keys;
 }
@@ -177,6 +177,9 @@ bool Parse(std::string_view script, std::vector<Command>& out, std::string* erro
             }
         } else if (c.op == "shot") {
             if (!(args >> c.what)) return bad("shot needs a name");
+        } else if (c.op == "type") {
+            c.text = rest;
+            if (c.text.empty()) return bad("type needs a text");
         } else if (c.op != "quit") {
             return bad("unknown command '" + c.op + "'");
         }
@@ -291,6 +294,15 @@ bool Inject(SDL_Event& e) {
         } else if (c.op == "shot") {
             if (!Shot(c.what)) LogWarn("route: shot {} failed", c.what);
             advance();
+        } else if (c.op == "type") {  // the text as one SDL text-input event (the screen must have text input on)
+            if (s.up != SDL_SCANCODE_UNKNOWN) return false;
+            e = {};
+            e.type = SDL_EVENT_TEXT_INPUT;
+            e.text.timestamp = now;
+            e.text.windowID = SDL_GetWindowID(s.window);
+            e.text.text = c.text.c_str();  // s.cmds outlives the event
+            advance();
+            return true;
         } else if (c.op == "timeout") {
             s.limit_ms = c.ms;
             advance();

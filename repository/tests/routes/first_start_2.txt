@@ -1,0 +1,11 @@
+# M17 T3: the next start keeps the first start's save: no name entry, Kotori with Riko in Aqours mode; the online
+# notice is shown on every start
+#! data first_start
+timeout 60s
+expect screen title 30s
+press enter until menu 40s
+expect nolog title: new save
+expect nolog name entry
+expect log save: player 'Kotori', member 12
+expect log navigator: member 12 in
+expect nolog error

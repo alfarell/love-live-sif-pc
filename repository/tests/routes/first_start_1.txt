@@ -1,0 +1,57 @@
+# M17 T3: the first start on an empty data folder (shadPS4 work/m17/shad f00-f09): the autosave notice, the title,
+# "Save data creation", the online notice, the name entry (PC keyboard), "Confirm Name" (Back goes back to typing, then
+# OK), "Choose a Member" full screen (µ's on Honoka; R1 to Aqours, Riko, her profile, OK), then the top menu with her
+#! fresh
+#! visible
+#! data first_start
+timeout 150s
+expect screen title 30s
+press enter until name 60s
+expect log title: new save
+expect log name entry: open
+wait 800ms
+shot first_name_empty
+type Kotori
+wait 300ms
+key backspace
+wait 200ms
+type x
+wait 300ms
+shot first_name_typed
+key enter
+expect log name entry: confirm 'Kotorx'
+wait 800ms
+shot first_name_confirm
+key enter
+wait 400ms
+key backspace
+type i
+key enter
+expect log name entry: confirm 'Kotori'
+wait 600ms
+key right
+wait 200ms
+key enter
+expect log name entry: name 'Kotori'
+expect screen first_member 20s
+expect log navigator: member 1 in
+wait 1500ms
+shot first_member
+key pagedown
+wait 400ms
+key right
+expect log member popup: mode 1, focus member 12
+expect log navigator: member 12 in
+wait 1500ms
+shot first_member_aqours
+key enter
+expect log focus member 12, profile
+wait 800ms
+shot first_member_profile
+key enter
+expect log first member: 12, mode 1
+expect screen menu 30s
+expect log save: player 'Kotori', member 12
+wait 2000ms
+shot first_menu
+expect nolog error

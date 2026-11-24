@@ -48,4 +48,11 @@ private:
     std::map<int, TextStyle> styles_;
 };
 
+// Characters in UTF-8 text (code points; for the name limits of the PC-keyboard entries)
+inline size_t Utf8Length(std::string_view s) {
+    size_t n = 0;
+    for (char c : s) n += (static_cast<unsigned char>(c) & 0xC0) != 0x80;
+    return n;
+}
+
 }

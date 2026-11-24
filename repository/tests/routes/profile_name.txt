@@ -1,0 +1,62 @@
+# M17 T3: Collection -> Profile Card -> Change Accolade or Name Plate: past the Badge tab (R1) is Player's Name, the
+# name entry; Esc leaves it unchanged, then a new name with OK is kept in the top menu's nameplate and the save
+#! visible
+#! data profile_name
+timeout 90s
+expect screen title 30s
+press enter until menu 30s
+expect log save: player 'Player'
+wait 1500ms
+key right
+wait 400ms
+key right
+wait 400ms
+key right
+wait 400ms
+key right
+wait 800ms
+key enter
+expect screen profile_menu 20s
+wait 800ms
+key enter
+expect screen profile 20s
+wait 1000ms
+key pageup
+expect screen name 20s
+wait 800ms
+key esc
+expect log name entry: left
+expect screen profile 20s
+wait 600ms
+key pagedown
+wait 300ms
+key pagedown
+wait 300ms
+key pagedown
+expect screen name 20s
+wait 800ms
+key backspace
+key backspace
+key backspace
+key backspace
+key backspace
+key backspace
+type Umi
+wait 300ms
+shot profile_name_typed
+key enter
+wait 500ms
+key right
+key enter
+expect log name entry: name 'Umi'
+expect screen profile 20s
+wait 1200ms
+shot profile_name_done
+key esc
+expect screen profile_menu 20s
+wait 600ms
+key esc
+expect screen menu 20s
+wait 1500ms
+shot profile_name_menu
+expect nolog error

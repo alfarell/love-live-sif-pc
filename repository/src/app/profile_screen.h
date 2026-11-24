@@ -18,9 +18,9 @@ namespace save {
 struct SaveData;
 }
 
-// PageUp/PageDown (pad L1/R1) switch the Accolade, Name Plate and Badge tabs; arrows move in the tab's list; Enter
-// chooses the focused item (the preview shows it); Esc leaves. `plate` holds the choice afterwards. False if the window
-// was closed.
+// PageUp/PageDown (pad L1/R1) switch the Accolade, Name Plate and Badge tabs; past Badge (or before Accolade) is
+// Player's Name, which opens the name entry (M17 T3); arrows move in the tab's list; Enter chooses the focused item
+// (the preview shows it); Esc leaves. `plate` holds the choice and the name afterwards. False if the window was closed.
 bool RunProfile(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, Nameplate& plate,
                 long max_frames);
 

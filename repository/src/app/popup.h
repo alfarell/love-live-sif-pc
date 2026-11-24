@@ -18,7 +18,7 @@ namespace sif {
 class Popup {
 public:
     // Rows of pop_title_text00_00_T (16 rows of 64 px)
-    enum Title { kConfirm = 0, kWhatNext = 1, kMedleyStart = 5, kNotice = 10 };
+    enum Title { kConfirm = 0, kWhatNext = 1, kMedleyStart = 5, kNotice = 10, kConfirmName = 11, kSaveCreation = 14 };
     // Cells of com_popup_button_text00_T (2 columns x 64 px rows)
     enum Button { kNo = 0, kYes = 1, kCancel = 2, kBack = 4, kOk = 6 };
     enum Result { kOpen = -1, kCancelled = -2 };

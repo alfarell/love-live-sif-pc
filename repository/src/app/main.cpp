@@ -27,6 +27,7 @@
 #include "app/event_screen.h"
 #include "app/fade.h"
 #include "app/first_run.h"
+#include "app/first_start.h"
 #include "app/input.h"
 #include "app/live_intro.h"
 #include "app/medley_live.h"
@@ -417,7 +418,10 @@ int main(int argc, char** argv) {
         // top menu, Esc there or closing the window ends. shortcut: every top-menu entry leads to the song select
         const std::string lang = options.lang == "jp" ? "" : options.lang;
         const bool boot = options.title || options.menu || options.select;
-        if (boot && audio_ok && (!options.title || sif::RunTitle(window, renderer, vfs, lang, options.frames))) {
+        // no save.txt yet: a new save, so the title asks for the player's name and the first member (M17 T3)
+        std::error_code exists_error;
+        const bool new_save = !std::filesystem::exists(options.data_dir / "save.txt", exists_error);
+        if (boot && audio_ok && (!options.title || sif::RunTitle(window, renderer, vfs, lang, options.frames, new_save))) {
             bool open = true;
             sif::SongChoice last;
             bool home_mode = false;  // the song select's mode: top-menu entry 0 "Play Live Show" (home), else arcade
@@ -428,6 +432,11 @@ int main(int argc, char** argv) {
             std::string save_error;
             const bool can_save = sif::save::Load(save_path, save, &save_error);
             if (!can_save) sif::LogWarn("save: {}: {}; playing without saving", sif::os::PathToUtf8(save_path), save_error);
+            if (new_save && options.title) {
+                open = sif::RunFirstStart(window, renderer, vfs, lang, save, options.frames);
+                if (open && can_save && !sif::save::Write(save_path, save, &save_error)) sif::LogWarn("save: {}", save_error);
+            }
+            sif::LogInfo("save: player '{}', member {}", save.player, sif::save::Current(save));
             sif::LoadingScreen loading;
             loading.Load(renderer, vfs, lang);
             const int language = lang == "en" ? 1 : lang == "cn" ? 2 : lang == "tw" ? 3 : 0;
@@ -551,10 +560,12 @@ int main(int argc, char** argv) {
                                 loading.Show(renderer);
                                 const size_t shown_accolade = plate.accolade, shown_badge = plate.badge,
                                              shown_plate = plate.name_plate;
+                                const std::string shown_player = plate.player;
                                 open = sif::RunProfile(window, renderer, vfs, lang, plate, options.frames);
                                 // only a real choice is saved
                                 if (plate.accolade != shown_accolade || plate.badge != shown_badge ||
-                                    plate.name_plate != shown_plate) {
+                                    plate.name_plate != shown_plate || plate.player != shown_player) {
+                                    save.player = plate.player;
                                     save.accolade = plate.accolades[plate.accolade].id, save.badge = plate.badges[plate.badge].id;
                                     save.name_plate = plate.name_plates[plate.name_plate].id;
                                     if (can_save && !sif::save::Write(save_path, save, &save_error)) {
