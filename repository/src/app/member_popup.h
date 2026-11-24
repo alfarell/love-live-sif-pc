@@ -6,6 +6,7 @@
 #include <SDL3/SDL.h>
 
 #include <string>
+#include <vector>
 
 #include "engine/ui/ui_screen.h"
 #include "game/text/messages.h"
@@ -22,13 +23,17 @@ public:
     // members later." (697), the focused member's description and the help line (489). Starts in µ's mode on Honoka;
     // Esc does not close it. The caller draws the 3D member on the left (Focused()).
     bool OpenFirst(Renderer& renderer, const Vfs& vfs, const std::string& lang);
+    // Message 591's member box (M17 T5; shadPS4 work/m17/shad/u08): `mode`'s list without the group switch, only
+    // `singers` can be chosen (the others are drawn faded; the game greys them), the cursor on the first singer of
+    // `singers` that the list has. Esc closes it.
+    bool OpenSingers(Renderer& renderer, const Vfs& vfs, const std::string& lang, int mode, const std::vector<int>& singers);
     bool IsOpen() const { return stage_ != Stage::Closed; }
     // One key press: arrows move, Page Up / Page Down (L1/R1) change the group, Space / Return choose, Esc goes back.
     Result Key(SDL_Scancode key);
     int Chosen() const { return chosen_; }
     int Focused() const;  // the member under the cursor
     void Update(double seconds) { ui_.Update(seconds); }
-    void Draw(Renderer& renderer) const;
+    void Draw(Renderer& renderer);
     // The first-start form: the help line again, over the 3D member
     void DrawTicker(Renderer& renderer) const;
     void Release(Renderer& renderer);
@@ -42,6 +47,8 @@ private:
     bool first_ = false;
     std::string root_;  // the layout drawn; the popup is its instance top_
     std::string top_;
+    std::vector<int> singers_;  // OpenSingers: the members who can be chosen (empty: everyone)
+    bool Choosable(int index) const;  // list index (0 .. Count - 1) of the current mode
     UiText text_;
     UiScreen ui_;
     Messages messages_;

@@ -1,0 +1,72 @@
+# M17 T5: the song list follows the mode (µ's 72 songs; L2 to Aqours: 53 with Saint Snow); message 591 with Chika on a
+# Saint Snow song (Left from the first Aqours song wraps to the last, 1940): Confirm (Cancel / OK), the member box with
+# only Sarah and Leah, the temporary member (Sarah) is kept on the song select (an Aqours song now asks 591 for her) and
+# ends at the top menu (shadPS4 work/m17/shad/u07-u16)
+#! visible
+timeout 150s
+expect screen title 30s
+press enter until menu 30s
+expect log save: player 'Player', member 1
+wait 1500ms
+key down
+wait 600ms
+key enter
+expect screen select 20s
+expect log song select: 72 songs
+wait 1000ms
+key esc
+expect screen menu 20s
+wait 1500ms
+key home
+expect log top menu: mode Aqours (L2), member 11
+wait 1500ms
+key enter
+expect screen select 20s
+expect log song select: 53 songs
+wait 1500ms
+key left
+wait 500ms
+key enter
+expect log song select: 591 for song 1940, member 11
+wait 800ms
+shot member_591
+key right
+wait 200ms
+key enter
+expect log song select: 591 OK
+expect log member popup: open, mode 1
+wait 1000ms
+shot member_591_singers
+key left
+wait 200ms
+key left
+expect log member popup: mode 1, focus member 22
+expect log member popup: mode 1, focus member 21
+key enter
+expect log focus member 21, profile
+wait 500ms
+key enter
+expect log song select: temporary member 21
+wait 800ms
+shot member_591_difficulty
+key esc
+wait 500ms
+key right
+wait 500ms
+key enter
+expect log song select: 591 for song 1010, member 21
+wait 500ms
+key enter
+expect log song select: 591 cancelled
+wait 500ms
+key esc
+expect screen menu 20s
+wait 1500ms
+key enter
+expect screen select 20s
+wait 1500ms
+key enter
+wait 800ms
+shot member_after_menu
+expect nolog song select: 591 for song 1010, member 11
+expect nolog error

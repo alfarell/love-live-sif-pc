@@ -10,12 +10,15 @@
 
 #include "app/fade.h"
 #include "app/input.h"
+#include "app/member_popup.h"
+#include "app/popup.h"
 #include "app/route.h"
 #include "app/skill_screen.h"
 #include "engine/core/log.h"
 #include "engine/render/renderer.h"
 #include "engine/ui/ui_screen.h"
 #include "game/live/song.h"
+#include "game/member/member.h"
 #include "game/text/messages.h"
 
 namespace sif {
@@ -393,8 +396,8 @@ void Apply(UiScreen& ui, const Mode& mode, const std::vector<SongInfo>& songs, i
         ui.HideNode(music, "select_bg00_off", k == 0);
     }
     const SongInfo* song = n ? &songs[size_t(current)] : nullptr;
-    // the group header (00_common parts): µ's or Aqours / Saint Snow, by the current song (the game toggles the group
-    // with L2 and lists one group's songs; shortcut: the port lists every group's songs together)
+    // the group header (00_common parts): µ's or Aqours / Saint Snow, by the current song (the list holds one mode's
+    // songs since M17 T5, so it follows the mode)
     const bool aqours = song && song->group != 0;
     ui.HideInstance(std::string(kRoot) + "/common_uil0101_ComBGGroup_Member01/common_uip0400_ComTopBG_Ms00", aqours);
     ui.HideInstance(std::string(kRoot) + "/common_uil0101_ComBGGroup_Member01/common_uip0410_ComTopBG_Aqours00", !aqours);
@@ -494,6 +497,8 @@ SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs,
         return {};
     }
     if (owned) std::erase_if(songs, [&](const SongInfo& s) { return !owned->Song(s.id); });
+    // the mode's songs (L2 on the top menu): µ's mode group 0, Aqours mode groups 1 and 2 (M17 T5; 72 / 53 songs)
+    if (save) std::erase_if(songs, [&](const SongInfo& s) { return (s.group != 0) != (save->mode == 1); });
     if (songs.empty()) {  // only when every song is an add-on the user does not have
         LogError("song select: no owned songs");
         return {};
@@ -548,7 +553,18 @@ SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs,
     Messages messages;
     if (skills && !messages.Load(vfs, language, &error)) LogWarn("song select: messages: {}", error);
     const Step last_step = skills || view ? kPrepareStep : kCostumeStep;
-    const CostumeArt art{skills ? skills->cards : nullptr, skills ? skills->member : 1, costume_data, language};
+    CostumeArt art{skills ? skills->cards : nullptr, skills ? skills->member : 1, costume_data, language};
+    // message 591 (M17 T5): the Confirm box, then the member box of the song's singers
+    Popup confirm;
+    MemberPopup singers;
+    if (skills && !view) confirm.Load(renderer, vfs, lang);
+    int temporary = 0;
+    SkillSetup played = skills ? *skills : SkillSetup{};  // Prepare's skill cards follow a temporary member
+    const auto cannot_play = [&](const SongInfo& s) {
+        if (!skills || view || s.members.empty()) return false;
+        if (s.id == 1380 && save && save->mode != 0) return false;  // Aqours mode: everyone plays it
+        return std::find(s.members.begin(), s.members.end(), art.member) == s.members.end();
+    };
     int prepare = 3;  // the Prepare step's focus: 0-2 the sub-buttons, 3 LIVE START
     Step step = kSongStep;
     SongChoice choice;
@@ -561,6 +577,23 @@ SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs,
         while (PollEvent(e)) {
             if (e.type == SDL_EVENT_QUIT) running = false, choice.closed = true;
             if (e.type != SDL_EVENT_KEY_DOWN || e.key.repeat || fade.leaving) continue;
+            if (confirm.IsOpen()) {
+                const int r = confirm.Key(e.key.scancode);
+                if (r == 1) singers.OpenSingers(renderer, vfs, lang, save ? save->mode : 0, songs[size_t(current)].members);
+                if (r != Popup::kOpen) LogInfo("song select: 591 {}", r == 1 ? "OK" : "cancelled");
+                continue;
+            }
+            if (singers.IsOpen()) {
+                if (singers.Key(e.key.scancode) == MemberPopup::Result::Chosen) {
+                    // shortcut: the game shows the member loading screen (com_load_mem00_NN) here; not built
+                    temporary = art.member = played.member = singers.Chosen();
+                    LogInfo("song select: temporary member {}", temporary);
+                    step = kDifficultyStep;
+                    if (view) step = kStageStep;
+                    Apply(ui, mode, songs, current, step, difficulty, stages, stage, costumes, costume, save, art);
+                }
+                continue;
+            }
             const int n = int(songs.size()), ns = std::max(1, int(stages.size())), nc = std::max(1, int(costumes.size()));
             switch (e.key.scancode) {
                 case SDL_SCANCODE_LEFT:
@@ -592,13 +625,26 @@ SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs,
                     }
                     if (step == kPrepareStep && view && e.key.scancode == SDL_SCANCODE_SPACE && prepare != 3) break;
                     if (step == kPrepareStep && e.key.scancode == SDL_SCANCODE_SPACE && prepare == 2) {
-                        RunSkillSelect(window, renderer, vfs, lang, *skills, max_frames);
+                        RunSkillSelect(window, renderer, vfs, lang, played, max_frames);
                         route::SetScreen("prepare");
                         SDL_SetWindowTitle(window, "SIF port - prepare for the live show");
                         break;
                     }
                     if (step == kPrepareStep && e.key.scancode == SDL_SCANCODE_SPACE && prepare != 3) {
                         LogInfo("song select: prepare button {} (not built)", prepare);
+                        break;
+                    }
+                    if (step == kSongStep && cannot_play(songs[size_t(current)])) {
+                        const SongInfo& s = songs[size_t(current)];
+                        std::string text = messages.Get(591);
+                        // the English text has the song only; the Japanese one the member first, then the song
+                        const bool two = text.find("%s") != text.rfind("%s");
+                        for (const std::string& v : two ? std::vector<std::string>{messages.Get(member::ProfileOf(art.member).name), s.title}
+                                                        : std::vector<std::string>{s.title}) {
+                            if (const size_t at = text.find("%s"); at != std::string::npos) text.replace(at, 2, v);
+                        }
+                        confirm.OpenMessage(Popup::kConfirm, text, {Popup::kCancel, Popup::kOk}, 0);
+                        LogInfo("song select: 591 for song {:04d}, member {}", s.id, art.member);
                         break;
                     }
                     // the next step with something to choose; after the last one the live starts (Enter = Options
@@ -620,6 +666,7 @@ SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs,
                         const bool booster = choice.booster;  // chosen on Prepare
                         choice = {songs[size_t(current)].id, mode.Variant(difficulty)};
                         choice.booster = booster;
+                        choice.member = temporary;
                         if (!stages.empty()) {
                             char folder[16];
                             std::snprintf(folder, sizeof(folder), "st%03d", stages[size_t(stage)].model);
@@ -646,7 +693,7 @@ SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs,
             }
             Apply(ui, mode, songs, current, step, difficulty, stages, stage, costumes, costume, save, art);
             if (step == kPrepareStep && view) ApplyViewPrepare(ui, songs[size_t(current)].group != 0);
-            else if (step == kPrepareStep) ApplyPrepare(ui, skills, messages, language, prepare, choice.booster);
+            else if (step == kPrepareStep) ApplyPrepare(ui, skills ? &played : nullptr, messages, language, prepare, choice.booster);
             const SongInfo& s = songs[size_t(current)];
             char title[256];
             std::snprintf(title, sizeof(title), "SIF port - %04d %s%s", s.id, s.title.c_str(),
@@ -658,6 +705,8 @@ SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs,
         }
         const uint64_t now = SDL_GetTicksNS();
         ui.Update(double(now - last) / 1e9);
+        confirm.Update(double(now - last) / 1e9);
+        singers.Update(double(now - last) / 1e9);
         fade.Update(double(now - last) / 1e9);
         last = now;
         if (!renderer.BeginFrame()) {
@@ -668,9 +717,13 @@ SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs,
         if (step == kPrepareStep) ui.DrawLayout(renderer, kPrepare, 1.0f);
         if (step == kPrepareStep && view) ui.DrawLayout(renderer, "uil0071_LiveViewInfo00", 1.0f);
         if (step == kCostumeStep && !costumes.empty()) ui.DrawLayout(renderer, kCostumeLayout, 1.0f);
+        confirm.Draw(renderer);
+        singers.Draw(renderer);
         fade.Draw(renderer);
         renderer.EndFrame();
     }
+    confirm.Release(renderer);
+    singers.Release(renderer);
     ui.Release(renderer);
     if (choice.song >= 0) LogInfo("song select: song {:04d}, variant {:02d}", choice.song, choice.variant);
     return choice;

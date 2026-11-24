@@ -663,6 +663,7 @@ int main(int argc, char** argv) {
                                                has_costumes ? &costume_data : nullptr, home_mode,
                                                has_cards && !view_mode ? &skills : nullptr, view_mode);
                 again = false;
+                if (choice.member > 0) skills.member = choice.member;  // 591's temporary member, until the top menu
                 if (has_cards && can_save && !sif::save::Write(save_path, save, &save_error)) {  // the skill slots (M11)
                     sif::LogWarn("save: {}", save_error);
                 }

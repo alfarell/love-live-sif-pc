@@ -23,6 +23,7 @@ struct SongChoice {
     std::string stage;    // the chosen stage folder, "stNNN" ("" = the live screen's default)
     std::string costume;  // the chosen costume folder, "dNNN" ("" = the live screen's default pick)
     bool booster = false; // a Wai-Wai! Booster used in Prepare (M14 F5; spent after the live)
+    int member = 0;       // a temporary member chosen at message 591 (M17 T5), 0 = none; kept until the top menu
 };
 
 // `previous`: the last choice, focused again (song and difficulty) when coming back from a live. `save` (optional):
@@ -34,6 +35,10 @@ struct SongChoice {
 // and Skill Card Selection (M11 S4); without it the costume step starts the live as before.
 // `view`: View Live Show (M12 P4): song (with the "LIVE VIEW MODE" banner), stage, costume and a Prepare step with the
 // camera help panel; no difficulty step. The choice's variant is the home STANDARD chart (11), whose live it shows.
+// M17 T5: with `save`, only the songs of its mode are listed (µ's mode: group 0; Aqours mode: Aqours and Saint Snow).
+// With `skills` (a played live), a song whose singers do not include the played member asks message 591 ("You cannot
+// play (%s) with this member. ...", Cancel / OK); OK opens the member box of the song's singers, and the member chosen
+// there plays (SongChoice::member). Song 1380 does not ask in Aqours mode (eboot FUN_00173b60, FUN_000730a0).
 SongChoice RunSongSelect(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, long max_frames,
                          const SongChoice& previous = {}, const save::SaveData* save = nullptr,
                          const dlc::Ownership* owned = nullptr, const costume::Data* costumes = nullptr, bool home = false,

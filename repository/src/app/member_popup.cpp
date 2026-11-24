@@ -1,5 +1,6 @@
 #include "app/member_popup.h"
 
+#include <algorithm>
 #include <cstdio>
 
 #include "engine/core/log.h"
@@ -62,6 +63,25 @@ bool MemberPopup::OpenFirst(Renderer& renderer, const Vfs& vfs, const std::strin
     return true;
 }
 
+bool MemberPopup::Choosable(int index) const {
+    const int m = member::kAll[size_t(First(mode_) + index)];
+    return singers_.empty() || std::find(singers_.begin(), singers_.end(), m) != singers_.end();
+}
+
+bool MemberPopup::OpenSingers(Renderer& renderer, const Vfs& vfs, const std::string& lang, int mode,
+                              const std::vector<int>& singers) {
+    int first = 0;
+    for (int m : singers) {
+        const int i = member::Index(m) - First(mode == 1 ? 1 : 0);
+        if (i >= 0 && i < Count(mode == 1 ? 1 : 0)) {
+            first = m;
+            break;
+        }
+    }
+    singers_ = singers;
+    return Open(renderer, vfs, lang, mode, first);
+}
+
 int MemberPopup::Focused() const { return member::kAll[size_t(First(mode_) + focus_)]; }
 
 void MemberPopup::DrawTicker(Renderer& renderer) const {
@@ -103,6 +123,11 @@ void MemberPopup::Apply() {
     }
     ui_.HideNode(frame, "layout_ms00", mode_ != 0);
     ui_.HideNode(frame, "layout_aq00", mode_ != 1);
+    // 591's box has no group switch (u08)
+    for (const char* node : {"change_arrow00", "change_arrow01", "button_L100", "button_R100", "change_group_name00",
+                             "change_group_name01"}) {
+        ui_.HideNode(frame, node, !singers_.empty());
+    }
     ui_.SetInstanceText(frame, 0, messages_.Get(590));  // "Choose a Member."
     ui_.SetInstanceText(frame, 1, "");
     if (stage_ != Stage::Profile) return;
@@ -152,16 +177,27 @@ MemberPopup::Result MemberPopup::Key(SDL_Scancode key) {
         case SDL_SCANCODE_ESCAPE:
             if (first_) return Result::Open;  // the first member must be chosen
             stage_ = Stage::Closed;
+            singers_.clear();
             LogInfo("member popup: closed");
             return Result::Closed;
-        case SDL_SCANCODE_LEFT: focus_ = (focus_ + n - 1) % n; break;
-        case SDL_SCANCODE_RIGHT: focus_ = (focus_ + 1) % n; break;
+        case SDL_SCANCODE_LEFT:
+            do focus_ = (focus_ + n - 1) % n;
+            while (!Choosable(focus_));
+            break;
+        case SDL_SCANCODE_RIGHT:
+            do focus_ = (focus_ + 1) % n;
+            while (!Choosable(focus_));
+            break;
         // shortcut: rows of 4, then 5 (and Saint Snow's 2); up/down move by 4, as the first row
-        case SDL_SCANCODE_UP: focus_ = std::max(0, focus_ - 4); break;
-        case SDL_SCANCODE_DOWN: focus_ = std::min(n - 1, focus_ + 4); break;
+        case SDL_SCANCODE_UP:
+        case SDL_SCANCODE_DOWN: {
+            const int to = key == SDL_SCANCODE_UP ? std::max(0, focus_ - 4) : std::min(n - 1, focus_ + 4);
+            if (Choosable(to)) focus_ = to;  // shortcut: a row move onto a member who cannot be chosen is ignored
+            break;
+        }
         case SDL_SCANCODE_PAGEDOWN:
         case SDL_SCANCODE_PAGEUP:
-            if ((key == SDL_SCANCODE_PAGEDOWN) == (mode_ == 0)) mode_ = 1 - mode_, focus_ = 0;
+            if (singers_.empty() && (key == SDL_SCANCODE_PAGEDOWN) == (mode_ == 0)) mode_ = 1 - mode_, focus_ = 0;
             break;
         case SDL_SCANCODE_SPACE:
         case SDL_SCANCODE_RETURN: stage_ = Stage::Profile; break;
@@ -173,8 +209,20 @@ MemberPopup::Result MemberPopup::Key(SDL_Scancode key) {
     return Result::Open;
 }
 
-void MemberPopup::Draw(Renderer& renderer) const {
-    if (stage_ != Stage::Closed) ui_.DrawLayout(renderer, root_, 1.0f);
+void MemberPopup::Draw(Renderer& renderer) {
+    if (stage_ == Stage::Closed) return;
+    // the members who cannot be chosen: hidden in the layout, then drawn alone faded (the list only; the profile page
+    // is over them)
+    std::vector<std::string> faded;
+    for (int k = 0; k < Count(mode_) && !singers_.empty(); ++k) {
+        if (!Choosable(k)) faded.push_back(Icon(top_, First(mode_) + k));
+    }
+    for (const std::string& f : faded) ui_.HideInstance(f, true);
+    ui_.DrawLayout(renderer, root_, 1.0f);
+    for (const std::string& f : faded) {
+        ui_.HideInstance(f, false);
+        if (stage_ == Stage::List) ui_.DrawInstance(renderer, f, 0.35f);
+    }
 }
 
 void MemberPopup::Release(Renderer& renderer) {
