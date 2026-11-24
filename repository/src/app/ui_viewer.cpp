@@ -14,7 +14,7 @@
 namespace sif {
 
 int RunUiViewer(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& spec, const std::string& lang,
-                long max_frames, const std::string& hide_nodes, const std::string& hide_paths) {
+                long max_frames, const std::string& hide_nodes, const std::string& hide_paths, bool centre) {
     const size_t a = spec.find(':'), b = a == std::string::npos ? a : spec.find(':', a + 1);
     const std::string screen = "ui2/" + spec.substr(0, a);
     const std::string layout = a == std::string::npos ? "" : spec.substr(a + 1, b == std::string::npos ? b : b - a - 1);
@@ -30,6 +30,14 @@ int RunUiViewer(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const st
     std::string layouts;
     for (const std::string& l : ui.Layouts()) layouts += " " + l;
     LogInfo("ui viewer: {} layouts:{}", screen, layouts);
+    // the layout's tree: each placement as its instance path and the part or layout it places
+    const auto tree = [&](auto&& self, const std::string& path, const std::string& placed) -> void {
+        for (const auto& [node, part] : ui.Placements(placed)) {
+            LogInfo("ui viewer: {}/{} = {}", path, node, part);
+            if (part.starts_with("uil") || part.find("_uil") != std::string::npos) self(self, path + "/" + node, part);
+        }
+    };
+    tree(tree, layout, layout);
     if (!clip.empty()) ui.Play("*", clip, true);
     const auto each = [](const std::string& list, auto&& f) {
         for (size_t start = 0; start < list.size();) {
@@ -57,7 +65,8 @@ int RunUiViewer(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const st
             SDL_Delay(5);
             continue;
         }
-        ui.DrawLayout(renderer, layout, 1.0f);
+        if (centre) ui.DrawLayout(renderer, layout, 1.0f, 960, 540);
+        else ui.DrawLayout(renderer, layout, 1.0f);
         renderer.EndFrame();
     }
     ui.Release(renderer);

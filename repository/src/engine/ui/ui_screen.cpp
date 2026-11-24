@@ -241,6 +241,21 @@ void UiScreen::SetInstanceText(const std::string& instance, int box, const std::
     t.utf8 = utf8;
 }
 
+void UiScreen::SetInstanceTextStyle(const std::string& instance, int box, const TextStyle& style) {
+    const auto old = instance_styles_.find({instance, box});
+    const auto same = [](const TextStyle& a, const TextStyle& b) {
+        return a.font == b.font && a.halign == b.halign && a.valign == b.valign && a.size == b.size &&
+               a.spacing == b.spacing && a.color == b.color && a.outline == b.outline && a.outline_color == b.outline_color;
+    };
+    if (old != instance_styles_.end() && same(old->second, style)) return;
+    instance_styles_[{instance, box}] = style;
+    if (const auto t = instance_texts_.find({instance, box}); t != instance_texts_.end()) {
+        if (renderer_ && t->second.texture.gpu) renderer_->Release(t->second.texture);
+        t->second.texture = {};
+        t->second.rendered = false;
+    }
+}
+
 void UiScreen::SetText(const std::string& part, int box, const std::string& utf8) {
     TextEntry& t = texts_[{part, box}];
     if (t.rendered && t.utf8 == utf8) return;
@@ -445,6 +460,7 @@ void UiScreen::DrawTexts(Renderer& renderer, const std::string& part, const std:
     for (auto it = texts_.lower_bound({part, 0}); it != texts_.end() && it->first.first == part; ++it) {
         const int box = it->first.second;
         const TextStyle* style = text_->Style(it->second.style);
+        if (const auto o = instance_styles_.find({path, box}); o != instance_styles_.end()) style = &o->second;
         const auto own = instance_texts_.find({path, box});
         TextEntry& t = own != instance_texts_.end() ? own->second : it->second;
         if (!style || box >= int(boxes.size()) || t.utf8.empty()) continue;
@@ -603,6 +619,14 @@ void UiScreen::DrawInstance(Renderer& renderer, const std::string& instance, flo
 void UiScreen::DrawLayout(Renderer& renderer, const std::string& layout, float alpha,
                           const std::map<std::string, float>& part_alpha) const {
     DrawLayoutAt(renderer, layout, CanvasToClip(renderer.Width(), renderer.Height()), layout, alpha, &part_alpha);
+}
+
+void UiScreen::DrawLayout(Renderer& renderer, const std::string& layout, float alpha, float x, float y) const {
+    Mat4 move;
+    move(0, 3) = x;
+    move(1, 3) = -y;  // canvas y runs 0 .. -1080
+    const std::map<std::string, float> none;
+    DrawLayoutAt(renderer, layout, CanvasToClip(renderer.Width(), renderer.Height()) * move, layout, alpha, &none);
 }
 
 }

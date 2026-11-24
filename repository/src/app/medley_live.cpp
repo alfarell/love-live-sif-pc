@@ -10,6 +10,7 @@
 #include "app/fade.h"
 #include "app/input.h"
 #include "app/live_screen.h"
+#include "app/popup.h"
 #include "app/result_screen.h"
 #include "app/route.h"
 #include "engine/core/log.h"
@@ -178,9 +179,10 @@ bool RunMedleyEnd(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const 
     ui.Play("*", UiScreen::ClipName(1), false);  // "in"
     SDL_SetWindowTitle(window, "SIF port - Live Show Medley: end the live show");
     LogInfo("medley end: '{}', {} songs", run.name, n);
-    // shortcut: the game's OPTIONS "What will you do next?" box (570, 571, 566) is not built yet (R5 builds the
-    // medley's popups); its choices are keys here: OPTIONS (Enter) Watch the Same Medley List, Cross (Space, "End")
-    // Return to Medley Selection, Circle (Esc) Return to Main Menu
+    // OPTIONS (Enter) "Display Menu": "What will you do next?" with 570, 571 and 566 (shadPS4 e1); Cross (Space) "End"
+    // returns to the Set List screen (shortcut: a guess, not tried in shadPS4)
+    Popup menu;
+    menu.Load(renderer, vfs, lang);
     bool open = true;
     ScreenFade fade;
     uint64_t last = SDL_GetTicksNS();
@@ -189,10 +191,15 @@ bool RunMedleyEnd(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const 
         while (PollEvent(e)) {
             if (e.type == SDL_EVENT_QUIT) open = false;
             if (e.type != SDL_EVENT_KEY_DOWN || e.key.repeat || fade.leaving) continue;
-            const int choice = e.key.scancode == SDL_SCANCODE_RETURN ? 0
-                               : e.key.scancode == SDL_SCANCODE_SPACE ? 1
-                               : e.key.scancode == SDL_SCANCODE_ESCAPE ? 2
-                                                                       : -1;
+            int choice = -1;
+            if (menu.IsOpen()) {
+                choice = menu.Key(e.key.scancode);
+            } else if (e.key.scancode == SDL_SCANCODE_RETURN) {
+                menu.OpenChoices(Popup::kWhatNext, {messages.Get(570), messages.Get(571), messages.Get(566)});
+                LogInfo("medley end: menu open");
+            } else if (e.key.scancode == SDL_SCANCODE_SPACE) {
+                choice = 1;
+            }
             if (choice < 0) continue;
             out.choice = choice;
             LogInfo("medley end: choice {} ({})", choice, messages.Get(choice == 0 ? 570 : choice == 1 ? 571 : 566));
@@ -200,6 +207,7 @@ bool RunMedleyEnd(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const 
         }
         const uint64_t now = SDL_GetTicksNS();
         ui.Update(double(now - last) / 1e9);
+        menu.Update(double(now - last) / 1e9);
         fade.Update(double(now - last) / 1e9);
         last = now;
         if (!renderer.BeginFrame()) {
@@ -207,10 +215,12 @@ bool RunMedleyEnd(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const 
             continue;
         }
         ui.DrawLayout(renderer, kEnd, 1.0f);
+        menu.Draw(renderer);
         fade.Draw(renderer);
         renderer.EndFrame();
     }
     ui.Release(renderer);
+    menu.Release(renderer);
     out.closed = out.closed || !open;
     return open;
 }

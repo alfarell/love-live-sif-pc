@@ -35,6 +35,10 @@ public:
     void SetText(const std::string& part, int box, const std::string& utf8);
     // The same for one placed instance (its part's text style is kept), e.g. each song plate's title.
     void SetInstanceText(const std::string& instance, int box, const std::string& utf8);
+    // A style for one placed instance's text box instead of its ui_text style: boxes whose style the table lacks (the
+    // popup rows of 00_common uip1011/uip1012 name style 60, which font_param.bin does not have) or that the game
+    // recolours (the focused row)
+    void SetInstanceTextStyle(const std::string& instance, int box, const TextStyle& style);
     // Number boxes (ui_number.bin + numtex_datas.bin: digit glyphs from a number texture, e.g. a score): the string
     // shown in one placed instance's number box (digits, plus '%' and '.' where the texture has them; the table's
     // default otherwise).
@@ -50,6 +54,9 @@ public:
     // each top-level node by name.
     void DrawLayout(Renderer& renderer, const std::string& layout, float alpha,
                     const std::map<std::string, float>& part_alpha = {}) const;
+    // The same moved by (x, y) canvas pixels (y down): a popup layout whose origin is the canvas's top-left corner is
+    // drawn at the centre with (960, 540) (00_common uil0050-uil0068 ComPop/MedPop)
+    void DrawLayout(Renderer& renderer, const std::string& layout, float alpha, float x, float y) const;
     bool HasPart(const std::string& part) const { return parts_.contains(part); }
     // Only one placed instance of a layout ("layout/node[/node...]"), at its place: e.g. a part drawn again over a 3D
     // model that the rest of the screen is under.
@@ -155,6 +162,7 @@ private:
     const UiText* text_ = nullptr;
     mutable std::map<std::pair<std::string, int>, TextEntry> texts_;           // (part, box) -> string
     mutable std::map<std::pair<std::string, int>, TextEntry> instance_texts_;  // (instance path, box) -> string
+    std::map<std::pair<std::string, int>, TextStyle> instance_styles_;          // (instance path, box) -> style
     struct NumberBox {
         int numtex = 0, digits = 0, align = 2;  // align: 0 left, 1 centre, 2 right (Hypothesis: 2 everywhere)
         std::string value;                      // the table's default

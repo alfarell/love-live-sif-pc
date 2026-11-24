@@ -1,0 +1,110 @@
+# M16 R5: Play -> Live Show Medley -> Set List Selection, Your tab: an empty list cannot start ("Since no songs can be
+# used ..."); Cross (Space) Edit List on Original Set List2: Cross Modify opens Edit Slot 01 (Right steps the song, Down
+# then Right the costume), OK; a second slot; R2 (End) Insert and L2 (Home) Delete; Square (Q) Change Stage; touchpad
+# (Enter) Finish Editing saves; editing again, R1 (Page Down) Clear then Circle (Esc) asks "Discard edits and return to
+# list?"; Square opens Rename (PC keyboard) and Enter keeps it; the list starts (Back / OK), Esc ends the medley and
+# Cross (End) returns to the Set List screen. shadPS4 work/m16/shad f3, g0-g5 (R2)
+#! visible
+#! data medley_edit
+timeout 150s
+expect screen title 30s
+press enter until menu 30s
+wait 1500ms
+key down
+wait 400ms
+key down
+wait 400ms
+key down
+wait 400ms
+key enter
+expect screen medley 30s
+expect log medley select: your list 1 'Original Set List1', 0 songs
+wait 800ms
+key enter
+expect log medley select: cannot start
+wait 600ms
+shot edit_cannot_start
+key enter
+wait 300ms
+key down
+expect log medley select: your list 2 'Original Set List2', 0 songs
+key space
+expect log medley edit: list 2
+wait 400ms
+shot edit_list
+key space
+expect log medley edit: slot 1 open
+key right
+wait 200ms
+key down
+wait 200ms
+key right
+wait 400ms
+shot edit_slot
+key enter
+expect log medley edit: slot 1 = song
+key down
+wait 200ms
+key space
+expect log medley edit: slot 2 open
+key right
+wait 200ms
+key right
+wait 200ms
+key enter
+expect log medley edit: slot 2 = song
+key up
+wait 200ms
+key end
+expect log medley edit: slot 1 inserted
+key home
+expect log medley edit: slot 1 deleted
+key q
+wait 200ms
+key right
+wait 400ms
+shot edit_stage
+key enter
+expect log medley edit: stage
+key enter
+expect log medley edit: list 2 saved
+expect log medley select: your list 2 'Original Set List2', 2 songs
+wait 400ms
+shot edit_saved
+key space
+wait 200ms
+key pagedown
+expect log medley edit: slot 1 cleared
+key esc
+wait 600ms
+shot edit_discard
+key right
+wait 200ms
+key enter
+expect log medley select: edits discarded
+key q
+expect log medley select: rename list 2
+key enter
+expect log medley select: list 2 renamed
+wait 300ms
+key enter
+expect log medley select: start?
+key right
+wait 200ms
+key enter
+expect log medley select: start 'Original Set List2'
+expect log medley: song 1 of 2
+expect screen live 30s
+wait 3s
+key esc
+expect screen medley_end 30s
+expect log medley end: left
+wait 800ms
+key space
+expect log medley end: choice 1
+expect screen medley 30s
+expect log medley select: group 0, tab 0, list 1
+wait 500ms
+key esc
+expect screen menu 30s
+expect nolog error
