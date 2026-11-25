@@ -1,0 +1,16 @@
+# M17 T6: the login bonus pop-up (shadPS4 work/m17/shad/u01, f12): the day's first top menu shows "Login bonus" with
+# the reward (day 1: a Wai-Wai! Booster), OK closes it; login_2 is the next day (a key material x10), login_3 the same
+# day again (no pop-up)
+#! visible
+#! data login
+#! args --date 2026-07-01
+timeout 60s
+expect screen title 30s
+press enter until login_bonus 40s
+expect log login bonus: pop-up, Wai-Wai! Booster x1
+wait 1500ms
+shot login_booster
+key enter
+expect log login bonus: closed
+expect screen menu 10s
+expect nolog error

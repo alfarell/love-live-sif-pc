@@ -1,0 +1,14 @@
+# M17 T6: the next day (same data folder as login_1): the pop-up shows day 2's key material x10
+#! visible
+#! data login
+#! args --date 2026-07-02
+timeout 60s
+expect screen title 30s
+press enter until login_bonus 40s
+expect log login bonus: day 2
+expect log x10
+wait 1500ms
+shot login_material
+key space
+expect screen menu 10s
+expect nolog error

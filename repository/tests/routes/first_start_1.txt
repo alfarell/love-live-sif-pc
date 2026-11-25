@@ -1,6 +1,6 @@
 # M17 T3: the first start on an empty data folder (shadPS4 work/m17/shad f00-f09): the autosave notice, the title,
 # "Save data creation", the online notice, the name entry (PC keyboard), "Confirm Name" (Back goes back to typing, then
-# OK), "Choose a Member" full screen (µ's on Honoka; R1 to Aqours, Riko, her profile, OK), then the top menu with her
+# OK), "Choose a Member" full screen (µ's on Honoka; R1 to Aqours, Riko, her profile, OK), then the login bonus pop-up (M17 T6) and the top menu with her
 #! fresh
 #! visible
 #! data first_start
@@ -50,7 +50,11 @@ wait 800ms
 shot first_member_profile
 key enter
 expect log first member: 12, mode 1
-expect screen menu 30s
+expect screen login_bonus 30s
+expect log login bonus: pop-up, Wai-Wai! Booster x1
+wait 1000ms
+key enter
+expect screen menu 10s
 expect log save: player 'Kotori', member 12
 wait 2000ms
 shot first_menu

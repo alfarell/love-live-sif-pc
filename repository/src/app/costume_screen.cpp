@@ -148,7 +148,7 @@ bool RunCostumes(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const s
     static constexpr const char* kGrids[3] = {"/uil0003_CosMenu00_Ms", "/uil0004_CosMenu00_Aq", "/uil0005_CosMenu00_Ss"};
     constexpr int kSlots = 33, kColumns = 6;
     // shortcut: the member-card pictures (the grid and preview show the costume thumbnail instead), the material
-    // gauges, the button hints, the "Change Costume?" question and the song list are not built
+    // gauges, the button hints and the song list are not built
     ui.HideInstance(root + "/uil0020_CosComplete00", true);
     // the member (M13 N6): the game draws her off-screen onto uip0002_CosChara00's model_character00 quad; the port
     // draws her in 3D instead (Navigator) and keeps the part's "Trying It On" plate (fitting_mark00) in front of her
@@ -202,6 +202,25 @@ bool RunCostumes(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const s
     int dressed_member = -1, dressed = -1;
     bool dressed_special = false;
     MemberPopup popup;
+    // "Check Costume" / "Change Costume?" (M17 T6; 00_common uil0062_CosPop00, shadPS4 work/m13/shad/cs5.png): Back
+    // (focused) / OK before Change Clothes. shortcut: the costume's thumbnail where the game shows the member card
+    UiText ask_text;
+    UiScreen ask;
+    int asking = -1;  // -1 closed, else the focused button (0 Back, 1 OK)
+    constexpr const char* kAsk = "uil0062_CosPop00";
+    if (!ask_text.Load(vfs, lang, &error)) LogWarn("costumes: text: {}", error);
+    const bool can_ask = ask.Load(renderer, vfs, "ui2/00_common", lang, &error, &ask_text);
+    if (!can_ask) LogWarn("costumes: {}", error);
+    const auto show_ask = [&] {
+        const std::string at = std::string(kAsk) + "/";
+        for (int b = 0; b < 2; ++b) {
+            const std::string button = at + "uip0005_SelectButton00_0" + std::to_string(b);
+            ask.SetMaterialUv(button, "button_text00_M", 0, b == 0 ? 0.25f : 0.375f);  // Back, OK
+            ask.HideNode(button, "button_bg00_on", b != asking);
+            ask.HideNode(button, "button_bg00_off", b == asking);
+            ask.HideNode(button, "button_effect00", b != asking);
+        }
+    };
     const auto has_model = [&](int m, int dress) {
         char path[64];
         std::snprintf(path, sizeof(path), "chr/c%02d/d%03d/d%03d.pac", m, dress, dress);
@@ -302,6 +321,28 @@ bool RunCostumes(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const s
                 }
                 continue;
             }
+            if (asking >= 0) {
+                if (e.key.repeat) continue;
+                const SDL_Scancode k = e.key.scancode;
+                if (k == SDL_SCANCODE_LEFT || k == SDL_SCANCODE_RIGHT) {
+                    asking = 1 - asking;
+                    show_ask();
+                } else if (k == SDL_SCANCODE_RETURN || k == SDL_SCANCODE_SPACE || k == SDL_SCANCODE_ESCAPE ||
+                           k == SDL_SCANCODE_BACKSPACE) {
+                    const bool ok = asking == 1 && (k == SDL_SCANCODE_RETURN || k == SDL_SCANCODE_SPACE);
+                    asking = -1;
+                    LogInfo("costumes: change costume? {}", ok ? "OK" : "Back");
+                    if (ok) {
+                        const int dress = list[size_t(cursor)];
+                        save.wear[m] = dress;
+                        if (special) save.special.insert(m); else save.special.erase(m);
+                        nav.Play(519);  // dressfix
+                        LogInfo("costumes: member {} wears {} {}{}", m, dress, name_of(dress), special ? " (special colour)" : "");
+                    }
+                    show();
+                }
+                continue;
+            }
             if (popped) {
                 if (e.key.repeat) continue;
                 if (e.key.scancode == SDL_SCANCODE_RETURN || e.key.scancode == SDL_SCANCODE_SPACE) {
@@ -340,11 +381,15 @@ bool RunCostumes(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const s
                     if (e.key.repeat || !n) break;
                     const int dress = list[size_t(cursor)], state = StateOf(data, addons, save, dress);
                     popped = state == 1 || state == 2;  // add-on only: no recipe
-                    if (state == 0 && has_model(m, dress)) {  // owned: "Change Clothes", with the colour shown
-                        save.wear[m] = dress;
-                        if (special) save.special.insert(m); else save.special.erase(m);
-                        nav.Play(519);  // dressfix
-                        LogInfo("costumes: member {} wears {} {}{}", m, dress, name_of(dress), special ? " (special colour)" : "");
+                    if (state == 0 && has_model(m, dress) && can_ask) {  // owned: "Change Clothes" asks first
+                        asking = 0;
+                        ask.SetMaterialUv(std::string(kAsk) + "/uip1002_ComPopBG01", "title_text00_M", 0, 0.125f);
+                        ask.SetInstanceText(std::string(kAsk) + "/uip1014_ComPopType04", 0, messages.Get(535));
+                        ask.SetMaterialTexture(std::string(kAsk) + "/uip1014_ComPopType04", "banner_img00_M",
+                                               costume::ThumbPath(dress));
+                        show_ask();
+                        ask.Play("*", UiScreen::ClipName(1), false);
+                        LogInfo("costumes: change costume? {} {}", dress, name_of(dress));
                     }
                     break;
                 }
@@ -358,6 +403,7 @@ bool RunCostumes(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const s
         }
         const uint64_t now = SDL_GetTicksNS();
         ui.Update(double(now - last) / 1e9);
+        if (asking >= 0) ask.Update(double(now - last) / 1e9);
         nav.Update(double(now - last) / 1e9);
         if (popup.IsOpen()) popup.Update(double(now - last) / 1e9);
         fade.Update(double(now - last) / 1e9);
@@ -380,10 +426,12 @@ bool RunCostumes(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const s
         }
         ui.HideNode(chara, "fitting_mark00", !plate);
         popup.Draw(renderer);
+        if (asking >= 0) ask.DrawLayout(renderer, kAsk, 1.0f, 960, 540);
         fade.Draw(renderer);
         renderer.EndFrame();
     }
     popup.Release(renderer);
+    if (can_ask) ask.Release(renderer);
     nav.Release(renderer);
     ui.Release(renderer);
     return open;

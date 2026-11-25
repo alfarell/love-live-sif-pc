@@ -1,0 +1,9 @@
+# M17 T6: the same day again (same data folder as login_2): no login bonus, no pop-up
+#! data login
+#! args --date 2026-07-02
+timeout 60s
+expect screen title 30s
+press enter until menu 40s
+wait 1500ms
+expect nolog login bonus
+expect nolog error

@@ -1,5 +1,6 @@
 # Costumes -> Create/Change Costumes with every material (seed): walk along the grid pressing Enter twice on each
-# costume: an owned one is put on the member, a "Ready to Create" one opens the pop-up and the second Enter makes it
+# costume: an owned one asks "Change Costume?" and the second Enter is Back (M17 T6), a "Ready to Create" one opens
+# the pop-up and the second Enter makes it
 #! seed materials
 timeout 180s
 expect screen title 30s
@@ -253,7 +254,7 @@ wait 400ms
 key right
 wait 300ms
 expect log costumes: made
-expect log costumes: member 1 wears
+expect log costumes: change costume? Back
 shot costumes_made
 key esc
 expect screen menu 20s

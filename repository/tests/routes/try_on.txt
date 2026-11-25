@@ -1,6 +1,6 @@
 # M13 N6: Create/Change Costumes shows the member in 3D on the left in the focused costume ("Trying It On" for one
-# she does not wear, also not made yet); L1 (Page Up) the special colour where the costume has one; Enter keeps it
-# (Change Clothes); the top menu then shows her in it (shadPS4 work/m13/shad/cs2.png-cs6.png, top2.png)
+# she does not wear, also not made yet); L1 (Page Up) the special colour where the costume has one; Enter (Change Clothes)
+# asks "Change Costume?" (M17 T6: Back focused; Esc backs out, then OK keeps it); the top menu then shows her in it (shadPS4 work/m13/shad/cs2.png-cs6.png, top2.png)
 #! visible
 #! seed try_on
 timeout 90s
@@ -26,6 +26,19 @@ expect log navigator: member 1 in chr/c01/d003/d003_v1.pac
 wait 1500ms
 shot try_on_special
 key enter
+expect log costumes: change costume? 3
+wait 800ms
+shot try_on_ask
+key esc
+expect log costumes: change costume? Back
+expect nolog costumes: member 1 wears 3
+wait 400ms
+key enter
+wait 600ms
+key right
+wait 200ms
+key enter
+expect log costumes: change costume? OK
 expect log costumes: member 1 wears 3
 expect log navigator: motion 519
 wait 2s

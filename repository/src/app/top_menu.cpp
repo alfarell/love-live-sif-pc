@@ -21,10 +21,12 @@
 #include "engine/core/log.h"
 #include "engine/render/renderer.h"
 #include "engine/ui/ui_screen.h"
+#include "game/costume/costume.h"
 #include "game/event/event.h"
 #include "game/member/member.h"
 #include "game/save/save.h"
 #include "game/talk/talk.h"
+#include "game/text/messages.h"
 
 namespace sif {
 namespace {
@@ -127,11 +129,12 @@ void ApplyNameplate(UiScreen& ui, const Nameplate& p, const save::SaveData* save
 }
 
 // The day's first visit gives the login bonus (eboot FUN_001b94c0; M14 F1 §3): the next of 12 days, a Wai-Wai!
-// Booster (cap 9) or 10 of a key item by the group mode. shortcut: its pop-up is not shown, only logged
-void LoginBonus(save::SaveData& s) {
+// Booster (cap 9) or 10 of a key item by the group mode. Returns -1 when today's was already given, 0 a booster, else
+// the item.
+int LoginBonus(save::SaveData& s) {
     const event::Date d = event::Today();
     const int today = d.year * 10000 + d.month * 100 + d.day;
-    if (s.login_date == today) return;
+    if (s.login_date == today) return -1;
     const int day = std::clamp(s.login_day, 0, 11);
     const int item = event::kLoginBonus[size_t(day)][member::Group(save::Current(s)) == 0 ? 0 : 1];
     if (item == 0) {
@@ -144,7 +147,50 @@ void LoginBonus(save::SaveData& s) {
     s.login_date = today, s.login_day = (day + 1) % 12, ++s.logins;
     LogInfo("login bonus: day {}: {}, {} boosters held", day + 1,
             item ? "10 of item " + std::to_string(item) : std::string("a Wai-Wai! Booster"), s.boosters);
+    return item;
 }
+
+// The login bonus pop-up (M17 T6; 00_common uil0063_LoginPop00, shadPS4 work/m17/shad/u01, f12): "Login bonus", the
+// item's icon, its name and amount, OK; over the left half of the top menu
+struct LoginPopup {
+    UiText text;  // must outlive `ui`
+    UiScreen ui;
+    bool open = false;
+    static constexpr const char* kLayout = "uil0063_LoginPop00";
+
+    void Open(Renderer& renderer, const Vfs& vfs, const std::string& lang, int item) {
+        std::string error;
+        if (!text.Load(vfs, lang, &error)) LogWarn("login bonus: text: {}", error);
+        if (!ui.Load(renderer, vfs, "ui2/00_common", lang, &error, &text)) {
+            LogWarn("login bonus: {}", error);
+            return;
+        }
+        const int language = lang == "en" ? 1 : lang == "cn" ? 2 : lang == "tw" ? 3 : 0;
+        Messages messages;
+        if (!messages.Load(vfs, language, &error)) LogWarn("login bonus: messages: {}", error);
+        std::string name = messages.Get(552), icon = "ui/ui_reward_icon.pac/texture.pac/reward_5003";  // the booster
+        int amount = 1;
+        if (item > 0) {
+            costume::Data data;
+            const costume::Item* i = costume::Load(vfs, data, &error) ? costume::FindItem(data, item) : nullptr;
+            if (i) name = i->name[size_t(language)], icon = costume::IconPath(*i);
+            amount = event::kLoginItemAmount;
+        }
+        const std::string at = std::string(kLayout) + "/";
+        // shortcut: the game centres each line (u01); the port's text box lines start at the same left edge
+        ui.SetInstanceText(at + "uip1016_ComPopLogin00", 0, name + "\nx" + std::to_string(amount));
+        if (!ui.SetMaterialTexture(at + "uip0021_ItemIcon00", "item_icon00_M", icon)) LogWarn("login bonus: no {}", icon);
+        ui.SetMaterialUv(at + "uip0005_SelectButton00", "button_text00_M", 0, 0.375f);  // "OK"
+        ui.Play("*", UiScreen::ClipName(1), false);
+        open = true;
+        route::SetScreen("login_bonus");
+        LogInfo("login bonus: pop-up, {} x{}", name, amount);
+    }
+    // shortcut: the box's place is read off u01 (its centre at about (540, 505) of the 1920 x 1080 canvas)
+    void Draw(Renderer& renderer) const {
+        if (open) ui.DrawLayout(renderer, kLayout, 1.0f, 540, 505);
+    }
+};
 
 }
 
@@ -203,7 +249,10 @@ int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
     int mode = 0, entry = 0;  // shortcut: start mode not traced; 0 = Play
     Apply(ui, mode, entry);
     int shown_mode = mode, shown_entry = entry;
-    if (save) LoginBonus(*save);
+    LoginPopup login;
+    if (save) {
+        if (const int item = LoginBonus(*save); item >= 0) login.Open(renderer, vfs, lang, item);
+    }
     if (plate) ApplyNameplate(ui, *plate, save);
     SDL_SetWindowTitle(window, "SIF port - top menu");
     // the room (behind her) and the rest of the menu (in front) are drawn in two passes around the 3D member. The game
@@ -302,6 +351,15 @@ int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
         while (PollEvent(e)) {
             if (e.type == SDL_EVENT_QUIT) running = false;
             if (e.type != SDL_EVENT_KEY_DOWN || e.key.repeat || fade.leaving) continue;
+            if (login.open) {  // OK (Cross / Circle) closes it; the menu waits under it
+                const SDL_Scancode k = e.key.scancode;
+                if (k == SDL_SCANCODE_RETURN || k == SDL_SCANCODE_SPACE || k == SDL_SCANCODE_ESCAPE) {
+                    login.open = false;
+                    route::SetScreen("menu");
+                    LogInfo("login bonus: closed");
+                }
+                continue;
+            }
             if (popup.IsOpen()) {  // R2's member popup takes the keys while open
                 if (popup.Key(e.key.scancode) == MemberPopup::Result::Chosen) {
                     const int m = popup.Chosen();
@@ -348,6 +406,7 @@ int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
         ui.Update(double(now - last) / 1e9);
         nav.Update(double(now - last) / 1e9);
         if (popup.IsOpen()) popup.Update(double(now - last) / 1e9);
+        if (login.open) login.ui.Update(double(now - last) / 1e9);
         fade.Update(double(now - last) / 1e9);
         last = now;
         if (!renderer.BeginFrame()) {
@@ -363,9 +422,11 @@ int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
             ui.DrawLayout(renderer, kRoot, 1.0f);
         }
         popup.Draw(renderer);
+        login.Draw(renderer);
         fade.Draw(renderer);
         renderer.EndFrame();
     }
+    login.ui.Release(renderer);
     popup.Release(renderer);
     nav.Release(renderer);
     ui.Release(renderer);
