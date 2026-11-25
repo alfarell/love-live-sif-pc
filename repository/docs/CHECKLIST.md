@@ -85,15 +85,15 @@ Your own play is the reference. [PLAY.md](PLAY.md) lists the keys and what is no
 
 To see the first start, start with an empty data folder (`sif.exe --data <new folder>`).
 
-- [ ] **Notices:** the white autosave notice before the title and the online notice after it, on every start; any key goes on.
-- [ ] **New save:** "Save data creation", then the name entry (type up to 10 characters, Backspace; empty gives "New Player"), "Confirm Name" with Back / OK.
-- [ ] **Choose a Member:** full screen, µ's first on Honoka, the member in 3D on the left follows the cursor, her description below; Page Down / Page Up change the group; her profile, then OK; the top menu starts in her group with her and the name in the nameplate.
-- [ ] **Player's Name:** Collection → Profile Card → Change Accolade or Name Plate, Page Down past Badge: the name entry; Esc keeps the old name, OK the new one (also after a restart).
-- [ ] **What will you do next?** after Items Obtained (and after End the Live Show in View Live Show): Close the Window, then a key opens it again; Play Live Show Again starts the same song at once; Return to Song Selection; Return to Main Menu.
-- [ ] **Song list per mode:** µ's mode shows the µ's songs only; after L2, Aqours mode shows the Aqours and Saint Snow songs.
-- [ ] **591:** a song your member does not sing asks "You cannot play (song) with this member ..." (Cancel / OK); OK shows the member box with only the singers choosable; the chosen member plays the live (Prepare shows her skill cards) and is gone after the top menu.
-- [ ] **Login bonus:** the day's first top menu shows "Login bonus" with the booster or key material icon and amount; Enter closes it; not again the same day.
-- [ ] **Change Costume?:** Enter on an owned costume in Create/Change Costumes asks "Check Costume / Change Costume?" (Back focused); Back keeps the old costume, OK puts the new one on with the twirl.
+- [x] **Notices:** the white autosave notice before the title and the online notice after it, on every start; any key goes on.
+- [x] **New save:** "Save data creation", then the name entry (type up to 10 characters, Backspace; empty gives "New Player"), "Confirm Name" with Back / OK.
+- [x] **Choose a Member:** full screen, µ's first on Honoka, the member in 3D on the left follows the cursor, her description below; Page Down / Page Up change the group; her profile, then OK; the top menu starts in her group with her and the name in the nameplate.
+- [x] **Player's Name:** Collection → Profile Card → Change Accolade or Name Plate, Page Down past Badge: the name entry; Esc keeps the old name, OK the new one (also after a restart).
+- [x] **What will you do next?** after Items Obtained (and after End the Live Show in View Live Show): Close the Window, then a key opens it again; Play Live Show Again starts the same song at once; Return to Song Selection; Return to Main Menu.
+- [x] **Song list per mode:** µ's mode shows the µ's songs only; after L2, Aqours mode shows the Aqours and Saint Snow songs.
+- [x] **591:** a song your member does not sing asks "You cannot play (song) with this member ..." (Cancel / OK); OK shows the member box with only the singers choosable; the chosen member plays the live (Prepare shows her skill cards) and is gone after the top menu.
+- [x] **Login bonus:** the day's first top menu shows "Login bonus" with the booster or key material icon and amount; Enter closes it; not again the same day.
+- [x] **Change Costume?:** Enter on an owned costume in Create/Change Costumes asks "Check Costume / Change Costume?" (Back focused); Back keeps the old costume, OK puts the new one on with the twirl.
 
 ## Live Show Medley (M16; routes `medley_live`, `medley_edit`; Shot: `medley_start`, `medley_live`, `medley_live_noinfo`, `medley_title`, `medley_second`, `medley_end`, `medley_end_menu`, `edit_cannot_start`, `edit_list`, `edit_slot`, `edit_stage`, `edit_saved`, `edit_discard`)
 
