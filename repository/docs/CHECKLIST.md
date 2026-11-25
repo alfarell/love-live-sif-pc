@@ -81,6 +81,20 @@ Your own play is the reference. [PLAY.md](PLAY.md) lists the keys and what is no
 - [x] **Edit Profile Card:** the tabs and lists; a landscape frame turns the card; the photo position moves the photo; up to three skill cards; Finish Editing saves, and the card is still there after a restart.
 - [x] **Live intro:** before a played live, the member card, the skill cards and "Profile Card Support" with two NPC cards of the song's group (each a whole card picture, e.g. "Umi's fan").
 
+## Flow gaps (M17; routes `first_start_1`, `first_start_2`, `profile_name`, `what_next`, `member_mode`, `login_1`-`login_3`, `try_on`; Shot: `first_name_typed`, `first_name_confirm`, `first_member`, `first_member_aqours`, `first_member_profile`, `first_menu`, `profile_name_typed`, `what_next`, `view_what_next`, `member_591`, `member_591_singers`, `member_591_difficulty`, `login_booster`, `login_material`, `try_on_ask`)
+
+To see the first start, start with an empty data folder (`sif.exe --data <new folder>`).
+
+- [ ] **Notices:** the white autosave notice before the title and the online notice after it, on every start; any key goes on.
+- [ ] **New save:** "Save data creation", then the name entry (type up to 10 characters, Backspace; empty gives "New Player"), "Confirm Name" with Back / OK.
+- [ ] **Choose a Member:** full screen, µ's first on Honoka, the member in 3D on the left follows the cursor, her description below; Page Down / Page Up change the group; her profile, then OK; the top menu starts in her group with her and the name in the nameplate.
+- [ ] **Player's Name:** Collection → Profile Card → Change Accolade or Name Plate, Page Down past Badge: the name entry; Esc keeps the old name, OK the new one (also after a restart).
+- [ ] **What will you do next?** after Items Obtained (and after End the Live Show in View Live Show): Close the Window, then a key opens it again; Play Live Show Again starts the same song at once; Return to Song Selection; Return to Main Menu.
+- [ ] **Song list per mode:** µ's mode shows the µ's songs only; after L2, Aqours mode shows the Aqours and Saint Snow songs.
+- [ ] **591:** a song your member does not sing asks "You cannot play (song) with this member ..." (Cancel / OK); OK shows the member box with only the singers choosable; the chosen member plays the live (Prepare shows her skill cards) and is gone after the top menu.
+- [ ] **Login bonus:** the day's first top menu shows "Login bonus" with the booster or key material icon and amount; Enter closes it; not again the same day.
+- [ ] **Change Costume?:** Enter on an owned costume in Create/Change Costumes asks "Check Costume / Change Costume?" (Back focused); Back keeps the old costume, OK puts the new one on with the twirl.
+
 ## Live Show Medley (M16; routes `medley_live`, `medley_edit`; Shot: `medley_start`, `medley_live`, `medley_live_noinfo`, `medley_title`, `medley_second`, `medley_end`, `medley_end_menu`, `edit_cannot_start`, `edit_list`, `edit_slot`, `edit_stage`, `edit_saved`, `edit_discard`)
 
 - [x] **Set List Selection:** the Your and Recommended! tabs (L1/R1), ten lists per group (L2 switches µ's / Aqours), the list's 20 lines "NN.Song / Singers" with the costume, its stage picture and name, and the group logo. The Recommended! tab shows "You cannot edit the recommended set list."
