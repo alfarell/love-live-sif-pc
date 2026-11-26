@@ -11,6 +11,7 @@
 #include "engine/render/scene_model.h"
 #include "game/member/member.h"
 #include "game/profile/profile.h"
+#include "game/talk/talk.h"
 
 namespace sif {
 
@@ -23,8 +24,9 @@ public:
     bool Load(Renderer& renderer, const Vfs& vfs, int member, int costume, bool special, std::string* error = nullptr);
     // Advance by `seconds` (motions run at 60 frames per second, as the game's).
     void Update(double seconds);
-    // Play one of the member's talk motions (503-506) once, then back to standing.
-    void Talk();
+    // A talk: its motion (talk::Motion; -1 = one of talk1-4 at random) once, then back to standing, and the voice's
+    // mouth keys (talk::MouthKeys) from now (M18 U6).
+    void Talk(int motion = -1, std::vector<talk::MouthKey> mouth = {});
     // Play motion `number` once (e.g. 518 dresschk, 519 dressfix), then back to standing.
     void Play(int number);
     // Holds facial clip `number` (1 "a" .. 252 brows; -1 none) at its last frame over the body motion: its blend
@@ -64,6 +66,8 @@ private:
     float frame_ = 0;
     float blink_frame_ = 0;
     float blink_wait_ = 0;  // frames to the next blink
+    std::vector<talk::MouthKey> mouth_;
+    float mouth_frame_ = 0;  // frames since the voice started
     float wait_ = 0;  // frames left standing before the next idle
 };
 

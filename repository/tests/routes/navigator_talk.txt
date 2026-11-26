@@ -1,0 +1,16 @@
+# M18 U6: a talk plays its own voice (tag 0x0028: CueId = member base + value, e.g. Honoka's greeting 50 -> 10707
+# vo_ps_001_007), its own motion (tag 0x0514: 503-506) and the voice's mouth keys (timeline.pac voice_NN_<name>_<CueId>)
+#! visible
+timeout 60s
+expect screen title 30s
+press enter until menu 30s
+expect log mouth keys
+wait 350ms
+shot navigator_talk_1
+wait 250ms
+shot navigator_talk_2
+wait 3s
+key t
+expect log top menu: another line (T)
+expect nolog no voice
+expect nolog error

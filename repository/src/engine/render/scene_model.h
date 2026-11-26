@@ -5,6 +5,7 @@
 #include <array>
 #include <map>
 #include <set>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -25,9 +26,11 @@ public:
     bool Load(Renderer& renderer, const Vfs& vfs, const std::string& path, std::string* error,
               const std::string& more_textures = {}, const std::string& shape_model = {});
     // Bind pose when `motion` is null. Face meshes also take the layers' blend-shape weights (ANMS; a shape no layer
-    // sets is 0, and the last layer wins per shape).
+    // sets is 0, and the last layer wins per shape). `shapes` (optional): (shape index, weight) set after the layers,
+    // e.g. the mouth keys of a voice line (M18 U6).
     void Pose(Renderer& renderer, const bmar::Motion* motion, float frame);
-    void Pose(Renderer& renderer, std::span<const bmar::Layer> layers);
+    void Pose(Renderer& renderer, std::span<const bmar::Layer> layers,
+              std::span<const std::pair<int, float>> shapes = {});
     // `by_texture` (optional): the material's texture file name -> a texture drawn instead (e.g. a stage's
     // screen placeholder "monitor_scrnrogo.tga" -> the streamed movie)
     void Draw(Renderer& renderer, const Mat4& placement,

@@ -54,17 +54,20 @@ constexpr std::array<const char*, 4> kActiveList = {"uil0006_SubMenuList00_act",
 constexpr const char* kRoot = "uil0001_TopMenu00";
 constexpr const char* kRoomPart = "uip0001_RoomBG00";  // her room, and a quad for the game's off-screen member picture
 
-// The navigator's voice line for talk `id`; logs and returns false when it has none.
-bool Say(const Vfs& vfs, const cri::CueSheet& voice, AudioOutput& audio, int member, int id) {
-    const std::string cue = talk::VoiceCue(vfs, member, id);
+// Talk `id`: the navigator's voice line, her talk motion and the line's mouth keys; logs and returns false when it
+// has no voice.
+bool Say(const Vfs& vfs, const cri::CueSheet& voice, AudioOutput& audio, Navigator& nav, int member, int id) {
+    const int64_t voice_id = talk::VoiceId(vfs, member, id);
+    const std::string cue(voice_id < 0 ? std::string_view() : voice.CueNameById(voice_id));
     cri::Pcm pcm;
     std::string error;
     if (cue.empty() || !cri::LoadCue(vfs, voice, cue, pcm, &error)) {
-        LogWarn("talk {}: no voice ({}{})", id, cue, error.empty() ? "" : ": " + error);
+        LogWarn("talk {}: no voice ({}{})", id, voice_id, error.empty() ? "" : ": " + error);
         return false;
     }
-    LogInfo("talk {}: {}", id, cue);
+    LogInfo("talk {}: {} ({})", id, cue, voice_id);
     audio.Play(std::move(pcm));
+    nav.Talk(talk::Motion(vfs, member, id), talk::MouthKeys(vfs, member, voice_id));
     return true;
 }
 
@@ -373,15 +376,14 @@ int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
         }
         plain.clear();
         for (const talk::Rule& r : rules) {
-            if (r.type == 0 && !talk::VoiceCue(vfs, who, r.id).empty()) plain.push_back(r.id);
+            if (r.type == 0 && talk::VoiceId(vfs, who, r.id) >= 0) plain.push_back(r.id);
         }
         if (!audio) return;
         const std::time_t t = std::time(nullptr);
         std::tm local{};
         localtime_s(&local, &t);
         const int greeting = talk::GreetingFor(rules, local.tm_hour);
-        if (greeting >= 0 && Say(vfs, voice, *audio, who, greeting)) {
-            nav.Talk();
+        if (greeting >= 0 && Say(vfs, voice, *audio, nav, who, greeting)) {
             save::Mark(s, "talk." + std::to_string(who), greeting);  // mission kind 21: her phrases heard (M15)
         }
     };
@@ -425,8 +427,7 @@ int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
                 case SDL_SCANCODE_T:
                     LogInfo("top menu: another line (T)");
                     if (const int id = plain.empty() ? -1 : plain[random() % plain.size()];
-                        audio && id >= 0 && Say(vfs, voice, *audio, nav.Member(), id)) {
-                        nav.Talk();
+                        audio && id >= 0 && Say(vfs, voice, *audio, nav, nav.Member(), id)) {
                         save::Mark(s, "talk." + std::to_string(nav.Member()), id);
                     }
                     continue;

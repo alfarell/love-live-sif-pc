@@ -207,7 +207,8 @@ void SceneModel::Pose(Renderer& renderer, const bmar::Motion* motion, float fram
     Pose(renderer, motion ? std::span<const bmar::Layer>(&layer, 1) : std::span<const bmar::Layer>());
 }
 
-void SceneModel::Pose(Renderer& renderer, std::span<const bmar::Layer> layers) {
+void SceneModel::Pose(Renderer& renderer, std::span<const bmar::Layer> layers,
+                      std::span<const std::pair<int, float>> shapes) {
     bmar::Pose(model_, layers, world_);
     skin_.resize(model_.palette.size());
     for (size_t k = 0; k < skin_.size(); ++k) skin_[k] = world_[model_.palette[k].node] * model_.palette[k].inverse_bind;
@@ -220,6 +221,9 @@ void SceneModel::Pose(Renderer& renderer, std::span<const bmar::Layer> layers) {
                 for (const bmar::PropertyTrack& s : layer.motion->shapes) {
                     if (s.type < weights.size() && s.name == mesh) weights[s.type] = bmar::SampleKeys(s.keys, layer.frame)[0];
                 }
+            }
+            for (const auto& [shape, weight] : shapes) {
+                if (shape >= 0 && size_t(shape) < weights.size()) weights[size_t(shape)] = weight;
             }
             if (weights == part.shape_weights) continue;
             part.shape_weights = weights;

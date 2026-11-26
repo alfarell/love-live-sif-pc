@@ -1,5 +1,6 @@
 #include "app/navigator.h"
 
+#include <algorithm>
 #include <cmath>
 
 #include "engine/core/log.h"
@@ -107,6 +108,9 @@ void Navigator::Start(int number) {
 void Navigator::Update(double seconds) {
     if (!loaded_ || !playing_) return;
     frame_ += float(seconds * 60.0);
+    if (!mouth_.empty() && (mouth_frame_ += float(seconds * 60.0)) > mouth_.back().frame + mouth_.back().blend + 1) {
+        mouth_.clear();
+    }
     if (blink_) {
         blink_frame_ += float(seconds * 60.0);
         if (blink_frame_ >= blink_->motion.frames) blink_ = nullptr;
@@ -131,10 +135,11 @@ void Navigator::Update(double seconds) {
     }
 }
 
-void Navigator::Talk() {
+void Navigator::Talk(int motion, std::vector<talk::MouthKey> mouth) {
     if (!loaded_) return;
-    Start(kTalk[random_.Below(4)]);
-    LogInfo("navigator: talk {}", playing_ ? playing_->number : 0);
+    Start(motion >= 0 ? motion : kTalk[random_.Below(4)]);
+    mouth_ = std::move(mouth), mouth_frame_ = 0;
+    LogInfo("navigator: talk {}, {} mouth keys", playing_ ? playing_->number : 0, mouth_.size());
 }
 
 void Navigator::Play(int number) {
@@ -151,7 +156,16 @@ void Navigator::Draw(Renderer& renderer, const Mat4& view_proj) {
     if (default_) layers.push_back({&default_->motion, default_->motion.frames});
     if (face_) layers.push_back({&face_->motion, face_->motion.frames});
     if (blink_) layers.push_back({&blink_->motion, blink_frame_});
-    model_.Pose(renderer, layers);
+    std::vector<std::pair<int, float>> shapes;
+    if (!mouth_.empty()) {
+        const std::array<float, 8> w = talk::MouthAt(mouth_, mouth_frame_);
+        float open = 0;
+        for (int s = 1; s < 8; ++s) shapes.push_back({s, w[size_t(s)]}), open = std::max(open, w[size_t(s)]);
+        // shortcut: `default` (shape 0, the closed mouth) yields to an open mouth; the game's facial layers and modes
+        // (facial_datas.bin) are not traced
+        if (default_) shapes.push_back({0, 1 - open});
+    }
+    model_.Pose(renderer, layers, shapes);
     model_.Draw(renderer, Mat4{});
 }
 
