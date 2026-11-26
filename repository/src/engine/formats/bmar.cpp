@@ -136,7 +136,7 @@ VertexLayout LayoutOf(uint32_t format, uint32_t extra4) {
         {0x00001000, 8, &unused, nullptr, false}, {0x00004000, 4, &unused, nullptr, false},
         {0x00040000, 12, &unused, nullptr, false}, {0x00080000, 8, &unused, nullptr, false},
         {0x00200000, 12, &unused, nullptr, false}, {0x00400000, 8, &unused, nullptr, false},
-        {0x10000000, 16, &unused, nullptr, false}};
+        {0x10000000, 16, &l.shape_uv, nullptr, false}};
     int pos = 0;
     for (const Attr& a : attrs) {
         if (!(format & a.bit)) continue;
@@ -181,6 +181,11 @@ bool Parse(std::span<const uint8_t> file, Model& out, std::string* error) {
             }
             m.vertices = r.Bytes(vb, uint64_t(m.vertex_count) * m.stride);
             m.indices = r.Bytes(ib, uint64_t(m.index_count) * 2);
+            if (m.layout.shape_uv >= 0) {
+                const uint64_t shapes = r.At<uint64_t>(b + 0x20);
+                const uint8_t n = r.At<uint8_t>(b + 0x60);
+                for (uint32_t k = 0; k < n && shapes && r.ok; ++k) m.shapes.push_back(r.Str(r.At<uint64_t>(shapes + 16 * uint64_t(k))));
+            }
             out.meshes.push_back(std::move(m));
         } else if (c.tag == "DRAW") {
             out.draws.push_back({r.At<uint32_t>(b), r.At<uint32_t>(b + 4), r.At<uint32_t>(b + 8)});
@@ -222,20 +227,21 @@ bool Parse(std::span<const uint8_t> file, Model& out, std::string* error) {
 namespace {
 
 // ANMT / ANVS: u64 table*, u16 count; records (name*, channel table*, u32 hash, u32 channel count) of 24 bytes;
-// channels as in ANSK (keys*, values*, u32 key count, u32 type); values are f32 x 1 (ANVS) or x 3 (ANMT)
-void ParseProperties(Reader& r, uint64_t body, int default_width, std::vector<PropertyTrack>& out) {
+// channels as in ANSK (keys*, values*, u32 key count, u32 type); values are f32 x 1 (ANVS) or x 3 (ANMT).
+// ANMS (`shapes`): the record's last u32 is u16 channel count + u16 shape index, kept as the track's type
+void ParseProperties(Reader& r, uint64_t body, int default_width, std::vector<PropertyTrack>& out, bool shapes = false) {
     const uint64_t table = r.At<uint64_t>(body);
     const uint16_t count = r.At<uint16_t>(body + 8);
     for (uint32_t i = 0; i < count && r.ok; ++i) {
         const uint64_t t = table + 24 * uint64_t(i);
         const std::string name = r.Str(r.At<uint64_t>(t));
         const uint64_t chans = r.At<uint64_t>(t + 8);
-        const uint32_t nchan = r.At<uint32_t>(t + 20);
+        const uint32_t nchan = shapes ? r.At<uint16_t>(t + 20) : r.At<uint32_t>(t + 20);
         for (uint32_t j = 0; j < nchan && r.ok; ++j) {
             const uint64_t c = chans + 24 * uint64_t(j);
             const uint64_t keys = r.At<uint64_t>(c), values = r.At<uint64_t>(c + 8);
             const uint32_t nkeys = r.At<uint32_t>(c + 16);
-            PropertyTrack track{name, r.At<uint32_t>(c + 20), std::vector<Key>(nkeys)};
+            PropertyTrack track{name, shapes ? r.At<uint16_t>(t + 22) : r.At<uint32_t>(c + 20), std::vector<Key>(nkeys)};
             // the value width follows from the key offsets (a few ANMT channels store one float, replicated here)
             int width = default_width;
             if (nkeys > 1) width = std::clamp(int(r.At<uint32_t>(keys + 16) - r.At<uint32_t>(keys + 4)) / 4, 1, 4);
@@ -276,6 +282,8 @@ bool ParseMotion(std::span<const uint8_t> file, Motion& out, std::string* error)
             ParseProperties(r, c.body, 3, out.materials);
         } else if (c.tag == "ANVS") {
             ParseProperties(r, c.body, 1, out.visibility);
+        } else if (c.tag == "ANMS") {
+            ParseProperties(r, c.body, 1, out.shapes, true);
         }
     }
     for (uint32_t i = 0; i < count && r.ok; ++i) {

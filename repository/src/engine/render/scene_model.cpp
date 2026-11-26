@@ -34,9 +34,55 @@ template <class T> T At(std::span<const uint8_t> d, size_t off) {
 
 }
 
+// A face mesh's blend shapes (M18 U4): each shape is a BMT btx of RGBA16F (format 0x1B; u16 width at +8, height at
+// +0xA, u32 data offset at +0x18). The vertex's shape_uv attribute gives its texels: (x, y) the position offset,
+// (z, w) the normal offset.
+bool SceneModel::LoadShapes(Part& part, const bmar::Mesh& mesh, const bmar::Model& source, const std::string& path) {
+    const bmar::VertexLayout& l = mesh.layout;
+    const auto same = std::find_if(source.meshes.begin(), source.meshes.end(),
+                                   [&](const bmar::Mesh& m) { return m.name == mesh.name && !m.shapes.empty(); });
+    if (same == source.meshes.end() || same->vertex_count != mesh.vertex_count) return false;
+    for (const std::string& name : same->shapes) {
+        const auto e = std::find_if(source.textures.begin(), source.textures.end(),
+                                    [&](const pac::ArcEntry& a) { return TextureKey(a.name) == TextureKey(name); });
+        if (e == source.textures.end()) {
+            LogWarn("model {}: no shape texture {}", path, name);
+            return false;
+        }
+        const std::span<const uint8_t> tex = source.texture_archive.subspan(size_t(e->offset), e->size);
+        if (tex.size() < 0x20 || std::memcmp(tex.data(), "btx", 4) != 0 || tex[0x10] != 0x1B) {
+            LogWarn("model {}: shape {} is not an RGBA16F btx", path, name);
+            return false;
+        }
+        const uint32_t w = At<uint16_t>(tex, 8), h = At<uint16_t>(tex, 10), data = At<uint32_t>(tex, 0x18);
+        const auto texel = [&](float u, float v, int c) {
+            const uint32_t x = std::min(w - 1, uint32_t(u * float(w))), y = std::min(h - 1, uint32_t(v * float(h)));
+            const size_t off = data + (size_t(y) * w + x) * 8 + 2 * size_t(c);
+            return off + 2 <= tex.size() ? bmar::HalfToFloat(At<uint16_t>(tex, off)) : 0.0f;
+        };
+        std::vector<std::array<float, 6>>& out = part.shapes.emplace_back(mesh.vertex_count);
+        for (uint32_t v = 0; v < mesh.vertex_count; ++v) {
+            const std::span<const uint8_t> src = mesh.vertices.subspan(size_t(v) * mesh.stride, mesh.stride);
+            float uv[4];
+            for (int i = 0; i < 4; ++i) uv[i] = At<float>(src, size_t(l.shape_uv) + 4 * size_t(i));
+            for (int c = 0; c < 3; ++c) out[v][size_t(c)] = texel(uv[0], uv[1], c), out[v][size_t(3 + c)] = texel(uv[2], uv[3], c);
+        }
+    }
+    part.shape_weights.assign(part.shapes.size(), 0.0f);
+    return true;
+}
+
 bool SceneModel::Load(Renderer& renderer, const Vfs& vfs, const std::string& path, std::string* error,
-                      const std::string& more_textures) {
+                      const std::string& more_textures, const std::string& shape_model) {
     if (!vfs.Read(path, file_, error) || !bmar::Parse(file_, model_, error)) return false;
+    std::vector<uint8_t> shape_file;  // the shapes are copied out while loading
+    bmar::Model shape_source;
+    if (!shape_model.empty() && shape_model != path) {
+        std::string why;
+        if (!vfs.Read(shape_model, shape_file, &why) || !bmar::Parse(shape_file, shape_source, &why)) {
+            LogWarn("model {}: shapes: {}", path, why);
+        }
+    }
 
     // textures by key: embedded BMT entries first, then a texture archive next to the model
     // (chr: model.pac/texture.texs) or next to its model.pac (stage: stNNN.pac/texture.pac)
@@ -94,6 +140,12 @@ bool SceneModel::Load(Renderer& renderer, const Vfs& vfs, const std::string& pat
         part.texture = material_texture[d.material];
         part.material = d.material;
         part.skinned = l.skin >= 0 && !model_.palette.empty();
+        part.mesh = d.mesh;
+        if (l.shape_uv >= 0) {  // a face mesh: its own shapes, or the shape model's
+            const bmar::Model& source = mesh.shapes.empty() && !shape_source.meshes.empty() ? shape_source : model_;
+            if (!LoadShapes(part, mesh, source, path)) part.shapes.clear();
+            if (!part.shapes.empty()) LogInfo("model {}: {} face shapes on {}", path, part.shapes.size(), mesh.name);
+        }
         std::vector<MeshVertex> verts(mesh.vertex_count);
         if (part.skinned) {
             part.bones.resize(mesh.vertex_count);
@@ -138,8 +190,9 @@ bool SceneModel::Load(Renderer& renderer, const Vfs& vfs, const std::string& pat
         std::vector<uint16_t> indices(mesh.index_count);
         std::memcpy(indices.data(), mesh.indices.data(), mesh.indices.size());
         for (uint16_t& i : indices) i = std::min<uint16_t>(i, uint16_t(mesh.vertex_count - 1));
-        if (!renderer.CreateMesh(verts, indices, part.skinned, part.gpu, error)) return false;
-        if (part.skinned) {
+        const bool dynamic = part.skinned || !part.shapes.empty();
+        if (!renderer.CreateMesh(verts, indices, dynamic, part.gpu, error)) return false;
+        if (dynamic) {
             part.posed = verts;
             part.bind = std::move(verts);
         }
@@ -159,6 +212,31 @@ void SceneModel::Pose(Renderer& renderer, std::span<const bmar::Layer> layers) {
     skin_.resize(model_.palette.size());
     for (size_t k = 0; k < skin_.size(); ++k) skin_[k] = world_[model_.palette[k].node] * model_.palette[k].inverse_bind;
     for (Part& part : parts_) {
+        if (!part.shapes.empty()) {  // a face: bind + sum of weight x offset (M18 U4)
+            std::vector<float> weights(part.shapes.size(), 0.0f);
+            const std::string& mesh = model_.meshes[part.mesh].name;
+            for (const bmar::Layer& layer : layers) {
+                if (!layer.motion) continue;
+                for (const bmar::PropertyTrack& s : layer.motion->shapes) {
+                    if (s.type < weights.size() && s.name == mesh) weights[s.type] = bmar::SampleKeys(s.keys, layer.frame)[0];
+                }
+            }
+            if (weights == part.shape_weights) continue;
+            part.shape_weights = weights;
+            for (size_t v = 0; v < part.bind.size(); ++v) {
+                MeshVertex out = part.bind[v];
+                for (size_t k = 0; k < weights.size(); ++k) {
+                    if (weights[k] == 0) continue;
+                    const std::array<float, 6>& d = part.shapes[k][v];
+                    for (int i = 0; i < 3; ++i) out.position[i] += weights[k] * d[size_t(i)], out.normal[i] += weights[k] * d[size_t(3 + i)];
+                }
+                const Vec3 n = Normalize({out.normal[0], out.normal[1], out.normal[2]});
+                out.normal[0] = n.x, out.normal[1] = n.y, out.normal[2] = n.z;
+                part.posed[v] = out;
+            }
+            renderer.UpdateMesh(part.gpu, part.posed);
+            continue;
+        }
         if (!part.skinned) continue;
         for (size_t v = 0; v < part.bind.size(); ++v) {
             Mat4 m;

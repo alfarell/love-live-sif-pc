@@ -20,9 +20,12 @@ public:
     // `path`: the model entry in the dump, e.g. "chr/c01/c01.pac/model.pac/mod_01_honoka". `more_textures`
     // (optional): one more folder whose texture archive is searched last, e.g. a costume model's own character
     // folder for the face and hair ("chr/c01/c01.pac/model.pac").
+    // `shape_model` (optional): the model whose face meshes hold the blend shapes (a costume model's face mesh has
+    // none; the member's own mod_NN_<name> has them, M18 U4).
     bool Load(Renderer& renderer, const Vfs& vfs, const std::string& path, std::string* error,
-              const std::string& more_textures = {});
-    // Bind pose when `motion` is null.
+              const std::string& more_textures = {}, const std::string& shape_model = {});
+    // Bind pose when `motion` is null. Face meshes also take the layers' blend-shape weights (ANMS; a shape no layer
+    // sets is 0, and the last layer wins per shape).
     void Pose(Renderer& renderer, const bmar::Motion* motion, float frame);
     void Pose(Renderer& renderer, std::span<const bmar::Layer> layers);
     // `by_texture` (optional): the material's texture file name -> a texture drawn instead (e.g. a stage's
@@ -59,10 +62,15 @@ private:
         bool skinned = false;
         float bounds[4]{};  // x0, y0, x1, y1 of the vertices in node space (UI text boxes)
         GpuMesh gpu;
-        std::vector<MeshVertex> bind, posed;              // skinned parts only keep these
+        std::vector<MeshVertex> bind, posed;              // skinned and face parts only keep these
         std::vector<std::array<uint8_t, 8>> bones;
         std::vector<std::array<float, 8>> weights;
+        // face parts (M18 U4): per shape, per vertex (position offset, normal offset); the weights last applied
+        uint32_t mesh = 0;
+        std::vector<std::vector<std::array<float, 6>>> shapes;
+        std::vector<float> shape_weights;
     };
+    bool LoadShapes(Part& part, const bmar::Mesh& mesh, const bmar::Model& source, const std::string& path);
 
     std::vector<uint8_t> file_;  // the parsed model points into it
     bmar::Model model_;

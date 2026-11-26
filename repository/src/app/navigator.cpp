@@ -18,18 +18,21 @@ std::string FirstEntry(const Vfs& vfs, const std::string& folder, const std::str
     return {};
 }
 
+int test_face = -1;  // --face
+constexpr int kFacialBase = 100000;  // facial clips' keys in clips_
 constexpr int kTalk[] = {503, 504, 505, 506};  // talk1-4 (shortcut: which talk motion goes with which line is not traced)
 
 }
 
 bool Navigator::Load(Renderer& renderer, const Vfs& vfs, int member, int costume, bool special, std::string* error) {
     if (loaded_) Release(renderer);  // a reload: another member, costume or colour
-    clips_.clear(), playing_ = nullptr;
+    clips_.clear(), playing_ = face_ = nullptr;
     vfs_ = &vfs, member_ = member;
     char chr[64], prefix[16];
     std::snprintf(chr, sizeof(chr), "chr/c%02d/c%02d.pac/model.pac", member, member);
     std::snprintf(prefix, sizeof(prefix), "mod_%02d_", member);
     std::string path = FirstEntry(vfs, chr, prefix), textures;
+    const std::string own = path;  // her own model: the face's blend shapes (M18 U4)
     if (costume < 0) costume = member::DefaultCostume(member::Group(member));
     // the costume pac holds the whole member in that costume; face and hair textures stay in her own model.pac
     for (const bool colour : {special, false}) {
@@ -40,13 +43,14 @@ bool Navigator::Load(Renderer& renderer, const Vfs& vfs, int member, int costume
         }
         if (colour) LogWarn("navigator: member {} costume {} has no special colour", member, costume);
     }
-    if (path.empty() || !model_.Load(renderer, vfs, path, error, textures)) return false;
+    if (path.empty() || !model_.Load(renderer, vfs, path, error, textures, own)) return false;
     loaded_ = true;
     std::string idle_error;
     if (!member::LoadIdle(vfs, idle_, &idle_error)) LogWarn("navigator: {}", idle_error);
     Start(member::kStandMotion);
     wait_ = member::IdleWait(idle_, random_.Next() >> 16);
     LogInfo("navigator: member {} in {}{}", member, path, special ? " (special colour)" : "");
+    if (test_face >= 0) Face(test_face);
     return true;
 }
 
@@ -65,6 +69,30 @@ const Navigator::Clip* Navigator::Get(int number) {
     clips_.push_back(std::move(c));
     return clips_.back()->motion.frames > 0 ? clips_.back().get() : nullptr;
 }
+
+const Navigator::Clip* Navigator::Facial(int number) {
+    for (const auto& c : clips_) {
+        if (c->number == kFacialBase + number) return c->motion.frames > 0 ? c.get() : nullptr;
+    }
+    auto c = std::make_unique<Clip>();
+    c->number = kFacialBase + number;
+    const std::string path = member::FacialPath(*vfs_, member_, number);
+    std::string error;
+    if (path.empty() || !vfs_->Read(path, c->file, &error) || !bmar::ParseMotion(c->file, c->motion, &error)) {
+        LogWarn("navigator: member {} facial {}: {}", member_, number, path.empty() ? "none" : error);
+        c->motion = {};
+    }
+    clips_.push_back(std::move(c));
+    return clips_.back()->motion.frames > 0 ? clips_.back().get() : nullptr;
+}
+
+void Navigator::Face(int number) {
+    if (!loaded_) return;
+    face_ = number < 0 ? nullptr : Facial(number);
+    LogInfo("navigator: face {}", face_ ? number : -1);
+}
+
+void Navigator::TestFace(int number) { test_face = number; }
 
 void Navigator::Start(int number) {
     const Clip* c = Get(number);
@@ -105,7 +133,10 @@ void Navigator::Play(int number) {
 void Navigator::Draw(Renderer& renderer, const Mat4& view_proj) {
     if (!loaded_) return;
     renderer.SetCamera(view_proj);
-    model_.Pose(renderer, playing_ ? &playing_->motion : nullptr, frame_);
+    std::vector<bmar::Layer> layers;
+    if (playing_) layers.push_back({&playing_->motion, frame_});
+    if (face_) layers.push_back({&face_->motion, face_->motion.frames});
+    model_.Pose(renderer, layers);
     model_.Draw(renderer, Mat4{});
 }
 

@@ -1,5 +1,6 @@
 // BMAR model/motion reader checks against the user's CUSA24620 dump (first argument). Expected counts come from
 // tools/bmar_dump.py on the same files (M2/M5).
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <string>
@@ -48,6 +49,20 @@ int main(int argc, char** argv) {
               honoka.materials.size() == 6 && honoka.palette.size() == 114,
           "mod_01_honoka: 218 nodes, 11 meshes, 11 draws, 6 materials, 114 palette entries");
     Check(honoka.textures.size() == 46 && honoka.textures[0].name == "Honoka_face_default", "embedded BMT: 46 textures");
+    // M18 U4: the face mesh's blend shapes (MESH +0x20 / +0x60) and its texel attribute; a facial clip's ANMS weights
+    const auto face = std::find_if(honoka.meshes.begin(), honoka.meshes.end(), [](const bmar::Mesh& m) { return m.name == "Honoka_face"; });
+    Check(face != honoka.meshes.end() && face->shapes.size() == 46 && face->shapes[1] == "Honoka_face_a" &&
+              face->shapes[10] == "Honoka_face_eye_Blink" && face->layout.shape_uv == 44,
+          "face: 46 shapes, a at 1, eye_Blink at 10, texel attribute at byte 44");
+    std::vector<uint8_t> blink_file;
+    bmar::Motion blink;
+    Check(vfs.Read("chr/c01/c01.pac/motion.pac/mot_01_honoka_facial_100_blink", blink_file, &error) &&
+              bmar::ParseMotion(blink_file, blink, &error),
+          "parse facial clip: " + error);
+    Check(blink.shapes.size() == 1 && blink.shapes[0].name == "Honoka_face" && blink.shapes[0].type == 10 &&
+              blink.frames == 10 && std::abs(bmar::SampleKeys(blink.shapes[0].keys, 4)[0] - 1.0f) < 1e-4f &&
+              std::abs(bmar::SampleKeys(blink.shapes[0].keys, 10)[0]) < 1e-4f,
+          "blink: shape 10, weight 1 at frame 4, 0 at frame 10");
     std::vector<Mat4> world;
     bmar::Pose(honoka, nullptr, 0, world);
     const float bind_error = PaletteError(honoka, world);

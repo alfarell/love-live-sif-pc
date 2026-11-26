@@ -49,6 +49,9 @@ std::string RoomTexture(int member, int variant = 0);
 // The member's menu motion number `number` (mot_NN_<name>_<number>_*, e.g. 1 = 001_stand, 10 = 010_idle) in
 // chr/cNN/cNN.pac/motion.pac; "" when there is none.
 std::string MotionPath(const Vfs& vfs, int member, int number);
+// The member's facial clip `number` (mot_NN_<name>_facial_<number>_*, e.g. 1 = 001_a, 100 = 100_blink; the eboot's
+// facial ids are 1000 + number, M18 U1); "" when there is none.
+std::string FacialPath(const Vfs& vfs, int member, int number);
 
 // character_params.bin: the navigator's idle loop (eboot FUN_00015970, FUN_00015ae0, FUN_0001dee0).
 struct Idle {

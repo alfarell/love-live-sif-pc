@@ -71,6 +71,21 @@ std::string MotionPath(const Vfs& vfs, int member, int number) {
     return {};
 }
 
+std::string FacialPath(const Vfs& vfs, int member, int number) {
+    char folder[64], prefix[16], tag[24];
+    std::snprintf(folder, sizeof(folder), "chr/c%02d/c%02d.pac/motion.pac", member, member);
+    std::snprintf(prefix, sizeof(prefix), "mot_%02d_", member);
+    std::snprintf(tag, sizeof(tag), "_facial_%03d_", number);
+    std::vector<pac::ArcEntry> entries;
+    if (!vfs.List(folder, entries)) return {};
+    for (const pac::ArcEntry& e : entries) {
+        if (e.name.rfind(prefix, 0) == 0 && e.name.find(tag) != std::string::npos) {
+            return std::string(folder) + "/" + e.name;
+        }
+    }
+    return {};
+}
+
 bool LoadIdle(const Vfs& vfs, IdleTable& out, std::string* error) {
     out = {};
     constexpr const char* kPath = "common/common.pac/character_common.pac/character_params.bin";

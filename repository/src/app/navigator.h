@@ -27,6 +27,10 @@ public:
     void Talk();
     // Play motion `number` once (e.g. 518 dresschk, 519 dressfix), then back to standing.
     void Play(int number);
+    // Holds facial clip `number` (1 "a" .. 252 brows; -1 none) at its last frame over the body motion: its blend
+    // shapes at their full weight (M18 U4). `TestFace` (the --face option) gives every navigator that face.
+    void Face(int number);
+    static void TestFace(int number);
     // `view_proj`: the camera; she is drawn at the origin, facing -Y (Z-up), as in lives.
     void Draw(Renderer& renderer, const Mat4& view_proj);
     void Release(Renderer& renderer);
@@ -52,7 +56,9 @@ private:
     std::vector<std::unique_ptr<Clip>> clips_;  // loaded on first use
     member::IdleTable idle_;
     profile::XorShift128 random_;  // the eboot's generator and seed (its own instance, as the game's idle code)
+    const Clip* Facial(int number);
     const Clip* playing_ = nullptr;
+    const Clip* face_ = nullptr;
     float frame_ = 0;
     float wait_ = 0;  // frames left standing before the next idle
 };

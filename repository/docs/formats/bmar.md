@@ -60,6 +60,7 @@ Node 0 is `bml_axisNode`, rotated −90° about X. Model data is **Z-up** (eyes 
 | 0x08 | vertex buffer* |
 | 0x10 | index buffer*: u16 triangle list |
 | 0x18 | count record* |
+| 0x20 | face meshes: blend-shape table* (see below) |
 | 0x48 | u32 vertex format bits |
 | 0x4C | u32 extra 4-byte attribute count |
 | 0x50 | u32 index count |
@@ -67,6 +68,7 @@ Node 0 is `bml_axisNode`, rotated −90° about X. Model data is **Z-up** (eyes 
 | 0x58 | u16 2 |
 | 0x5A | u16 stride |
 | 0x5C | u32 flags |
+| 0x60 | face meshes: u8 blend-shape count (46 for Honoka, 51 for Chika), u8 2 |
 
 Rigid meshes are stored relative to their node (eye highlights sit at their eye only after the node transform). Skinned meshes are already in model space (bind pose).
 
@@ -87,7 +89,7 @@ Sizes are solved from all 22 format/stride pairs in the game. Every stride match
 | 0x00001000 / 0x00004000 | uv1 | f32×2 / f16×2 | 8 / 4 |
 | 0x00040000 / 0x00080000 | tangent | f32×3 / f16×4 | 12 / 8 |
 | 0x00200000 / 0x00400000 | binormal | f32×3 / f16×4 | 12 / 8 |
-| 0x10000000 | extra (face meshes) | f32×4 | 16 |
+| 0x10000000 | blend-shape texels (face meshes, M18 U4) | f32×4: (x, y) the position-offset texel, (z, w) the normal-offset texel in the shape textures | 16 |
 | MESH+0x4C × | extra | 4 bytes each, placed last (*Hypothesis*) | 4 |
 
 Normal check over all meshes: the decoded normal is unit length in most meshes. The rest have **consistent** non-unit lengths (e.g. 1.13 on eye meshes), i.e. stored unnormalized, not misread. 89 of 27,392 meshes have first-vertex UVs outside ±8 (not investigated).
@@ -101,6 +103,18 @@ Most common formats:
 | `0x40494429` | 5,205 | skinned characters with uv1 |
 | `0x480429` | 3,348 | |
 | `0x480129` | 3,180 | |
+
+### Face blend shapes (M18 U4)
+
+Checked on `mod_01_honoka` and `mod_11_chika`, and drawn on the top-menu navigator:
+- **The shape table:** `MESH +0x20` lists the face mesh's shapes as 16-byte records (name*, u64 0), with the count at `MESH +0x60`. The order is the same for every member: 0 `default`, 1 `a`, 2 `i`, 3 `i_small`, 4 `u`, 5 `e`, 6 `o`, 7 `n`, 8 `mouth_Smile`, 9 `mouth_happy`, 10 `eye_Blink`, 11 `eye_open`, 12-15 winks, 16-27 partial blinks, 28-44 brows, 45 `mouth_Smile`. Chika has 5 more after these.
+- **The shape data:** each name is a texture in the same model's `BMT`. It is a btx of format 0x1B, RGBA16F, 128 × 64:
+  - the top half holds the per-vertex position offset (x, y, z, w = 1);
+  - the bottom half holds the normal offset.
+  - Vertex k uses texel (k mod 128, k div 128) and that texel + 32 rows; the vertex's f32×4 attribute stores these as texel-centre UVs.
+- **Blending:** position = bind + Σ weight × offset; the same for the normal, then normalized (*hypothesis* for the normal).
+  - The bare mesh has an open mouth; shape 0 `default` closes it to the neutral face.
+- **Costume models** (`chr/cNN/dNNN/*.mdl`) have the face mesh with its texel attribute, but no shape table or shape textures. The member's own `chr/cNN/cNN.pac/model.pac/mod_NN_<name>` supplies them (same vertex count).
 
 ### Other `BML` chunks
 - `DRAW` (16 bytes): u32 node, u32 mesh, u32 material, u32 0.
@@ -116,7 +130,7 @@ Most common formats:
 | `ANSK` (16 bytes) | track table*, u16 track count (91), u16 ? |
 | `ANMT` | Material tracks (M6): u64 table*, u16 count; see below |
 | `ANVS` | Visibility tracks (M6): same layout |
-| `ANMS` | In 95 files; not decoded (*Hypothesis:* morph tracks) |
+| `ANMS` | Blend-shape weights (M18 U4; the facial clips `mot_NN_<name>_facial_*`): same layout as `ANMT`, see below |
 
 - **Track (24 bytes):** node name*, channel table*, u32 node name hash (= `NODE` +0x5C), u32 channel count (3).
 - **Channel (24 bytes):** key table*, value array*, u32 key count, u32 channel type: 0 translate, 3 rotate, 2 scale.
@@ -129,7 +143,9 @@ Most common formats:
   - 0 in all but 10 channels;
   - 1 and 2 also occur, and channels with flag 2 can have 36-byte values (*Hypothesis:* value + in/out tangents).
   - The port treats every key as linear (normalized lerp for quaternions).
-- `ANMS` (95 files): not decoded.
+- **`ANMS`:** one record per shape. The record's last u32 is a u16 channel count (1) and a u16 **shape index** (the face mesh's shape table). The name is the mesh (`Honoka_face`). Its one channel is of type 12, f32 weights. Examples:
+  - `001_a`: shape 1, weight 0 → 1 over frames 0-6;
+  - `100_blink`: shape 10, weights 0, 0.5, 1, 0.74, 0.26, 0 at frames 0-10 (2 apart).
 
 ### `ANMT` and `ANVS` (M6, decoded on the ui2 clips)
 

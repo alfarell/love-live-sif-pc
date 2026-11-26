@@ -22,6 +22,8 @@ struct Node {
 // Byte offsets of the attributes inside one vertex, -1 when absent (vertex format bits, docs/formats/bmar.md).
 struct VertexLayout {
     int position = -1, skin = -1, normal = -1, uv0 = -1;
+    int shape_uv = -1;  // face meshes (bit 0x10000000): f32x4, the vertex's texel in the shape textures (position
+                        // offset at (x, y), normal offset at (z, w); M18 U4)
     bool normal_f16 = false, uv0_f16 = false;
     uint32_t stride = 0;
 };
@@ -33,6 +35,9 @@ struct Mesh {
     uint32_t format = 0, stride = 0, vertex_count = 0, index_count = 0;
     VertexLayout layout;
     std::span<const uint8_t> vertices, indices;  // indices: u16 triangle list
+    // Face meshes: the blend shapes, by index (MESH +0x20 table of (name*, 0), +0x60 u8 count). Each name is a BMT
+    // texture: RGBA16F, the top half position offsets and the bottom half normal offsets per vertex (M18 U4)
+    std::vector<std::string> shapes;
 };
 
 struct Draw {
@@ -84,6 +89,9 @@ struct Motion {
     float fps = 60, frames = 0;
     std::vector<Track> tracks;
     std::vector<PropertyTrack> materials, visibility;
+    // ANMS (the facial clips): blend-shape weights; name = the mesh, type = the shape index (Mesh::shapes), v[0] the
+    // weight (channel type 12)
+    std::vector<PropertyTrack> shapes;
 };
 
 // A channel's value at `frame` (linear between keys, held after step keys, clamped at both ends).

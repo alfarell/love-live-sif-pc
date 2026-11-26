@@ -28,6 +28,7 @@
 #include "app/fade.h"
 #include "app/first_run.h"
 #include "app/first_start.h"
+#include "app/navigator.h"
 #include "app/input.h"
 #include "app/live_intro.h"
 #include "app/medley_live.h"
@@ -104,6 +105,7 @@ Options ParseOptions(int argc, char** argv) {
         else if (!std::strcmp(argv[i], "--data") && i + 1 < argc) o.data_dir = sif::os::PathFromUtf8(argv[++i]);
         else if (!std::strcmp(argv[i], "--game") && i + 1 < argc) o.game = argv[++i];
         else if (!std::strcmp(argv[i], "--show") && i + 1 < argc) o.show = argv[++i];
+        else if (!std::strcmp(argv[i], "--face") && i + 1 < argc) sif::Navigator::TestFace(std::atoi(argv[++i]));  // M18 U4
         else if (!std::strcmp(argv[i], "--movie") && i + 1 < argc) o.movie = argv[++i];
         else if (!std::strcmp(argv[i], "--route") && i + 1 < argc) o.route = sif::os::PathFromUtf8(argv[++i]);
         else if (!std::strcmp(argv[i], "--shots") && i + 1 < argc) o.shots = sif::os::PathFromUtf8(argv[++i]);
