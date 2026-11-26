@@ -50,7 +50,13 @@ wait 800ms
 shot first_member_profile
 key enter
 expect log first member: 12, mode 1
-expect screen login_bonus 30s
+expect screen tutorial 30s
+expect log tutorial: pop-up 0, Aqours
+wait 1500ms
+shot first_tutorial
+key enter
+expect log tutorial: closed
+expect screen login_bonus 10s
 expect log login bonus: pop-up, Wai-Wai! Booster x1
 wait 1000ms
 key enter

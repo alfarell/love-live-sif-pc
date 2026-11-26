@@ -195,19 +195,6 @@ bool Locked(const Mode& mode, const save::SaveData* save, int song, int d) {
     return !hyper || hyper->best_rank < 3;  // 0 D, 1 C, 2 B, 3 A
 }
 
-// The played member's R member card for a costume (M11 S7): ui_member_card_thumbnail mbc_<card id>, the
-// s_member_card_datas row of that member whose +0x14 is the costume and whose id ends in 0 (the R picture; 1 is the HR
-// "special colour" one). "" when the member has no card for it (the uniform d000).
-std::string MemberCardPath(const card::Data* cards, int member, int dress) {
-    if (!cards) return {};
-    for (const card::MemberCard& c : cards->members) {
-        if (c.member == member && c.costume == dress && c.id % 10 == 0) {
-            return "ui/ui_member_card_thumbnail.pac/texture.pac/mbc_" + std::to_string(c.id);
-        }
-    }
-    return {};
-}
-
 // What the costume step shows besides the list: the played member's cards and the costume's description.
 struct CostumeArt {
     const card::Data* cards = nullptr;
@@ -238,7 +225,7 @@ void ApplyCostumes(UiScreen& ui, const std::vector<DressInfo>& costumes, int cos
         for (const char* node : {"card_side00", "card_side00_line", "cos_lock_ribbon00", "lock_icon00", "cos_select_bg00_eff00"}) {
             ui.HideNode(plate, node, true);
         }
-        const std::string card = MemberCardPath(art.cards, art.member, d.id);
+        const std::string card = card::ThumbPath(art.cards, art.member, d.id);
         if (!card.empty()) ui.SetMaterialTexture(plate, "card_center00_M", card);
         for (const char* node : {"card_center00", "card_center00_line"}) ui.HideNode(plate, node, card.empty());
         for (const char* node : {"cos_icon00", "cos_icon00_line"}) ui.HideNode(plate, node, !card.empty());
@@ -276,7 +263,7 @@ void ApplyCostumes(UiScreen& ui, const std::vector<DressInfo>& costumes, int cos
     const costume::Recipe* recipe = art.data ? costume::FindRecipe(*art.data, d.id) : nullptr;
     ui.SetInstanceText(root + "/common_uip0009_SelectInfoWin00", 0, recipe ? recipe->text[size_t(art.language)] : "");
     ui.SetInstanceText(root + "/common_uip0009_SelectInfoWin00", 1, "");
-    const std::string card = MemberCardPath(art.cards, art.member, d.id);
+    const std::string card = card::ThumbPath(art.cards, art.member, d.id);
     LogInfo("song select: costume {} '{}', member {} card {}", d.id, d.name, art.member,
             card.empty() ? "none" : card.substr(card.rfind('/') + 1));
     ui.HideInstance(root + "/uip0047_CharaCard00", card.empty());

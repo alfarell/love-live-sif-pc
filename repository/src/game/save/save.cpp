@@ -34,7 +34,15 @@ bool Load(const std::filesystem::path& path, SaveData& out, std::string* error) 
         if (kind == "player") {
             std::getline(in >> std::ws, out.player);
         } else if (kind == "name_plate") {
-            in >> out.name_plate;
+            in >> out.plates[0].name_plate;
+        } else if (kind == "plate") {
+            int mode = -1;
+            PlateChoice p;
+            if (in >> mode >> p.accolade >> p.badge >> p.name_plate && mode == 1) {
+                out.plates[1] = p;
+            } else {
+                out.unknown.push_back(line);
+            }
         } else if (kind == "claimed") {
             for (int id; in >> id;) out.claimed.insert(id);
         } else if (kind == "own") {
@@ -156,9 +164,9 @@ bool Load(const std::filesystem::path& path, SaveData& out, std::string* error) 
                 out.unknown.push_back(line);
             }
         } else if (kind == "accolade") {
-            in >> out.accolade;
+            in >> out.plates[0].accolade;
         } else if (kind == "badge") {
-            in >> out.badge;
+            in >> out.plates[0].badge;
         } else if (kind == "record") {
             int song = 0, variant = 0;
             ChartRecord r;
@@ -182,9 +190,11 @@ bool Write(const std::filesystem::path& path, const SaveData& data, std::string*
         std::ofstream f(tmp, std::ios::trunc);
         f << kHeader << "\n";
         f << "player " << data.player << "\n";
-        if (data.accolade) f << "accolade " << data.accolade << "\n";
-        if (data.badge) f << "badge " << data.badge << "\n";
-        if (data.name_plate) f << "name_plate " << data.name_plate << "\n";
+        const PlateChoice& mu = data.plates[0], &aq = data.plates[1];
+        if (mu.accolade) f << "accolade " << mu.accolade << "\n";
+        if (mu.badge) f << "badge " << mu.badge << "\n";
+        if (mu.name_plate) f << "name_plate " << mu.name_plate << "\n";
+        if (aq != PlateChoice{}) f << "plate 1 " << aq.accolade << " " << aq.badge << " " << aq.name_plate << "\n";
         if (!data.claimed.empty()) {
             f << "claimed";
             for (int id : data.claimed) f << " " << id;

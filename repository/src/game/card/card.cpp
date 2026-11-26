@@ -98,6 +98,16 @@ const SkillCard* FindSkill(const Data& data, int id) {
     return nullptr;
 }
 
+std::string ThumbPath(const Data* cards, int member, int dress) {
+    if (!cards) return {};
+    for (const MemberCard& c : cards->members) {
+        if (c.member == member && c.costume == dress && c.id % 10 == 0) {
+            return "ui/ui_member_card_thumbnail.pac/texture.pac/mbc_" + std::to_string(c.id);
+        }
+    }
+    return {};
+}
+
 int Level(const Data& data, const save::SaveData& save, int id) {
     const auto it = save.owned.find({kSkillCardReward, id});
     if (it == save.owned.end() || it->second <= 0) return 0;

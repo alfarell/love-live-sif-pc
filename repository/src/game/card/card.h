@@ -77,6 +77,10 @@ struct Data {
 
 bool Load(const Vfs& vfs, Data& out, std::string* error = nullptr);
 const SkillCard* FindSkill(const Data& data, int id);
+// A member's R member card for a costume (M11 S7): ui_member_card_thumbnail mbc_<card id>, the s_member_card_datas
+// row of that member whose costume matches and whose id ends in 0 (the R picture; 1 is the HR "special colour" one).
+// "" without data or when the member has no card for it (the uniform d000).
+std::string ThumbPath(const Data* cards, int member, int dress);
 
 // The level of an owned skill card: the first copy is level 1 and each further copy adds one, up to its maximum
 // (eboot FUN_0007cf30); 0 = not owned.

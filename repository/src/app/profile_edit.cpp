@@ -116,7 +116,8 @@ bool RunProfileEdit(SDL_Window* window, Renderer& renderer, const Vfs& vfs, cons
         card = {};
         card.frame = frames.empty() ? 1000 + setup.member : frames[0].frame;
         if (!photos.empty()) photo = 0;
-        card.accolade = save.accolade, card.badge = save.badge, card.name_plate = save.name_plate;
+        const save::PlateChoice& chosen = save.plates[size_t(save.mode == 1 ? 1 : 0)];
+        card.accolade = chosen.accolade, card.badge = chosen.badge, card.name_plate = chosen.name_plate;
         if (setup.texts.cards) {
             const auto slots = card::Slots(*setup.texts.cards, save, setup.member);
             for (int k = 0; k < 3; ++k) card.skill[size_t(k)] = slots[size_t(k)];

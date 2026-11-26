@@ -15,6 +15,7 @@ namespace sif {
 
 class Renderer;
 class Vfs;
+namespace card { struct Data; }
 
 // The materials the player has (uil0030_MaterialListLayout00): Left/Right switch µ's and Aqours, Esc leaves.
 // False if the window was closed.
@@ -28,6 +29,6 @@ bool RunMaterials(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const 
 // goes back. `names`: costume names in the UI language. False if the window was closed.
 bool RunCostumes(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, const costume::Data& data,
                  const std::vector<std::pair<int, std::string>>& names, const dlc::Ownership* addons, save::SaveData& save,
-                 long max_frames);
+                 long max_frames, const card::Data* cards = nullptr);
 
 }

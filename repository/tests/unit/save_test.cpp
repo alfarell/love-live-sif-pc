@@ -39,7 +39,8 @@ int main() {
           "record keeps the bests and counts");
     Check(s.perfects == 280 && s.greats == 20 && s.costume_plays[31] == 1 && s.costume_plays.size() == 1,
           "note totals and costume plays (none counted without a costume)");
-    s.accolade = 2503, s.badge = 902001, s.name_plate = 130201;
+    s.plates[0] = {2503, 901001, 130201};
+    s.plates[1] = {501001, 902001, 0};
     s.claimed = {1, 2000};
     s.owned[{2, 4}] = 35;
     s.owned[{7, 31}] = 1;
@@ -70,9 +71,9 @@ int main() {
     SaveData back;
     Check(Load(path, back, &error), "load: " + error);
     Check(back.player == "Ayumu Uehara" && back.records.size() == 1 && back.records[{10, 4}].best_score == 199220 &&
-              back.records[{10, 4}].full_combos == 1 && back.accolade == 2503 && back.badge == 902001 &&
+              back.records[{10, 4}].full_combos == 1 && back.plates == s.plates &&
               back.perfects == 280 && back.greats == 20 && back.costume_plays[31] == 1 &&
-              back.name_plate == 130201 && back.claimed == std::set<int>{1, 2000} && back.owned.size() == 2 &&
+              back.claimed == std::set<int>{1, 2000} && back.owned.size() == 2 &&
               back.owned[{2, 4}] == 35 && back.owned[{7, 31}] == 1 &&
               back.wear.size() == 2 && back.wear[1] == 31 && back.wear[11] == 105 &&
               back.special == std::set<int>{11} && back.mode == 1 && Current(back) == 21 && Navigator(back, 0) == 4 &&

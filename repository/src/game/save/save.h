@@ -63,9 +63,16 @@ struct MedleyList {
     bool operator==(const MedleyList&) const = default;
 };
 
+// The nameplate's choices (0 = not chosen). Each L2 mode keeps its own (shadPS4 M18 U2: µ's 新入生 / µ's大好き,
+// Aqours 助けて、ラブライブ！ / Aqours大好き). Lines "accolade", "badge", "name_plate" (µ's) and "plate 1 A B N".
+struct PlateChoice {
+    int accolade = 0, badge = 0, name_plate = 0;
+    bool operator==(const PlateChoice&) const = default;
+};
+
 struct SaveData {
     std::string player = "Player";
-    int accolade = 0, badge = 0, name_plate = 0;  // the nameplate's choices (0 = not chosen)
+    std::array<PlateChoice, 2> plates{};  // by mode: 0 µ's, 1 Aqours
     std::set<int> claimed;                        // missions whose reward was taken
     // rewards owned: (mission reward type, id) -> count. Types (M7 plan 202611071847): 1 skill card (count = copies;
     // the level is min(copies, max), M11 S1), 2 item, 3 badge, 4 accolade or badge, 5 profile-card frame, 6 name

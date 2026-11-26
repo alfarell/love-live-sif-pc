@@ -16,6 +16,7 @@
 #include "engine/fs/vfs.h"
 #include "engine/render/renderer.h"
 #include "engine/ui/ui_screen.h"
+#include "game/card/card.h"
 #include "game/member/member.h"
 #include "game/text/messages.h"
 
@@ -132,7 +133,7 @@ std::string Two(const char* pattern, int k) {
 
 bool RunCostumes(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, const costume::Data& data,
                  const std::vector<std::pair<int, std::string>>& names, const dlc::Ownership* addons, save::SaveData& save,
-                 long max_frames) {
+                 long max_frames, const card::Data* cards) {
     route::SetScreen("costumes");
     UiText text;
     std::string error;
@@ -203,7 +204,7 @@ bool RunCostumes(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const s
     bool dressed_special = false;
     MemberPopup popup;
     // "Check Costume" / "Change Costume?" (M17 T6; 00_common uil0062_CosPop00, shadPS4 work/m13/shad/cs5.png): Back
-    // (focused) / OK before Change Clothes. shortcut: the costume's thumbnail where the game shows the member card
+    // (focused) / OK before Change Clothes, with the member's R card (the costume picture when there is no card data)
     UiText ask_text;
     UiScreen ask;
     int asking = -1;  // -1 closed, else the focused button (0 Back, 1 OK)
@@ -385,8 +386,10 @@ bool RunCostumes(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const s
                         asking = 0;
                         ask.SetMaterialUv(std::string(kAsk) + "/uip1002_ComPopBG01", "title_text00_M", 0, 0.125f);
                         ask.SetInstanceText(std::string(kAsk) + "/uip1014_ComPopType04", 0, messages.Get(535));
+                        // the member's R card (M18 U2 work/m18/shad/b06.png); the costume picture without one
+                        const std::string card = card::ThumbPath(cards, m, dress);
                         ask.SetMaterialTexture(std::string(kAsk) + "/uip1014_ComPopType04", "banner_img00_M",
-                                               costume::ThumbPath(dress));
+                                               card.empty() ? costume::ThumbPath(dress) : card);
                         show_ask();
                         ask.Play("*", UiScreen::ClipName(1), false);
                         LogInfo("costumes: change costume? {} {}", dress, name_of(dress));

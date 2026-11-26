@@ -169,6 +169,7 @@ bool RunFirstStart(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const
                 const int m = popup.Chosen();
                 save.mode = member::Mode(m), save.navigator[save.mode] = m;
                 chosen = true;
+                save::Mark(save, "tutorial_due", 0);  // the first top menu shows the tutorial picture (M18 U3)
                 LogInfo("first member: {}, mode {}", m, save.mode);
                 fade.leaving = true, fade.t = 0;  // the popup has no "out" clips to play
             }

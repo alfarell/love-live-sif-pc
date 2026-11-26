@@ -2,6 +2,7 @@
 // The top menu (ui2/10_top_menu), driven by the rules traced from the eboot's TopMenu screen (0x1B8790-0x1BF7xx;
 // analysis/202611011550-m6-ui-boot-flow/).
 
+#include <array>
 #include <string>
 #include <vector>
 
@@ -40,11 +41,11 @@ void ShowNameplate(UiScreen& ui, const Nameplate& p, const std::string& title, c
 
 // Shows the top menu until the player confirms a submenu entry (returns its entry id) or quits (returns -1).
 // `mode` (optional) gets the wheel mode the entry belongs to (0 Play .. 5 Event; entry ids repeat across modes).
-// With `plate`, the header shows the nameplate. With `audio`, the navigator greets by the time of day on entry and says
+// With `plates`, the header shows the current mode's nameplate (0 µ's, 1 Aqours; it changes with L2). With `audio`, the navigator greets by the time of day on entry and says
 // another line on T (pad Triangle). With `save` (M13), the navigator is its current member in her costume; L2 toggles
 // µ's/Aqours and R2 opens the member popup, and the choice is written into `save` (the caller writes the file).
 int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, long max_frames,
-               int* mode = nullptr, AudioOutput* audio = nullptr, const Nameplate* plate = nullptr,
+               int* mode = nullptr, AudioOutput* audio = nullptr, const std::array<Nameplate, 2>* plates = nullptr,
                save::SaveData* save = nullptr, const event::Data* events = nullptr);
 
 }

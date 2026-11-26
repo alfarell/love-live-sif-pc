@@ -11,6 +11,11 @@ namespace {
 
 constexpr const char* kTop = "uil0010_PopMemberTop00";
 constexpr const char* kFirst = "uil0051_selectMember00";  // ui2/01_title
+// The member loading splash (eboot FUN_00263570: the shared loader in mode 1, its picture _charaTex_splash00 =
+// com_load_mem00_<member>; M18 U1, U2 shadPS4 work/m18/shad/splash/). The game keeps it until the member is loaded,
+// 0.3-0.5 s in shadPS4. shortcut: a fixed time with a short fade out, and the port loads her before its first frame
+constexpr const char* kSplash = "uip0072_ChrChangeSplash00";
+constexpr double kSplashSeconds = 0.5, kSplashFade = 0.15;
 // the popup's parts below its top instance
 const std::string kList = "/uil0011_PopMemberSelect00";
 const std::string kProf = "/uil0012_PopMemberProf00";
@@ -156,7 +161,21 @@ void MemberPopup::Apply() {
     ui_.SetMaterialUv(prof + "/uip0005_SelectButton00", "button_text00_M", 0, 0.375f);  // "OK" (as skill_screen.cpp)
 }
 
+void MemberPopup::StartSplash(int member) {
+    if (!ui_.HasPart(kSplash)) return;
+    char path[80];
+    std::snprintf(path, sizeof(path), "ui/ui_transition_character.pac/texture.pac/com_load_mem00_%02d", member);
+    if (!ui_.SetMaterialTexture(kSplash, "_charaTex_splash00", path)) {
+        LogWarn("member popup: no splash {}", path);
+        return;
+    }
+    ui_.Play(kSplash, UiScreen::ClipName(1), false);
+    splash_ = kSplashSeconds;
+    LogInfo("member popup: loading splash, member {}", member);
+}
+
 MemberPopup::Result MemberPopup::Key(SDL_Scancode key) {
+    if (splash_ > 0) return Result::Open;  // the splash takes no keys
     if (stage_ == Stage::Closed) return Result::Closed;
     if (stage_ == Stage::Profile) {
         switch (key) {
@@ -165,6 +184,7 @@ MemberPopup::Result MemberPopup::Key(SDL_Scancode key) {
                 chosen_ = member::kAll[size_t(First(mode_) + focus_)];
                 stage_ = Stage::Closed;
                 LogInfo("member popup: chose member {}", chosen_);
+                if (!first_) StartSplash(chosen_);  // shortcut: the first start's choice shows none (not seen in U2)
                 return Result::Chosen;
             case SDL_SCANCODE_ESCAPE: stage_ = Stage::List; break;
             default: return Result::Open;
@@ -210,6 +230,10 @@ MemberPopup::Result MemberPopup::Key(SDL_Scancode key) {
 }
 
 void MemberPopup::Draw(Renderer& renderer) {
+    if (splash_ > 0) {
+        ui_.DrawPart(renderer, kSplash, 0, 0, float(std::min(1.0, splash_ / kSplashFade)));
+        return;
+    }
     if (stage_ == Stage::Closed) return;
     // the members who cannot be chosen: hidden in the layout, then drawn alone faded (the list only; the profile page
     // is over them)

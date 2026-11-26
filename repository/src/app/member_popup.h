@@ -5,6 +5,7 @@
 
 #include <SDL3/SDL.h>
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -27,12 +28,16 @@ public:
     // `singers` can be chosen (the others are drawn faded; the game greys them), the cursor on the first singer of
     // `singers` that the list has. Esc closes it.
     bool OpenSingers(Renderer& renderer, const Vfs& vfs, const std::string& lang, int mode, const std::vector<int>& singers);
-    bool IsOpen() const { return stage_ != Stage::Closed; }
+    // Also true while the member loading splash shows after a choice (M18 U3): keys are ignored then.
+    bool IsOpen() const { return stage_ != Stage::Closed || splash_ > 0; }
     // One key press: arrows move, Page Up / Page Down (L1/R1) change the group, Space / Return choose, Esc goes back.
     Result Key(SDL_Scancode key);
     int Chosen() const { return chosen_; }
     int Focused() const;  // the member under the cursor
-    void Update(double seconds) { ui_.Update(seconds); }
+    void Update(double seconds) {
+        ui_.Update(seconds);
+        splash_ = std::max(0.0, splash_ - seconds);
+    }
     void Draw(Renderer& renderer);
     // The first-start form: the help line again, over the 3D member
     void DrawTicker(Renderer& renderer) const;
@@ -49,11 +54,13 @@ private:
     std::string top_;
     std::vector<int> singers_;  // OpenSingers: the members who can be chosen (empty: everyone)
     bool Choosable(int index) const;  // list index (0 .. Count - 1) of the current mode
+    void StartSplash(int member);
     UiText text_;
     UiScreen ui_;
     Messages messages_;
     Stage stage_ = Stage::Closed;
     int mode_ = 0, focus_ = 0, chosen_ = 0;
+    double splash_ = 0;  // seconds of the loading splash left
 };
 
 }

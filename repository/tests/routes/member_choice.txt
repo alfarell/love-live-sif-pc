@@ -1,6 +1,6 @@
 # M13 N5: R2 (End) opens "Choose a Member." with the µ's members; Umi, then her profile with "Continue with this
 # member?"; OK makes her the navigator in her room. L2 (Home) toggles to Aqours (Chika on a new save) and back; the
-# choice is kept in the save (shadPS4 work/m13/shad/r2a.png, r2c.png, umi.png, l2a.png, r2aq.png)
+# choice is kept in the save; the loading splash after the choice (M18 U3); each mode's nameplate (shadPS4 work/m13/shad/r2a.png, r2c.png, umi.png, l2a.png, r2aq.png)
 #! visible
 timeout 90s
 expect screen title 30s
@@ -23,8 +23,11 @@ wait 1500ms
 shot member_profile
 key space
 expect log member popup: chose member 4
+expect log member popup: loading splash, member 4
 expect log navigator: member 4 in
-wait 2500ms
+wait 100ms
+shot member_splash
+wait 2400ms
 shot member_umi
 key home
 expect log top menu: mode Aqours (L2), member 11

@@ -151,20 +151,58 @@ int LoginBonus(save::SaveData& s) {
 }
 
 // The login bonus pop-up (M17 T6; 00_common uil0063_LoginPop00, shadPS4 work/m17/shad/u01, f12): "Login bonus", the
-// item's icon, its name and amount, OK; over the left half of the top menu
+// item's icon, its name and amount, OK; over the left half of the top menu. Before it, on the first top menu of a new
+// save, the tutorial picture (M18 U3; 00_common uil0066_TutorialPop00, f11; eboot FUN_00282440): info00_M =
+// ui/ui_tutorial tutorial_000_0G_T (G = 1 in Aqours mode), its title00 node only for tutorial 1, OK
 struct LoginPopup {
     UiText text;  // must outlive `ui`
     UiScreen ui;
-    bool open = false;
+    bool open = false, tutorial = false, login = false;  // open: either shows; the tutorial goes first
     static constexpr const char* kLayout = "uil0063_LoginPop00";
+    static constexpr const char* kTutorial = "uil0066_TutorialPop00";
 
-    void Open(Renderer& renderer, const Vfs& vfs, const std::string& lang, int item) {
+    bool Load(Renderer& renderer, const Vfs& vfs, const std::string& lang) {
+        if (ui.Layouts().size()) return true;
         std::string error;
         if (!text.Load(vfs, lang, &error)) LogWarn("login bonus: text: {}", error);
         if (!ui.Load(renderer, vfs, "ui2/00_common", lang, &error, &text)) {
             LogWarn("login bonus: {}", error);
+            return false;
+        }
+        return true;
+    }
+    void OpenTutorial(Renderer& renderer, const Vfs& vfs, const std::string& lang, int mode) {
+        if (!Load(renderer, vfs, lang)) return;
+        const std::string part = std::string(kTutorial) + "/uip1022_TutPop00";
+        const std::string suffix = lang.empty() || lang == "jp" ? "" : "_" + lang;  // the base package is Japanese
+        const std::string pic = "ui/ui_tutorial" + suffix + ".pac/texture.pac/tutorial_000_0" + (mode == 1 ? "1" : "0") + "_T";
+        if (!ui.SetMaterialTexture(part, "info00_M", pic)) {
+            LogWarn("tutorial: no {}", pic);
             return;
         }
+        ui.HideNode(part, "title00", true);  // shown for tutorial 1 only
+        ui.SetMaterialUv(std::string(kTutorial) + "/uip0005_SelectButton00", "button_text00_M", 0, 0.375f);  // "OK"
+        ui.Play("*", UiScreen::ClipName(1), false);
+        tutorial = open = true;
+        route::SetScreen("tutorial");
+        LogInfo("tutorial: pop-up 0, {}", mode == 1 ? "Aqours" : "µ's");
+    }
+    // OK: the tutorial gives way to the login pop-up (if any), then both are closed
+    void Close() {
+        if (tutorial && login) {
+            tutorial = false;
+            route::SetScreen("login_bonus");
+            LogInfo("tutorial: closed");
+            return;
+        }
+        LogInfo("{}: closed", tutorial ? "tutorial" : "login bonus");
+        open = tutorial = login = false;
+        route::SetScreen("menu");
+    }
+
+    void Open(Renderer& renderer, const Vfs& vfs, const std::string& lang, int item) {
+        std::string error;
+        if (!Load(renderer, vfs, lang)) return;
         const int language = lang == "en" ? 1 : lang == "cn" ? 2 : lang == "tw" ? 3 : 0;
         Messages messages;
         if (!messages.Load(vfs, language, &error)) LogWarn("login bonus: messages: {}", error);
@@ -182,13 +220,17 @@ struct LoginPopup {
         if (!ui.SetMaterialTexture(at + "uip0021_ItemIcon00", "item_icon00_M", icon)) LogWarn("login bonus: no {}", icon);
         ui.SetMaterialUv(at + "uip0005_SelectButton00", "button_text00_M", 0, 0.375f);  // "OK"
         ui.Play("*", UiScreen::ClipName(1), false);
-        open = true;
-        route::SetScreen("login_bonus");
+        login = open = true;
+        if (!tutorial) route::SetScreen("login_bonus");
         LogInfo("login bonus: pop-up, {} x{}", name, amount);
     }
-    // shortcut: the box's place is read off u01 (its centre at about (540, 505) of the 1920 x 1080 canvas)
+    // shortcut: the login box's place is read off u01 (its centre at about (540, 505) of the 1920 x 1080 canvas)
     void Draw(Renderer& renderer) const {
-        if (open) ui.DrawLayout(renderer, kLayout, 1.0f, 540, 505);
+        if (tutorial) {
+            ui.DrawLayout(renderer, kTutorial, 1.0f, 960, 540);
+        } else if (login) {
+            ui.DrawLayout(renderer, kLayout, 1.0f, 540, 505);
+        }
     }
 };
 
@@ -233,7 +275,7 @@ void ShowNameplate(UiScreen& ui, const Nameplate& p, const std::string& title, c
 }
 
 int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std::string& lang, long max_frames,
-               int* chosen_mode, AudioOutput* audio, const Nameplate* plate, save::SaveData* save,
+               int* chosen_mode, AudioOutput* audio, const std::array<Nameplate, 2>* plates, save::SaveData* save,
                const event::Data* events) {
     route::SetScreen("menu");
     UiText text;
@@ -250,10 +292,13 @@ int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
     Apply(ui, mode, entry);
     int shown_mode = mode, shown_entry = entry;
     LoginPopup login;
+    if (save && save::Marked(*save, "tutorial_due", 0)) {  // set by the first start (first_start.cpp)
+        save->sets.erase("tutorial_due");
+        login.OpenTutorial(renderer, vfs, lang, save->mode);
+    }
     if (save) {
         if (const int item = LoginBonus(*save); item >= 0) login.Open(renderer, vfs, lang, item);
     }
-    if (plate) ApplyNameplate(ui, *plate, save);
     SDL_SetWindowTitle(window, "SIF port - top menu");
     // the room (behind her) and the rest of the menu (in front) are drawn in two passes around the 3D member. The game
     // renders her off-screen and shows the picture on the room part's model_character00 quad; the port hides that quad
@@ -318,6 +363,7 @@ int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
             LogInfo("top menu: birthday event of member {} running", m);
             break;
         }
+        if (plates) ApplyNameplate(ui, (*plates)[size_t(s.mode == 1 ? 1 : 0)], save);  // each mode has its own
         const int group = member::Group(who);  // the header's logo and plate (eboot 0x1BD2D0: logo_*, player_data_bg00_*)
         for (int g = 0; g < 3; ++g) {
             static constexpr const char* kLogo[] = {"logo_ms00", "logo_aq00", "logo_ss00"};
@@ -353,11 +399,7 @@ int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
             if (e.type != SDL_EVENT_KEY_DOWN || e.key.repeat || fade.leaving) continue;
             if (login.open) {  // OK (Cross / Circle) closes it; the menu waits under it
                 const SDL_Scancode k = e.key.scancode;
-                if (k == SDL_SCANCODE_RETURN || k == SDL_SCANCODE_SPACE || k == SDL_SCANCODE_ESCAPE) {
-                    login.open = false;
-                    route::SetScreen("menu");
-                    LogInfo("login bonus: closed");
-                }
+                if (k == SDL_SCANCODE_RETURN || k == SDL_SCANCODE_SPACE || k == SDL_SCANCODE_ESCAPE) login.Close();
                 continue;
             }
             if (popup.IsOpen()) {  // R2's member popup takes the keys while open
@@ -365,7 +407,7 @@ int RunTopMenu(SDL_Window* window, Renderer& renderer, const Vfs& vfs, const std
                     const int m = popup.Chosen();
                     s.mode = member::Mode(m);
                     s.navigator[s.mode] = m;
-                    show();  // shortcut: the game's loading screen between members is not shown
+                    show();  // the popup draws the loading splash over her for a moment (M18 U3)
                 }
                 continue;
             }

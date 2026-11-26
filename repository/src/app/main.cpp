@@ -155,30 +155,37 @@ Options ParseOptions(int argc, char** argv) {
 // screen and result pop-up are not built
 // The choosable nameplate items: a starting accolade, the three group badges and the layout's own name plate, then the
 // claimed mission rewards (type 4 accolades and badges, type 6 name plates), then the saved choice if it is none of
-// those. shortcut: the starters are accolade 2 "新入生" (newcomer) and badges
-// 901001-903001 ("<group> 大好き"), Hypothesis (not traced in the eboot); the game's other badge unlocks are not known.
+// those. Each L2 mode has its own (`mode`: 0 µ's, 1 Aqours; M18 U2): its starters come first, so a mode with no choice
+// shows them. The starter accolades are the three rows with +0x18 = 2 (M18 U1: 2 "新入生", 501001 "助けて、ラブライブ！",
+// 800002 "もう1つの物語"); badges 901001-903001 ("<group>大好き"). The game's other badge unlocks are not known.
 sif::Nameplate MakeNameplate(const sif::mission::Missions& missions, const std::vector<sif::mission::Award>& accolades,
-                             const std::vector<sif::mission::Award>& badges, const sif::save::SaveData& save) {
+                             const std::vector<sif::mission::Award>& badges, const sif::save::SaveData& save, int mode) {
+    const sif::save::PlateChoice& chosen = save.plates[size_t(mode == 1 ? 1 : 0)];
     sif::Nameplate plate{save.player};
     const auto add = [](std::vector<sif::NameplateItem>& list, const std::vector<sif::mission::Award>& from, int id) {
         const sif::mission::Award* a = sif::mission::FindAward(from, id);
         const bool listed = std::any_of(list.begin(), list.end(), [&](const sif::NameplateItem& i) { return i.id == id; });
         if (a && !listed) list.push_back({a->id, a->group, a->name});
     };
-    add(plate.accolades, accolades, 2);
-    for (int id : {901001, 902001, 903001}) add(plate.badges, badges, id);
+    const bool aqours = mode == 1;
+    for (int id : aqours ? std::vector<int>{501001, 800002, 2} : std::vector<int>{2, 501001, 800002}) {
+        add(plate.accolades, accolades, id);
+    }
+    for (int id : aqours ? std::vector<int>{902001, 903001, 901001} : std::vector<int>{901001, 902001, 903001}) {
+        add(plate.badges, badges, id);
+    }
     for (int id : sif::mission::Owned(save, 4)) {
         add(plate.accolades, accolades, id);
         add(plate.badges, badges, id);
     }
-    add(plate.accolades, accolades, save.accolade);
-    add(plate.badges, badges, save.badge);
+    add(plate.accolades, accolades, chosen.accolade);
+    add(plate.badges, badges, chosen.badge);
     // name plates: the id is the picture (name_plate_PPP_SSSS); shortcut: no names (the plates have none in the table)
     // the starting plate: the pink "Wai-Wai!" (name_plate_001_9001, the first s_name_plate_datas row), as the game's
     // Change Accolade or Name Plate screen shows on a new save (shadPS4, M7)
     plate.name_plates.push_back({19001, 19001, ""});
     std::vector<int> plates = sif::mission::Owned(save, 6);
-    if (save.name_plate) plates.push_back(save.name_plate);
+    if (chosen.name_plate) plates.push_back(chosen.name_plate);
     for (int id : plates) {
         if (std::none_of(plate.name_plates.begin(), plate.name_plates.end(), [&](const auto& i) { return i.id == id; })) {
             plate.name_plates.push_back({id, id, ""});
@@ -190,9 +197,9 @@ sif::Nameplate MakeNameplate(const sif::mission::Missions& missions, const std::
         }
         return size_t(0);
     };
-    plate.accolade = index(plate.accolades, save.accolade);
-    plate.badge = index(plate.badges, save.badge);
-    plate.name_plate = index(plate.name_plates, save.name_plate);
+    plate.accolade = index(plate.accolades, chosen.accolade);
+    plate.badge = index(plate.badges, chosen.badge);
+    plate.name_plate = index(plate.name_plates, chosen.name_plate);
     return plate;
 }
 
@@ -498,16 +505,18 @@ int main(int argc, char** argv) {
                 if (menu) loading.Show(renderer);
                 if (menu) {
                     int mode = -1;
-                    sif::Nameplate plate = MakeNameplate(missions, accolades, badges, save);
+                    std::array<sif::Nameplate, 2> plates{MakeNameplate(missions, accolades, badges, save, 0),
+                                                         MakeNameplate(missions, accolades, badges, save, 1)};
                     // R2 / L2 on the menu (M13), the day's login bonus (M14)
                     const auto member_before = std::tuple(save.mode, save.navigator, save.login_date, save.birthdays);
-                    const int entry = sif::RunTopMenu(window, renderer, vfs, lang, options.frames, &mode, &audio, &plate,
+                    const int entry = sif::RunTopMenu(window, renderer, vfs, lang, options.frames, &mode, &audio, &plates,
                                                       &save, has_events ? &event_data : nullptr);
                     if (std::tuple(save.mode, save.navigator, save.login_date, save.birthdays) != member_before && can_save &&
                         !sif::save::Write(save_path, save, &save_error)) {
                         sif::LogWarn("save: {}", save_error);
                     }
                     if (options.live_options.member <= 0) skills.member = sif::save::Current(save);
+                    sif::Nameplate& plate = plates[size_t(save.mode == 1 ? 1 : 0)];  // the mode left on (L2)
                     if (entry < 0) break;
                     home_mode = entry == 0;
                     view_mode = entry == 2;
@@ -567,8 +576,9 @@ int main(int argc, char** argv) {
                                 if (plate.accolade != shown_accolade || plate.badge != shown_badge ||
                                     plate.name_plate != shown_plate || plate.player != shown_player) {
                                     save.player = plate.player;
-                                    save.accolade = plate.accolades[plate.accolade].id, save.badge = plate.badges[plate.badge].id;
-                                    save.name_plate = plate.name_plates[plate.name_plate].id;
+                                    save.plates[size_t(save.mode == 1 ? 1 : 0)] = {plate.accolades[plate.accolade].id,
+                                                                                   plate.badges[plate.badge].id,
+                                                                                   plate.name_plates[plate.name_plate].id};
                                     if (can_save && !sif::save::Write(save_path, save, &save_error)) {
                                         sif::LogWarn("save: {}", save_error);
                                     }
@@ -627,7 +637,8 @@ int main(int argc, char** argv) {
                         loading.Show(renderer);
                         std::vector<std::pair<int, std::string>> names;
                         for (const auto& d : dresses) names.push_back({d.id, d.name});
-                        open = sif::RunCostumes(window, renderer, vfs, lang, costume_data, names, &owned, save, options.frames);
+                        open = sif::RunCostumes(window, renderer, vfs, lang, costume_data, names, &owned, save, options.frames,
+                                                         has_cards ? &card_data : nullptr);
                         if (can_save && !sif::save::Write(save_path, save, &save_error)) sif::LogWarn("save: {}", save_error);
                         continue;
                     }
@@ -704,7 +715,7 @@ int main(int argc, char** argv) {
                             intro.levels[size_t(k)] = slots[size_t(k)] ? sif::card::Level(card_data, save, slots[size_t(k)]) : 0;
                         }
                     }
-                    const sif::Nameplate intro_plate = MakeNameplate(missions, accolades, badges, save);
+                    const sif::Nameplate intro_plate = MakeNameplate(missions, accolades, badges, save, save.mode);
                     intro.plate = &intro_plate;
                     if (!profile_data.presets.empty()) {
                         const int group = choice.song >= 0 && [&] {
