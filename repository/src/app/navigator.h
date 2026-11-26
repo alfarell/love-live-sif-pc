@@ -59,7 +59,11 @@ private:
     const Clip* Facial(int number);
     const Clip* playing_ = nullptr;
     const Clip* face_ = nullptr;
+    const Clip* default_ = nullptr;  // facial 0: the closed neutral mouth, held under everything (M18 U5)
+    const Clip* blink_ = nullptr;    // facial 100 while a blink plays
     float frame_ = 0;
+    float blink_frame_ = 0;
+    float blink_wait_ = 0;  // frames to the next blink
     float wait_ = 0;  // frames left standing before the next idle
 };
 

@@ -20,13 +20,15 @@ std::string FirstEntry(const Vfs& vfs, const std::string& folder, const std::str
 
 int test_face = -1;  // --face
 constexpr int kFacialBase = 100000;  // facial clips' keys in clips_
+// blinks (FUN_0002b760, U1 §5): clip 100 after 300 frames, then every 60-300 frames
+constexpr int kBlinkClip = 100, kFirstBlink = 300, kBlinkMin = 60, kBlinkMax = 300;
 constexpr int kTalk[] = {503, 504, 505, 506};  // talk1-4 (shortcut: which talk motion goes with which line is not traced)
 
 }
 
 bool Navigator::Load(Renderer& renderer, const Vfs& vfs, int member, int costume, bool special, std::string* error) {
     if (loaded_) Release(renderer);  // a reload: another member, costume or colour
-    clips_.clear(), playing_ = face_ = nullptr;
+    clips_.clear(), playing_ = face_ = default_ = blink_ = nullptr;
     vfs_ = &vfs, member_ = member;
     char chr[64], prefix[16];
     std::snprintf(chr, sizeof(chr), "chr/c%02d/c%02d.pac/model.pac", member, member);
@@ -50,6 +52,8 @@ bool Navigator::Load(Renderer& renderer, const Vfs& vfs, int member, int costume
     Start(member::kStandMotion);
     wait_ = member::IdleWait(idle_, random_.Next() >> 16);
     LogInfo("navigator: member {} in {}{}", member, path, special ? " (special colour)" : "");
+    default_ = Facial(0);
+    blink_wait_ = kFirstBlink;
     if (test_face >= 0) Face(test_face);
     return true;
 }
@@ -103,6 +107,15 @@ void Navigator::Start(int number) {
 void Navigator::Update(double seconds) {
     if (!loaded_ || !playing_) return;
     frame_ += float(seconds * 60.0);
+    if (blink_) {
+        blink_frame_ += float(seconds * 60.0);
+        if (blink_frame_ >= blink_->motion.frames) blink_ = nullptr;
+    } else if ((blink_wait_ -= float(seconds * 60.0)) <= 0) {
+        // shortcut: how the game draws in its range is not traced; this is min..max inclusive
+        blink_wait_ = float(kBlinkMin + random_.Below(kBlinkMax - kBlinkMin + 1));
+        blink_ = Facial(kBlinkClip), blink_frame_ = 0;
+        LogInfo("navigator: blink");
+    }
     const bool standing = playing_->number == member::kStandMotion;
     // shortcut: clips switch at once; the game blends over s_common_param field 2 (60 frames)
     if (standing) {
@@ -135,7 +148,9 @@ void Navigator::Draw(Renderer& renderer, const Mat4& view_proj) {
     renderer.SetCamera(view_proj);
     std::vector<bmar::Layer> layers;
     if (playing_) layers.push_back({&playing_->motion, frame_});
+    if (default_) layers.push_back({&default_->motion, default_->motion.frames});
     if (face_) layers.push_back({&face_->motion, face_->motion.frames});
+    if (blink_) layers.push_back({&blink_->motion, blink_frame_});
     model_.Pose(renderer, layers);
     model_.Draw(renderer, Mat4{});
 }

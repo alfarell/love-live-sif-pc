@@ -1,0 +1,14 @@
+# M18 U5: the navigator holds facial 0 (the closed neutral mouth) and blinks: clip 100 after 300 frames (5 s), then
+# every 60-300 frames (FUN_0002b760). The blink closes the eyes at its frame 4 (shadPS4 work/m18/shad blink_eyes.png)
+#! visible
+timeout 60s
+expect screen title 30s
+press enter until menu 30s
+expect log navigator: member 1 in
+expect log navigator: blink
+wait 50ms
+shot navigator_blink
+wait 1500ms
+shot navigator_open
+expect nolog navigator: member 1 facial
+expect nolog error
